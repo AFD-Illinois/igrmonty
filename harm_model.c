@@ -95,8 +95,8 @@ double bias_func(double Te, double w)
 
 	max = 0.5 * w / WEIGHT_MIN;
 
-	bias = Te ;
-	//bias = 100. * Te * Te / (bias_norm * max_tau_scatt * (avg_num_scatt + 2));
+	bias = Te*Te/(5. * max_tau_scatt) ;
+	//bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
 	if (bias < TP_OVER_TE)
 		bias = TP_OVER_TE;
@@ -716,7 +716,7 @@ void omp_reduce_spect()
 
 */
 
-#define SPECTRUM_FILE_NAME	"grmonty.spec"
+#define SPECTRUM_FILE_NAME	"spectrum.dat"
 
 void report_spectrum(int N_superph_made)
 {
