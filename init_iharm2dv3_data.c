@@ -59,15 +59,18 @@ void init_harm_data(char *fname)
 	fscanf(fp, "%d ", &rdump_cnt);
 	fscanf(fp, "%lf ", &dt);
 
-        /* not set automatically */
-        a = 0.9375;
-        Rin = 0.98 * (1. + sqrt(1. - a*a)) ;
-        Rout = 40.;
-        hslope = 0.3;
-        R0 = 0.0;
+  /* finish reading out the line */
+  fseek(fp, 0, SEEK_SET);
+  while ( (i=fgetc(fp)) != '\n' ) ;
 
-        fprintf(stderr,"coordinate parameters: Rin,Rout,hslope,R0,dx[1],dx[2]: %g %g %g %g %g %g\n",
-                Rin,Rout,hslope,R0,dx[1],dx[2]) ;
+  /* not set automatically */
+  a = 0.9375;
+  Rin = 0.98 * (1. + sqrt(1. - a*a)) ;
+  Rout = 40.;
+  hslope = 0.3;
+  R0 = 0.0;
+  fprintf(stderr,"coordinate parameters: Rin,Rout,hslope,R0,dx[1],dx[2]: %g %g %g %g %g %g\n",
+          Rin,Rout,hslope,R0,dx[1],dx[2]) ;
 
 	/* nominal non-zero values for axisymmetric simulations */
 	startx[0] = 0.;

@@ -73,7 +73,7 @@ int main(int argc, char *argv[])
 	struct of_photon ph;
 	time_t currtime, starttime;
 
-	if (argc < 3) {
+	if (argc < 4) {
 		fprintf(stderr, "usage: grmonty Ns infilename M_unit\n");
 		exit(0);
 	}
