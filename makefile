@@ -1,34 +1,15 @@
-#
-# requires an openmp-enabled version of gcc
-#
-CC = gcc
-CCFLAGS  = -Wall -Ofast -fopenmp
-LDFLAGS = -lm -lgsl -lgslcblas 
-
+CC = h5pcc
+CCFLAGS = -std=c99 -Ofast -Wall -Werror -fdiagnostics-color -fopenmp -L/home/brryan/Software/gsl/lib/ -I/home/brryan/Software/gsl/include/
+LIB_FLAGS = -lm -ldl -lgsl -lgslcblas
 CC_COMPILE = $(CC) $(CCFLAGS) -c
 CC_LOAD = $(CC) $(CCFLAGS)
-
 .c.o:
 	$(CC_COMPILE) $*.c
-
-EXE = igrmonty2d
+EXE = grmonty
 all: $(EXE)
-
-SRCS = grmonty.c compton.c init_geometry.c tetrads.c geodesics.c \
-radiation.c jnu_mixed.c hotcross.c track_super_photon.c \
-scatter_super_photon.c harm_model.c harm_utils.c init_iharm2dv3_data.c
- 
-OBJS = grmonty.o compton.o init_geometry.o tetrads.o geodesics.o \
-radiation.o jnu_mixed.o hotcross.o track_super_photon.o \
-scatter_super_photon.o harm_model.o harm_utils.o init_iharm2dv3_data.o
-
-INCS = decs.h constants.h harm_model.h
-
-$(OBJS) : $(INCS) makefile
-
-$(EXE) : $(OBJS) $(INCS) makefile 
-	$(CC_LOAD) $(CFLAGS) $(OBJS) $(LDFLAGS) -o $(EXE)
-
-clean:
-	/bin/rm *.o $(EXE)
-
+SRC = compton.c geodesics.c hotcross.c init_geometry.c interp.c jnu_mixed.c main.c malloc.c model_bhlight3d.c radiation.c random.c scatter_super_photon.c tetrads.c track_super_photon.c utils.c 
+OBJ = compton.o geodesics.o hotcross.o init_geometry.o interp.o jnu_mixed.o main.o malloc.o model_bhlight3d.o radiation.o random.o scatter_super_photon.o tetrads.o track_super_photon.o utils.o 
+INC = constants.h decs.h 
+$(OBJ) : $(INC) makefile
+$(EXE): $(OBJ) $(INC) makefile
+	$(CC_LOAD) $(OBJ) $(LIB_FLAGS) -o $(EXE)

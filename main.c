@@ -46,8 +46,8 @@ struct of_geom **geom;
 int N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
+struct of_spectrum spect[N_THBINS][N_EBINS] = { };
 
-/* some coordinate parameters */
 double a;
 double R0, Rin, Rh, Rout, Rms;
 double hslope;
@@ -60,96 +60,80 @@ double M_unit, L_unit, T_unit;
 double RHO_unit, U_unit, B_unit, Ne_unit, Thetae_unit;
 double max_tau_scatt, Ladv, dMact, bias_norm;
 
-gsl_rng *r;
-gsl_integration_workspace *w;
-
-#pragma omp threadprivate(r)
 #include <time.h>
+
+void report_bad_input() 
+{
+  fprintf(stderr, "usage: \n");
+  fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar]\n");
+  fprintf(stderr, "  bhlight: grmonty Ns fname\n");
+  exit(0);
+}
 
 int main(int argc, char *argv[])
 {
-	double Ntot, N_superph_made;
-	int quit_flag, myid;
-	struct of_photon ph;
-	time_t currtime, starttime;
+  double N_superph_made;
+  int quit_flag;
+  //struct of_photon ph;
+  time_t currtime, starttime;
 
-	if (argc < 4) {
-		fprintf(stderr, "usage: grmonty Ns infilename M_unit\n");
-		exit(0);
-	}
-	sscanf(argv[1], "%lf", &Ntot);
-	Ns = (int) Ntot;
+  if (argc < 3) report_bad_input();
 
-	/* initialize random number generator */
-#pragma omp parallel private(myid)
-	{
-		myid = omp_get_thread_num();
-		init_monty_rand(139 * myid + time(NULL));	/* Arbitrarily picked initial seed */
-	}
+  // Spectral bin parameters
+  dlE = 0.25;   // bin width
+  lE0 = log(1.e-12);  // location of first bin, in electron rest-mass units
 
-	/* spectral bin parameters */
-	dlE = 0.25;		/* bin width */
-	lE0 = log(1.e-12);	/* location of first bin, in electron rest-mass units */
+  init_model(argc, argv);
 
-	/* initialize model data, auxiliary variables */
-	init_model(argv);
+  N_superph_made = 0;
+  N_superph_recorded = 0;
+  N_scatt = 0;
+  starttime = time(NULL);
+  quit_flag = 0;
 
-	/** main loop **/
-	N_superph_made = 0;
-	N_superph_recorded = 0;
-	N_scatt = 0;
-	starttime = time(NULL);
-	quit_flag = 0;
+  fprintf(stderr, "Entering main loop...\n");
+  #pragma omp parallel
+  {
+    struct of_photon ph;
+    while (1) {
 
-	fprintf(stderr, "Entering main loop...\n");
-	fflush(stderr);
-
-#pragma omp parallel private(ph)
-	{
-
-		while (1) {
-
-			/* get pseudo-quanta */
+      /* get pseudo-quanta */
 #pragma omp critical (MAKE_SPHOT)
-			{
-				if (!quit_flag)
-					make_super_photon(&ph, &quit_flag);
-			}
-			if (quit_flag)
-				break;
+      {
+        if (!quit_flag)
+          make_super_photon(&ph, &quit_flag);
+      }
+      if (quit_flag)
+        break;
 
-			/* push them around */
-			track_super_photon(&ph);
+      /* push them around */
+      track_super_photon(&ph);
 
-			/* step */
+      /* step */
 #pragma omp atomic
-			N_superph_made += 1;
+      N_superph_made += 1;
 
-			/* give interim reports on rates */
-			if (((int) (N_superph_made)) % 100000 == 0
-			    && N_superph_made > 0) {
-				currtime = time(NULL);
-				fprintf(stderr, "time %g, rate %g ph/s\n",
-					(double) (currtime - starttime),
-					N_superph_made / (currtime -
-							  starttime));
-			}
-		}
-	}
-	currtime = time(NULL);
-	fprintf(stderr, "Final time %g, rate %g ph/s\n",
-		(double) (currtime - starttime),
-		N_superph_made / (currtime - starttime));
+      /* give interim reports on rates */
+      if (((int) (N_superph_made)) % 100000 == 0
+          && N_superph_made > 0) {
+        currtime = time(NULL);
+        fprintf(stderr, "time %g, rate %g ph/s\n",
+          (double) (currtime - starttime),
+          N_superph_made / (currtime -
+                starttime));
+      }
+    }
+  }
 
-#ifdef _OPENMP
-#pragma omp parallel
-	{
-		omp_reduce_spect();
-	}
-#endif
-	report_spectrum((int) N_superph_made);
+  currtime = time(NULL);
+  fprintf(stderr, "Final time %g, rate %g ph/s\n",
+    (double) (currtime - starttime),
+    N_superph_made / (currtime - starttime));
 
-	/* done! */
-	return (0);
+  omp_reduce_spect();
 
+  report_spectrum((int) N_superph_made);
+
+  return 0;
 }
+

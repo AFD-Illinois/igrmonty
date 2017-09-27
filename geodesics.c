@@ -3,7 +3,7 @@
 #include "decs.h"
 /*
 
-this is the main photon orbit integrator 
+this is the main photon orbit integrator
 
 */
 
@@ -215,8 +215,6 @@ void push_photon4(double X[], double K[], double dK[], double dl)
 	}
 
 	init_dKdlam(X, K, dK);
-
-	/* done */
 }
 
 void init_dKdlam(double X[], double Kcon[], double dK[])
@@ -245,7 +243,52 @@ void init_dKdlam(double X[], double Kcon[], double dK[])
 		     lconn[k][3][3] * Kcon[3] * Kcon[3]
 		    );
 	}
-
-
-	return;
 }
+
+#define DEL (1.e-7)
+void get_connection(double X[NDIM], double conn[NDIM][NDIM][NDIM])
+{
+  double tmp[NDIM][NDIM][NDIM];
+  double Xh[NDIM], Xl[NDIM];
+  double gcon[NDIM][NDIM];
+  double gcov[NDIM][NDIM];
+  double gh[NDIM][NDIM];
+  double gl[NDIM][NDIM];
+
+  gcov_func(X, gcov);
+  gcon_func(gcov, gcon);
+
+  for (int k = 0; k < NDIM; k++) {
+    for (int l = 0; l < NDIM; l++)   Xh[l] = X[l];
+    for (int l = 0; l < NDIM; l++)   Xl[l] = X[l];
+    Xh[k] += DEL;
+    Xl[k] -= DEL;
+    gcov_func(Xh, gh);
+    gcov_func(Xl, gl);
+
+    for (int i = 0; i < NDIM; i++){
+      for (int j = 0; j < NDIM; j++){
+        conn[i][j][k] =  (gh[i][j] - gl[i][j])/(Xh[k] - Xl[k]);
+      }
+    }
+  }
+
+  // Rearrange to find \Gamma_{ijk}
+  for (int i = 0; i < NDIM; i++)
+    for (int j = 0; j < NDIM; j++)
+      for (int k = 0; k < NDIM; k++)
+        tmp[i][j][k] =  0.5 * (conn[j][i][k] + conn[k][i][j] - conn[k][j][i]);
+
+  // G_{ijk} -> G^i_{jk}
+  for (int i = 0; i < NDIM; i++) {
+    for (int j = 0; j < NDIM; j++) {
+      for (int k = 0; k < NDIM; k++) {
+        conn[i][j][k] = 0.;
+        for (int l = 0; l < NDIM; l++) 
+          conn[i][j][k] += gcon[i][l]*tmp[l][j][k];
+      }
+    }
+  }
+}
+#undef DEL
+
