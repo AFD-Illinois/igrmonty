@@ -206,8 +206,9 @@ static void init_zone(int i, int j, int k, double *nz, double *dnmax)
   *nz = geom[i][j].g * Ne * Bmag * Thetae * Thetae * ninterp / K2;
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
-      "Something very wrong in zone %d %d: \nB=%g  Thetae=%g  K2=%g  ninterp=%g\n\n",
-      i, j, Bmag, Thetae, K2, ninterp);
+      "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  K2=%g  ninterp=%g nz = %e\n\n",
+      i, j, geom[i][j].g, Bmag, Thetae, K2, ninterp, *nz);
+    exit(-1);
     *nz = 0.;
     *dnmax = 0.;
   }

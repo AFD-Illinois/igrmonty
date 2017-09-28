@@ -71,6 +71,7 @@ void report_bad_input()
 
 int main(int argc, char *argv[])
 {
+  omp_set_num_threads(1);
   double N_superph_made;
   int quit_flag;
   //struct of_photon ph;

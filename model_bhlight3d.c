@@ -504,6 +504,8 @@ void init_data(int argc, char *argv[])
     sscanf(argv[4], "%lf", &MBH);
     sscanf(argv[5], "%lf", &TP_OVER_TE);
 
+    MBH *= MSUN;
+
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
 
@@ -517,6 +519,8 @@ void init_data(int argc, char *argv[])
   Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
   Rh = 1. + sqrt(1. - a * a);
+
+  printf("B_unit = %e\n", B_unit);
 
   // Allocate storage and set geometry
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
@@ -543,7 +547,6 @@ void init_data(int argc, char *argv[])
   V = dMact = Ladv = 0.;
   dV = dx[1]*dx[2]*dx[3];
   ZLOOP {
-    printf("%i %i %i\n", i,j,k);
     V += dV*geom[i][j].g;
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
   
