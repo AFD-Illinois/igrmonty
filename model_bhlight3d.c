@@ -475,7 +475,7 @@ void init_data(int argc, char *argv[])
   H5LTread_dataset_double(file_id, "poly_xt", &poly_xt);
   H5LTread_dataset_double(file_id, "poly_alpha", &poly_alpha);
   H5LTread_dataset_double(file_id, "mks_smooth", &mks_smooth);
-  H5LTread_dataset_int(file_id, "WITH_RADIATION", &with_radiation);
+  H5LTread_dataset_int(file_id, "RADIATION", &with_radiation);
 
   // Set polylog grid normalization
   poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
@@ -496,18 +496,18 @@ void init_data(int argc, char *argv[])
     H5LTread_dataset_double(file_id, "tp_over_te", &TP_OVER_TE);
   } else {
     // Enough command line args?
-    if (argc < 5) {
+    if (argc < 6) {
+      report_bad_input();
     }
-
-    printf("THIS PART ISNT WRITTEN YET!\n");
-    exit(-1);
-    MBH = 0.;
-    M_unit = 0.;
+  
+    sscanf(argv[3], "%lf", &M_unit);
+    sscanf(argv[4], "%lf", &MBH);
+    sscanf(argv[5], "%lf", &TP_OVER_TE);
 
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
 
-    Thetae_unit = 0.;
+    Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
   }
 
   // Set remaining units and constants
@@ -519,7 +519,10 @@ void init_data(int argc, char *argv[])
   Rh = 1. + sqrt(1. - a * a);
 
   // Allocate storage and set geometry
-  p = (double****)malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
+  double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
+  //p = (double****)malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
+  p = malloc_rank4_double(NVAR, N1, N2, N3);
+  printf("N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
 
@@ -540,6 +543,7 @@ void init_data(int argc, char *argv[])
   V = dMact = Ladv = 0.;
   dV = dx[1]*dx[2]*dx[3];
   ZLOOP {
+    printf("%i %i %i\n", i,j,k);
     V += dV*geom[i][j].g;
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
   
@@ -551,6 +555,7 @@ void init_data(int argc, char *argv[])
       Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
     }
   }
+printf("A\n");
 
   dMact /= 21.;
   Ladv /= 21.;

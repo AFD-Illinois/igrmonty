@@ -8,7 +8,8 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 void init_model(int argc, char *argv[])
 {
   fprintf(stderr, "getting simulation data...\n");
-	
+
+  double Ntot;
   sscanf(argv[1], "%lf", &Ntot);
 	Ns = (int) Ntot;
 
@@ -56,12 +57,14 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
 
 void init_weight_table(void)
 {
+  double sum[N_ESAMP+1], nu[N_ESAMP+1];
+  
   fprintf(stderr, "Building table for superphoton weights\n");
 
   #pragma omp parallel for
   for (int i = 0; i <= N_ESAMP; i++) {
     sum[i] = 0.;
-    nu[i] = exp(i * dlnu + lnu_min);
+    nu[i] = exp(i * DLNU + LNUMIN);
   }
 
   double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
@@ -123,11 +126,11 @@ void init_nint_table(void)
     dndlnu_max[i] = 0.;
     for (j = 0; j < N_ESAMP; j++) {
       dn = F_eval(1., Bmag,
-            exp(j * dlnu +
-          lnu_min)) / (exp(wgt[j]) + 1.e-100);
+            exp(j * DLNU +
+          LNUMIN)) / (exp(wgt[j]) + 1.e-100);
       if (dn > dndlnu_max[i])
         dndlnu_max[i] = dn;
-      nint[i] += dlnu * dn;
+      nint[i] += DLNU * dn;
     }
     nint[i] *= dx[1] * dx[2] * dx[3] * L_unit * L_unit * L_unit
         * M_SQRT2 * EE * EE * EE / (27. * ME * CL * CL)
@@ -171,11 +174,11 @@ static void init_zone(int i, int j, int k, double *nz, double *dnmax)
     *dnmax = 0.;
     for (l = 0; l <= N_ESAMP; l++) {
       dn = F_eval(Thetae, Bmag,
-            exp(j * dlnu +
-          lnu_min)) / exp(wgt[l]);
+            exp(j * DLNU +
+          LNUMIN)) / exp(wgt[l]);
       if (dn > *dnmax)
         *dnmax = dn;
-      ninterp += dlnu * dn;
+      ninterp += DLNU * dn;
     }
     ninterp *= dx[1] * dx[2] * dx[3] * L_unit * L_unit * L_unit
         * M_SQRT2 * EE * EE * EE / (27. * ME * CL * CL)
@@ -227,7 +230,7 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
     if (zj >= N2) {
       zj = 0;
       zi++;
-      if (z1 >= N1) {
+      if (zi >= N1) {
         in2gen = 1;
         *i = N1;
         return 1;
@@ -268,13 +271,13 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 
   coord(i, j, k, ph->X);
 
-  Nln = lnu_max - lnu_min;
+  Nln = LNUMAX - LNUMIN;
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
   // Sample from superphoton distribution in current simulation zone
   do {
-    nu = exp(monty_rand() * Nln + lnu_min);
+    nu = exp(monty_rand() * Nln + LNUMIN);
     weight = linear_interp_weight(nu);
   } while (monty_rand() >
      (F_eval(Thetae, Bmag, nu) / weight) / dnmax);
@@ -440,8 +443,7 @@ void init_geometry()
 
       geom[i][j].g = gdet_func(geom[i][j].gcov);
 
-      gcon_func(X, geom[i][j].gcon);
-
+      gcon_func(geom[i][j].gcov, geom[i][j].gcon);
     }
   }
 }

@@ -43,6 +43,7 @@
 
 /* defining declarations for global variables */
 struct of_geom **geom;
+int nthreads;
 int N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
@@ -63,7 +64,7 @@ double max_tau_scatt, Ladv, dMact, bias_norm;
 void report_bad_input() 
 {
   fprintf(stderr, "usage: \n");
-  fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar]\n");
+  fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
   fprintf(stderr, "  bhlight: grmonty Ns fname\n");
   exit(0);
 }

@@ -1,7 +1,7 @@
 
 
 #include "decs.h"
-#pragma omp threadprivate(r)
+//#pragma omp threadprivate(r)
 /* 
 
 "mixed" emissivity formula 

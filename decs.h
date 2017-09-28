@@ -114,7 +114,7 @@ extern double ***b;
 
 /** global variables **/
 /** model independent */
-extern gsl_rng *r;
+extern int nthreads;
 
 extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 
@@ -166,12 +166,16 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   double Ne, double Thetae, double B, double Ucon[NDIM], double Bcon[NDIM],
   double Gcov[NDIM][NDIM]);
 
+void report_bad_input();
+
 /* OpenMP specific functions */
 void omp_reduce_spect(void);
 
 /* MC/RT utilities */
 void init_monty_rand();
 double monty_rand(void);
+void monty_ran_dir_3d(double *n0x, double *n0y, double *n0z);
+double monty_ran_chisq(int n);
 
 /* geodesic integration */
 void init_dKdlam(double X[], double Kcon[], double dK[]);
@@ -266,15 +270,17 @@ void init_nint_table(void);
 void init_storage(void);
 double dOmega_func(double Xi[NDIM], double Xf[NDIM]);
 
+double linear_interp_weight(double nu);
+
 void *malloc_rank1(int n1, int size);
 void **malloc_rank2(int n1, int n2, int size);
 void ***malloc_rank3(int n1, int n2, int n3, int size);
 void ****malloc_rank4(int n1, int n2, int n3, int n4, int size);
 void *****malloc_rank5(int n1, int n2, int n3, int n4, int n5, int size);
 
-void sample_zone_photon(int i, int j, double dnmax, struct of_photon *ph);
+void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph);
 double interp_scalar(double X[NDIM], double ***var);
-int get_zone(int *i, int *j, double *dnamx);
+int get_zone(int *i, int *j, int *k, double *dnamx);
 void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
 void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,

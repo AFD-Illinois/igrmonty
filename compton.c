@@ -47,7 +47,7 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 
 	/* randomly pick zero-angle for scattering coordinate system.
 	   There's undoubtedly a better way to do this. */
-	gsl_ran_dir_3d(r, &n0x, &n0y, &n0z);
+	monty_ran_dir_3d(&n0x, &n0y, &n0z);
 	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
 
 	/* unit vector 2 */
@@ -292,7 +292,7 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	v0z /= v0;
 
 	/* pick zero-angle for coordinate system */
-	gsl_ran_dir_3d(r, &n0x, &n0y, &n0z);
+	monty_ran_dir_3d(&n0x, &n0y, &n0z);
 	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
 
 	/* second unit vector */
@@ -389,13 +389,13 @@ double sample_y_distr(double Thetae)
 		x1 = monty_rand();
 
 		if (x1 < pi_3) {
-			x = gsl_ran_chisq(r, 3);
+			x = monty_ran_chisq(3);
 		} else if (x1 < pi_3 + pi_4) {
-			x = gsl_ran_chisq(r, 4);
+			x = monty_ran_chisq(4);
 		} else if (x1 < pi_3 + pi_4 + pi_5) {
-			x = gsl_ran_chisq(r, 5);
+			x = monty_ran_chisq(5);
 		} else {
-			x = gsl_ran_chisq(r, 6);
+			x = monty_ran_chisq(6);
 		}
 
 		/* this translates between defn of distr in
