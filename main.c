@@ -60,8 +60,6 @@ double M_unit, L_unit, T_unit;
 double RHO_unit, U_unit, B_unit, Ne_unit, Thetae_unit;
 double max_tau_scatt, Ladv, dMact, bias_norm;
 
-#include <time.h>
-
 void report_bad_input() 
 {
   fprintf(stderr, "usage: \n");

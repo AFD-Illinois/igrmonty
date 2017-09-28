@@ -12,6 +12,7 @@
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_integration.h>
 #include <omp.h>
+#include <time.h>
 #include "constants.h"
 
 #define NDIM  4
@@ -169,7 +170,7 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
 void omp_reduce_spect(void);
 
 /* MC/RT utilities */
-void init_monty_rand(int seed);
+void init_monty_rand();
 double monty_rand(void);
 
 /* geodesic integration */
@@ -275,7 +276,7 @@ void sample_zone_photon(int i, int j, double dnmax, struct of_photon *ph);
 double interp_scalar(double X[NDIM], double ***var);
 int get_zone(int *i, int *j, double *dnamx);
 void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
-void coord(int i, int j, double *X);
+void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Ucon[NDIM], double Bcon[NDIM]);
 

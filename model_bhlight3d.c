@@ -15,7 +15,7 @@ double ***b;
 double TP_OVER_TE;
 
 static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
-static double MBH, MdotEdd;
+static double MBH;
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
@@ -446,9 +446,7 @@ double dOmega_func(double Xi[NDIM], double Xf[NDIM])
 void init_data(int argc, char *argv[])
 {
   char *fname = argv[2];
-  FILE *fp;
-  double x[4];
-  double rp, hp, V, dV, two_temp_gam;
+  double dV, V;
   int with_radiation;
 
   hid_t file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -477,6 +475,7 @@ void init_data(int argc, char *argv[])
   H5LTread_dataset_double(file_id, "poly_xt", &poly_xt);
   H5LTread_dataset_double(file_id, "poly_alpha", &poly_alpha);
   H5LTread_dataset_double(file_id, "mks_smooth", &mks_smooth);
+  H5LTread_dataset_int(file_id, "WITH_RADIATION", &with_radiation);
 
   // Set polylog grid normalization
   poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
@@ -520,33 +519,42 @@ void init_data(int argc, char *argv[])
   Rh = 1. + sqrt(1. - a * a);
 
   // Allocate storage and set geometry
-  p = malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
+  p = (double****)malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
 
   // Read data
-  H5LTread_dataset_double(file_id, "RHO",  &(p[KRHO][0][0][0]);
-  H5LTread_dataset_double(file_id, "UU",   &(p[UU][0][0][0]);
-  H5LTread_dataset_double(file_id, "U1",   &(p[U1][0][0][0]);
-  H5LTread_dataset_double(file_id, "U2",   &(p[U2][0][0][0]);
-  H5LTread_dataset_double(file_id, "U3",   &(p[U3][0][0][0]);
-  H5LTread_dataset_double(file_id, "B1",   &(p[B1][0][0][0]);
-  H5LTread_dataset_double(file_id, "B2",   &(p[B2][0][0][0]);
-  H5LTread_dataset_double(file_id, "B3",   &(p[B3][0][0][0]);
-  H5LTread_dataset_double(file_id, "KEL",  &(p[KEL][0][0][0]);
-  H5LTread_dataset_double(file_id, "KTOT", &(p[KTOT][0][0][0]);
+  H5LTread_dataset_double(file_id, "RHO",  &p[KRHO][0][0][0]);
+  H5LTread_dataset_double(file_id, "UU",   &p[UU][0][0][0]);
+  H5LTread_dataset_double(file_id, "U1",   &p[U1][0][0][0]);
+  H5LTread_dataset_double(file_id, "U2",   &p[U2][0][0][0]);
+  H5LTread_dataset_double(file_id, "U3",   &p[U3][0][0][0]);
+  H5LTread_dataset_double(file_id, "B1",   &p[B1][0][0][0]);
+  H5LTread_dataset_double(file_id, "B2",   &p[B2][0][0][0]);
+  H5LTread_dataset_double(file_id, "B3",   &p[B3][0][0][0]);
+  H5LTread_dataset_double(file_id, "KEL",  &p[KEL][0][0][0]);
+  H5LTread_dataset_double(file_id, "KTOT", &p[KTOT][0][0][0]);
 
   H5Fclose(file_id);
 
-  dMact = Ladv = 0.;
+  V = dMact = Ladv = 0.;
+  dV = dx[1]*dx[2]*dx[3];
+  ZLOOP {
+    V += dV*geom[i][j].g;
+    bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
+  
+    if (i <= 20) {
+      double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
+      get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+      lower(Ucon, geom[i][j].gcov, Ucov);
+      dMact += geom[i][j].g*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
+      Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
+    }
+  }
 
-
-  // Evaluate accretion rate
-  bias_norm /= V;
-  dMact *= dx[3] * dx[2];
   dMact /= 21.;
-  Ladv *= dx[3] * dx[2];
   Ladv /= 21.;
+  bias_norm /= V;
   fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
 }
 
@@ -555,7 +563,7 @@ void init_data(int argc, char *argv[])
 #define SPECTRUM_FILE_NAME  "spectrum.dat"
 void report_spectrum(int N_superph_made)
 {
-  double dx2, dOmega, nuLnu, tau_scatt, L, Xi[NDIM], Xf[NDIM];
+  double dOmega, nuLnu, tau_scatt, L, Xi[NDIM], Xf[NDIM];
   FILE *fp;
 
   double nu0,nu1,nu,fnu ;
@@ -576,9 +584,6 @@ void report_spectrum(int N_superph_made)
 
     for (int j = 0; j < N_THBINS; j++) {
       // Convert accumulated photon number to nuLnu, in units of Lsun
-      dx2 = (stopx[2] - startx[2]) / (2. * N_THBINS);
-
-      // Factor of 2 accounts for folding around equator
       coord(i, j, 0, Xi);
       coord(i, j+1, 0, Xf);
       dOmega = 2.*dOmega_func(Xi, Xf);
