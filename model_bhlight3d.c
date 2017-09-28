@@ -241,7 +241,8 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double sig ;
 
   *Ne = p[KRHO][i][j][k] * Ne_unit;
-  *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
+  //*Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
 
   Bp[1] = p[B1][i][j][k];
   Bp[2] = p[B2][i][j][k];
@@ -508,8 +509,10 @@ void init_data(int argc, char *argv[])
 
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
+ 
+    Thetae_unit = MP/ME;
 
-    Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
+    //Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
   }
 
   // Set remaining units and constants
@@ -549,7 +552,7 @@ void init_data(int argc, char *argv[])
   ZLOOP {
     V += dV*geom[i][j].g;
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
-  
+
     if (i <= 20) {
       double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
       get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
@@ -558,7 +561,6 @@ void init_data(int argc, char *argv[])
       Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
     }
   }
-printf("A\n");
 
   dMact /= 21.;
   Ladv /= 21.;
@@ -568,7 +570,7 @@ printf("A\n");
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
 
-#define SPECTRUM_FILE_NAME  "spectrum.dat"
+#define SPECTRUM_FILE_NAME "spectrum.dat"
 void report_spectrum(int N_superph_made)
 {
   double dOmega, nuLnu, tau_scatt, L, Xi[NDIM], Xf[NDIM];
@@ -639,6 +641,7 @@ void report_spectrum(int N_superph_made)
 
   fprintf(stderr, "\n");
   fprintf(stderr, "N_superph_made: %d\n", N_superph_made);
+  fprintf(stderr, "N_superph_scatt: %d\n", N_scatt);
   fprintf(stderr, "N_superph_recorded: %d\n", N_superph_recorded);
 
   fclose(fp);

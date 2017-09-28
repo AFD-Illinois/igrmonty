@@ -70,7 +70,8 @@ void init_weight_table(void)
   double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
   double jcst = M_SQRT2*EE*EE*EE/(27*ME*CL*CL);
 
-  #pragma omp parallel
+  // THIS IS BROKEN WITH OPENMP!!
+  //#pragma omp parallel
   {
     int lstart, lend, myid, nthreads;
     double Ne, Thetae, K2, B, fac, Ucon[NDIM], Bcon[NDIM];
@@ -81,7 +82,7 @@ void init_weight_table(void)
     if (myid == nthreads - 1)
       lend = N_ESAMP + 1;
 
-    #pragma omp for collapse(3)
+    //#pragma omp for collapse(3)
     ZLOOP {
         get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
         if (Ne == 0. || Thetae < THETAE_MIN)
@@ -140,7 +141,7 @@ void init_nint_table(void)
   }
 }
 
-static void init_zone(int i, int j, int k, double *nz, double *dnmax)
+void init_zone(int i, int j, int k, double *nz, double *dnmax)
 {
   int l;
   double Ne, Thetae, Bmag, lbth;

@@ -71,9 +71,9 @@ void report_bad_input()
 
 int main(int argc, char *argv[])
 {
-  omp_set_num_threads(1);
+  //omp_set_num_threads(1);
   double N_superph_made;
-  int quit_flag;
+  //int quit_flag;
   //struct of_photon ph;
   time_t currtime, starttime;
 
@@ -89,15 +89,26 @@ int main(int argc, char *argv[])
   N_superph_recorded = 0;
   N_scatt = 0;
   starttime = time(NULL);
-  quit_flag = 0;
+  //quit_flag = 0;
 
   fprintf(stderr, "Entering main loop...\n");
+ 
+  // Get number of superphotons for each zone
+  /*void init_zone(int i, int j, int k, double *nz, double *dnmax);
+  ZLOOP {
+    double nz, dnmax;
+    init_zone(i, j, k, &nz, &dnmax);
+    if  (j == N2/2)
+    printf("[%i %i %i] nz = %e dnmax = %e\n", i,j,k,nz,dnmax);
+  }*/
+  
+  int quit_flag = 0;
   #pragma omp parallel
   {
     struct of_photon ph;
     while (1) {
 
-      /* get pseudo-quanta */
+      // get pseudo-quanta 
 #pragma omp critical (MAKE_SPHOT)
       {
         if (!quit_flag)
@@ -106,14 +117,14 @@ int main(int argc, char *argv[])
       if (quit_flag)
         break;
 
-      /* push them around */
+      // push them around 
       track_super_photon(&ph);
 
-      /* step */
+      // step
 #pragma omp atomic
       N_superph_made += 1;
 
-      /* give interim reports on rates */
+      // give interim reports on rates
       if (((int) (N_superph_made)) % 100000 == 0
           && N_superph_made > 0) {
         currtime = time(NULL);

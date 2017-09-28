@@ -77,8 +77,7 @@ void push_photon(double X[NDIM], double Kcon[NDIM], double dKcon[NDIM],
 	       Kcon[2] * Gcov[0][2] + Kcon[3] * Gcov[0][3]);
 	errE = fabs((E1 - (*E0)) / (*E0));
 
-	if (n < 7
-	    && (errE > 1.e-4 || err > ETOL || isnan(err) || isinf(err))) {
+	if (n < 7 && (errE > 1.e-4 || err > ETOL || isnan(err) || isinf(err))) {
 		FAST_CPY(Xcpy, X);
 		FAST_CPY(Kcpy, Kcon);
 		FAST_CPY(dKcpy, dKcon);
@@ -88,8 +87,6 @@ void push_photon(double X[NDIM], double Kcon[NDIM], double dKcon[NDIM],
 	}
 
 	*E0 = E1;
-
-	/* done! */
 }
 
 /* spare photon integrator: 4th order Runge-Kutta */

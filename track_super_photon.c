@@ -1,17 +1,6 @@
-
-/*
-
-  main transport subroutine for tracking, absorbing,
-  and scattering superphotons
-
-  assumes superphotons do not step out of simulation then back in
-
-*/
-
 #include "decs.h"
 
 #define MAXNSTEP  1280000
-
 void track_super_photon(struct of_photon *ph)
 {
   int bound_flag;
@@ -210,4 +199,5 @@ void track_super_photon(struct of_photon *ph)
   if (record_criterion(ph) && nstep < MAXNSTEP)
     record_super_photon(ph);
 }
+#undef MAXNSTEP
 
