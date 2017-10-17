@@ -24,7 +24,7 @@ class color:
 def build():
   NOPARAM = 1
   DEBUG = 0
-  for n in xrange(len(sys.argv)):
+  for n in range(len(sys.argv)):
     if sys.argv[n] == '-noparam':
       NOPARAM = 1
     if sys.argv[n] == '-debug':
@@ -70,10 +70,10 @@ def build():
   SRC = ''
   OBJ = ''
   INC = ''
-  for n in xrange(len(SRC_ALL)):
+  for n in range(len(SRC_ALL)):
     SRC += '%s ' % SRC_ALL[n]
     OBJ += '%s.o ' % SRC_ALL[n][:-2]
-  for n in xrange(len(INC_ALL)):
+  for n in range(len(INC_ALL)):
     INC += '%s ' % INC_ALL[n]
 
   # WRITE MAKEFILE
