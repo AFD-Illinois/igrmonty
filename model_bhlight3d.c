@@ -222,7 +222,8 @@ double bias_func(double Te, double w)
 
   max = 0.5 * w / WEIGHT_MIN;
 
-  bias = Te*Te/(5. * max_tau_scatt) ;
+  //bias = Te*Te;
+  bias = Te*Te/(5. * max_tau_scatt);
   //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   if (bias < TP_OVER_TE)

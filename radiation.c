@@ -26,7 +26,7 @@ double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
 {
 	double j;
 
-	j = jnu_synch(nu, Ne, Thetae, B, theta);
+	j = jnu(nu, Ne, Thetae, B, theta);
 
 	return (j / (nu * nu));
 }
@@ -34,11 +34,15 @@ double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
 /* return Lorentz invariant scattering opacity */
 double alpha_inv_scatt(double nu, double Thetae, double Ne)
 {
+  #if COMPTON
 	double kappa;
 
 	kappa = kappa_es(nu, Thetae);
 
 	return (nu * kappa * Ne * MP);
+  #else
+  return 0.;
+  #endif
 }
 
 /* return Lorentz invariant absorption opacity */

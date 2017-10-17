@@ -30,6 +30,10 @@
 //#define TP_OVER_TE  (3.)
 #define WEIGHT_MIN  (1.e28)
 
+#define SYNCHROTRON (1)
+#define BREMSSTRAHLUNG (1)
+#define COMPTON (1)
+
 /* mnemonics for primitive vars; conserved vars */
 #define KRHO     0
 #define UU      1
@@ -219,8 +223,8 @@ double Bnu_inv(double nu, double thetae);
 double jnu_inv(double nu, double thetae, double ne, double B,
          double theta);
 
-  /* thermal synchrotron */
-double jnu_synch(double nu, double Ne, double Thetae, double B,
+  /* emissivity */
+double jnu(double nu, double Ne, double Thetae, double B,
      double theta);
 double int_jnu(double Ne, double Thetae, double Bmag, double nu);
 void init_emiss_tables(void);

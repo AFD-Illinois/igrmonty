@@ -13,6 +13,64 @@ good for Thetae > 1
 
 */
 
+double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
+double jnu_bremss(double nu, double Ne, double Thetae);
+double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu);
+double int_jnu_bremss(double Ne, double Thetae, double nu);
+
+double jnu(double nu, double Ne, double Thetae, double B, double theta)
+{
+  double j = 0.;
+  
+  #if SYNCHROTRON
+  j += jnu_synch(nu, Ne, Thetae, B, theta);
+  #endif
+
+  #if BREMSSTRAHLUNG
+  j += jnu_bremss(nu, Ne, Thetae);
+  #endif
+  
+  return j;
+}
+
+double int_jnu(double Ne, double Thetae, double B, double nu)
+{
+  double intj = 0.;
+  
+  #if SYNCHROTRON
+  intj += int_jnu_synch(Ne, Thetae, B, nu);
+  #endif
+
+  #if BREMSSTRAHLUNG
+  intj += int_jnu_bremss(Ne, Thetae, nu);
+  #endif
+  
+  return intj;
+}
+
+double jnu_bremss(double nu, double Ne, double Thetae)
+{
+  double Te = Thetae*ME*CL*CL/KBOL;
+  double rel = (1. + 4.4e-10*Te);
+  double x, efac;
+  double gff = 1.2;
+
+  x = HPL*nu/(KBOL*Te);
+
+  if (x < 1.e-3) {
+    efac = (24 - 24*x + 12*x*x - 4.*x*x*x + x*x*x*x)/24.;
+  } else {
+    efac = exp(-x);
+  }
+
+  double jv = 1./(4.*M_PI)*pow(2,5)*M_PI*pow(EE,6)/(3.*ME*pow(CL,3));
+  jv *= pow(2.*M_PI/(3.*KBOL*ME),1./2.);
+  jv *= pow(Te,-1./2.)*Ne*Ne;
+  jv *= efac*rel*gff;
+
+  return jv;
+}
+
 #define CST 1.88774862536	/* 2^{11/12} */
 double jnu_synch(double nu, double Ne, double Thetae, double B,
 		 double theta)
@@ -43,7 +101,7 @@ double jnu_synch(double nu, double Ne, double Thetae, double B,
 #undef CST
 
 #define JCST	(M_SQRT2*EE*EE*EE/(27*ME*CL*CL))
-double int_jnu(double Ne, double Thetae, double Bmag, double nu)
+double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 {
 /* Returns energy per unit time at							*
  * frequency nu in cgs										*/
@@ -66,6 +124,11 @@ double int_jnu(double Ne, double Thetae, double Bmag, double nu)
 }
 
 #undef JCST
+
+double int_jnu_bremss(double Ne, double Thetae, double nu)
+{
+  return 4.*M_PI*jnu_bremss(nu, Ne, Thetae);
+}
 
 #define CST 1.88774862536	/* 2^{11/12} */
 double jnu_integrand(double th, void *params)
