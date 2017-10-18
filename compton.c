@@ -17,6 +17,8 @@ Canfield, Howard, and Liang, 1987, ApJ 323, 565.
    
 */
 
+#define OLD_E_SAMP (0)
+
 void sample_scattered_photon(double k[4], double p[4], double kp[4])
 {
 	double ke[4], kpe[4];
@@ -343,9 +345,51 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
    
 */
 
+struct df_params {
+  double Thetae;
+};
+
+double dfdgam(double ge, void *params)
+{
+  struct df_params *p = (struct df_params*) params;
+  double Thetae = p->Thetae;
+
+  //double df = pow(ge,2)/Thetae;
+  //df *= (-pow(ge,3) + 5.*pow(ge,2)*Thetae + ge - 3.*Thetae)/Thetae;
+
+  #if DIST_KAPPA
+  {
+    ge = GSL_MAX(ge, 1.+1.e-10);
+    double kap = KAPPA;
+    double df = -ge*kap*Thetae*pow((ge-1.)/(kap*Thetae),-kap);
+    df *= ((2.-3*ge*ge)*kap*Thetae + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.));
+    return df;
+  }
+  #endif
+
+  double df = pow(ge,3)/Thetae;
+  df *= (-pow(ge,3) + 6.*pow(ge,2)*Thetae + ge - 4.*Thetae);
+
+  return df;
+}
+// Maxwell-Juettner distribution, prefactor removed for sampling
+double fdist(double ge, double Thetae)
+{
+  #if DIST_KAPPA
+  double kap = KAPPA;
+  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.);
+  #endif
+  //return (1.-1./pow(ge,2))*pow(ge,5)*exp(-ge/Thetae);
+  return ge*(1.-1./pow(ge,2))*pow(ge,5)*exp(-ge/Thetae);
+}
+
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_roots.h>
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
-	double y;
+	#if OLD_E_SAMP
+  double y;
 
 	/* checked */
 	y = sample_y_distr(Thetae);
@@ -355,7 +399,57 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 	*beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
 
 	return;
+  #else
 
+  // Relativistic kappa distribution does not like very small Thetae
+  if (Thetae < 0.01) {
+    *gamma_e = 1.000001;
+	  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
+    return;
+  }
+
+  // Get maximum for window
+  int status, iter = 0, max_iter = 100;
+  const gsl_root_fsolver_type *T;
+  gsl_root_fsolver *s;
+  double ge_max = 1. + Thetae;
+  double ge_lo = GSL_MAX(1., 0.1*Thetae);
+  double ge_hi = GSL_MAX(10., 10.*Thetae);
+  //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
+  gsl_function F;
+  struct df_params params = {Thetae};
+  //printf("%e %e\n", dfdgam(ge_lo, &params), dfdgam(ge_hi, &params));
+  F.function = &dfdgam;
+  F.params = &params;
+  T = gsl_root_fsolver_brent;
+  s = gsl_root_fsolver_alloc(T);
+  gsl_root_fsolver_set(s, &F, ge_lo, ge_hi);
+  do {
+    iter++;
+    status = gsl_root_fsolver_iterate(s);
+    ge_max = gsl_root_fsolver_root(s);
+    ge_lo = gsl_root_fsolver_x_lower(s);
+    ge_hi = gsl_root_fsolver_x_upper(s);
+    status = gsl_root_test_interval(ge_lo, ge_hi, 0, 0.001);
+  } while (status == GSL_CONTINUE && iter < max_iter);
+  //printf("ge_max = %e\n", ge_max);
+  double f_max = fdist(ge_max, Thetae);
+  //printf("fmax = %e\n", f_max);
+  gsl_root_fsolver_free(s);
+  
+  // Sample electron gamma
+  double ge_samp;
+  do {
+    double lge_min = log(GSL_MAX(1., 0.01*Thetae));
+    double lge_max = log(GSL_MAX(100., 200.*Thetae));
+    ge_samp = exp(lge_min + (lge_max - lge_min)*monty_rand()); 
+  } while (fdist(ge_samp, Thetae)/f_max < monty_rand());
+
+  //printf("ge_samp = %e\n", ge_samp);
+  *gamma_e = ge_samp;                                                
+  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
+  //exit(-1);
+  #endif
 }
 
 /* 

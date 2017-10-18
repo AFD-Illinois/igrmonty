@@ -14,8 +14,10 @@ good for Thetae > 1
 */
 
 double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
+double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_bremss(double nu, double Ne, double Thetae);
 double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu);
+double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
 double int_jnu_bremss(double Ne, double Thetae, double nu);
 
 double jnu(double nu, double Ne, double Thetae, double B, double theta)
@@ -23,7 +25,11 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta)
   double j = 0.;
   
   #if SYNCHROTRON
+  #if DIST_KAPPA
+  j += jnu_kappa(nu, Ne, Thetae, B, theta);
+  #else
   j += jnu_synch(nu, Ne, Thetae, B, theta);
+  #endif
   #endif
 
   #if BREMSSTRAHLUNG
@@ -98,6 +104,39 @@ double jnu_synch(double nu, double Ne, double Thetae, double B,
 	return (j);
 }
 
+#include <gsl/gsl_sf_gamma.h>
+double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
+{
+  double kap = KAPPA;
+	double nuc = EE * B / (2. * M_PI * ME * CL);
+  double js = Ne*pow(EE,2)*nuc/CL;
+  double x = 3.*pow(kap,-3./2.);
+  double Jslo, Jshi;
+
+  double nuk = nuc*pow(Thetae*kap,2)*sin(theta);
+  double Xk = nu/nuk;
+
+  Jslo = pow(Xk,1./3.)*sin(theta)*4.*M_PI*gsl_sf_gamma(kap-4./3.)/(pow(3.,7./3.)*gsl_sf_gamma(kap-2.));
+  Jshi = pow(Xk,-(kap-2.)/2.)*sin(theta)*pow(3.,(kap-1.)/2.);
+  Jshi *= (kap-2.)*(kap-1.)/4.*gsl_sf_gamma(kap/4.-1./3.)*gsl_sf_gamma(kap/4.+4./3.);
+
+  double Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
+  
+  if (isnan(js*Js) || js*Js < 0. || js*Js > 1.e200) {
+    printf("BAD jkap! %e\n", js*Js);
+  }
+
+  if (isnan(Jslo) || isinf(Jslo) || Jslo < 0. || Jslo > 1.e100) {
+    printf("JSLO ERROR! %e\n", Jslo);
+  }
+
+  //return js*Jslo;
+
+  return jnu_synch(nu, Ne, Thetae, B, theta);
+
+  return js*Js;
+}
+
 #undef CST
 
 #define JCST	(M_SQRT2*EE*EE*EE/(27*ME*CL*CL))
@@ -121,6 +160,11 @@ double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 	j_fac = Ne * Bmag * Thetae * Thetae / K2;
 
 	return JCST * j_fac * F_eval(Thetae, Bmag, nu);
+}
+
+double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu)
+{
+  return 0.;
 }
 
 #undef JCST
