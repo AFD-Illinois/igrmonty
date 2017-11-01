@@ -30,3 +30,8 @@ add_machine(name='bh',
             l_flags='-lm -lgsl -lgslcblas',
             gsl_dir='')
 
+add_machine(name='bh21',
+            compiler='h5pcc',
+            c_flags='-Ofast -std=c99 -Wall -fopenmp -g -DVERSION=\"$(GIT_VERSION)\"',
+            l_flags='-lm -lgsl -lgslcblas',
+            gsl_dir='')

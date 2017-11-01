@@ -34,7 +34,7 @@
 #define BREMSSTRAHLUNG (1)
 #define COMPTON (1)
 #define KAPPA (5.)
-#define DIST_KAPPA (1)
+#define DIST_KAPPA (0)
 
 /* mnemonics for primitive vars; conserved vars */
 #define KRHO     0
