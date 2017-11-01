@@ -13,6 +13,12 @@ good for Thetae > 1
 
 */
 
+// For kappa = 5
+#define GAM1 (4.0122013020041507)
+#define GAM2 (2.)
+#define GAM3 (1.0555465648134663)
+#define GAM4 (1.411932800087401)
+
 double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_bremss(double nu, double Ne, double Thetae);
@@ -44,7 +50,11 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
   double intj = 0.;
   
   #if SYNCHROTRON
+  #if DIST_KAPPA
+  intj += int_jnu_kappa(Ne, Thetae, B, nu);
+  #else
   intj += int_jnu_synch(Ne, Thetae, B, nu);
+  #endif
   #endif
 
   #if BREMSSTRAHLUNG
@@ -107,6 +117,11 @@ double jnu_synch(double nu, double Ne, double Thetae, double B,
 #include <gsl/gsl_sf_gamma.h>
 double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
 {
+	if (Thetae < THETAE_MIN)
+		return 0.;
+  if (theta < SMALL || theta > M_PI-SMALL)
+    return 0.;
+  
   double kap = KAPPA;
 	double nuc = EE * B / (2. * M_PI * ME * CL);
   double js = Ne*pow(EE,2)*nuc/CL;
@@ -121,19 +136,17 @@ double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
   Jshi *= (kap-2.)*(kap-1.)/4.*gsl_sf_gamma(kap/4.-1./3.)*gsl_sf_gamma(kap/4.+4./3.);
 
   double Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
-  
-  if (isnan(js*Js) || js*Js < 0. || js*Js > 1.e200) {
+
+  if (isnan(js*Js) || js*Js < 0. || js*Js > 1.e200 || js*Js < 1.e-100) {
     printf("BAD jkap! %e\n", js*Js);
+    printf("nu Ne Thetae B theta = %e %e %e %e %e\n", nu, Ne, Thetae, B, theta);
+    exit(-1);
   }
 
   if (isnan(Jslo) || isinf(Jslo) || Jslo < 0. || Jslo > 1.e100) {
     printf("JSLO ERROR! %e\n", Jslo);
   }
-
-  //return js*Jslo;
-
-  return jnu_synch(nu, Ne, Thetae, B, theta);
-
+  
   return js*Js;
 }
 
@@ -162,10 +175,60 @@ double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 	return JCST * j_fac * F_eval(Thetae, Bmag, nu);
 }
 
-double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu)
+double jnu_kappa_integrand(double th, void *params)
 {
-  return 0.;
+	double K = *(double *) params;
+	double sth = sin(th);
+	double Xk = K / sth;
+  double kap = KAPPA;
+
+	if (sth < 1.e-150 || Xk > 2.e8)
+		return 0.;
+
+  double Jslo, Jshi, Js;
+  //Jslo = pow(Xk,1./3.)*sth*4.*M_PI*gsl_sf_gamma(kap-4./3.)/(pow(3.,7./3.)*gsl_sf_gamma(kap-2.));
+  //Jshi = pow(Xk,-(kap-2.)/2.)*sth*pow(3.,(kap-1.)/2.)*(kap-2.)*(kap-1.)/4.*gsl_sf_gamma(kap/4.-1./3.)*gsl_sf_gamma(kap/4.+4./3.);
+  Jslo = pow(Xk,1./3.)*sth*4.*M_PI*GAM1/(pow(3.,7./3.)*GAM2);
+  Jshi = pow(Xk,-(kap-2.)/2.)*sth*pow(3.,(kap-1.)/2.)*(kap-2.)*(kap-1.)/4.*GAM3*GAM4;
+  double x = 3.*pow(kap,-3./2.);
+  Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
+  return sth*Js;
 }
+//#define EPSABS (0.)
+//#define EPSREL (1.e-6)
+double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
+{
+  /* Returns energy per unit time at							*
+   * frequency nu in cgs										*/
+
+	double G_eval(double Thetae, double B, double nu);
+
+	if (Thetae < THETAE_MIN)
+		return 0.;
+
+  double nuc = EE*B/(2.*M_PI*ME*CL);
+	double js = Ne*EE*EE*nuc/CL;
+
+	return js*G_eval(Thetae, B, nu);
+  
+  /*
+  double K = 2.*M_PI*ME*CL*nu/(EE*B*pow(Thetae*KAPPA,2));
+  double result, err;
+	gsl_function func;
+	gsl_integration_workspace *w;
+
+	func.function = &jnu_kappa_integrand;
+	func.params = &K;
+
+	w = gsl_integration_workspace_alloc(1000);
+	gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000, 
+    GSL_INTEG_GAUSS61, w, &result, &err);
+	gsl_integration_workspace_free(w);
+
+  return 4.*M_PI*result;*/
+}
+//#undef EPSABS
+//#undef EPSREL
 
 #undef JCST
 
@@ -192,14 +255,17 @@ double jnu_integrand(double th, void *params)
 #undef CST
 
 /* Tables */
-double F[N_ESAMP + 1], K2[N_ESAMP + 1];
+double F[N_ESAMP + 1], G[N_ESAMP + 1], K2[N_ESAMP + 1];
 double lK_min, dlK;
+double lL_min, dlL;
 double lT_min, dlT;
 
 #define EPSABS 0.
 #define EPSREL 1.e-6
 #define KMIN (0.002)
 #define KMAX (1.e7)
+#define LMIN (0.002)
+#define LMAX (1.e7)
 #define TMIN (THETAE_MIN)
 #define TMAX (1.e2)
 void init_emiss_tables(void)
@@ -207,42 +273,72 @@ void init_emiss_tables(void)
 
 	int k;
 	double result, err, K, T;
-	gsl_function func;
-	gsl_integration_workspace *w;
 
-	func.function = &jnu_integrand;
-	func.params = &K;
+  // Thermal synchrotron lookup table
+  {
+    gsl_function func;
+    gsl_integration_workspace *w;
 
-	lK_min = log(KMIN);
-	dlK = log(KMAX / KMIN) / (N_ESAMP);
+    func.function = &jnu_integrand;
+    func.params = &K;
 
-	lT_min = log(TMIN);
-	dlT = log(TMAX / TMIN) / (N_ESAMP);
+    lK_min = log(KMIN);
+    dlK = log(KMAX / KMIN) / (N_ESAMP);
 
-	/*  build table for F(K) where F(K) is given by
-	   \int_0^\pi ( (K/\sin\theta)^{1/2} + 2^{11/12}(K/\sin\theta)^{1/6})^2 \exp[-(K/\sin\theta)^{1/3}]
-	   so that J_{\nu} = const.*F(K)
-	 */
-	w = gsl_integration_workspace_alloc(1000);
-	for (k = 0; k <= N_ESAMP; k++) {
-		K = exp(k * dlK + lK_min);
-		gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL,
-				    1000, GSL_INTEG_GAUSS61, w, &result,
-				    &err);
-		F[k] = log(4 * M_PI * result);
-	}
-	gsl_integration_workspace_free(w);
+    /*  build table for F(K) where F(K) is given by
+       \int_0^\pi ( (K/\sin\theta)^{1/2} + 2^{11/12}(K/\sin\theta)^{1/6})^2 \exp[-(K/\sin\theta)^{1/3}]
+       so that J_{\nu} = const.*F(K)
+     */
+    w = gsl_integration_workspace_alloc(1000);
+    for (k = 0; k <= N_ESAMP; k++) {
+      K = exp(k * dlK + lK_min);
+      gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL,
+              1000, GSL_INTEG_GAUSS61, w, &result,
+              &err);
+      F[k] = log(4 * M_PI * result);
+    }
+    gsl_integration_workspace_free(w);
+  }
 
-	/*  build table for quick evaluation of the bessel function K2 for emissivity */
-	for (k = 0; k <= N_ESAMP; k++) {
-		T = exp(k * dlT + lT_min);
-		K2[k] = log(gsl_sf_bessel_Kn(2, 1. / T));
+  // Kappa synchrotron lookup table
+  {
+    double L;
+    gsl_function func;
+    gsl_integration_workspace *w;
 
-	}
+    func.function = &jnu_kappa_integrand;
+    func.params = &L;
+
+    lL_min = log(LMIN);
+    dlL = log(LMAX / LMIN) / (N_ESAMP);
+
+    /*  build table for G(L) where G(L) is given by
+       2 \pi \int_0^\pi  ...( (K/\sin\theta)^{1/2} + 2^{11/12}(K/\sin\theta)^{1/6})^2 \exp[-(K/\sin\theta)^{1/3}]
+       so that J_{\nu} = const.*G(L)
+     */
+    w = gsl_integration_workspace_alloc(1000);
+    for (k = 0; k <= N_ESAMP; k++) {
+      L = exp(k * dlL + lL_min);
+      gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000, 
+        GSL_INTEG_GAUSS61, w, &result, &err);
+      G[k] = log(4*M_PI*result);
+    }
+    gsl_integration_workspace_free(w);
+  }
+
+	// Bessel K2 lookup table
+  {
+    lT_min = log(TMIN);
+    dlT = log(TMAX / TMIN) / (N_ESAMP);
+    for (k = 0; k <= N_ESAMP; k++) {
+		  T = exp(k * dlT + lT_min);
+		  K2[k] = log(gsl_sf_bessel_Kn(2, 1. / T));
+	  }
+  }
 
 	/* Avoid doing divisions later */
-	dlK = 1. / dlK;
-	dlT = 1. / dlT;
+	//dlK = 1. / dlK;
+	//dlT = 1. / dlT;
 
 	fprintf(stderr, "done.\n\n");
 
@@ -264,7 +360,7 @@ double K2_eval(double Thetae)
 	return linear_interp_K2(Thetae);
 }
 
-#define KFAC	(9*M_PI*ME*CL/EE)
+#define KFAC (9*M_PI*ME*CL/EE)
 double F_eval(double Thetae, double Bmag, double nu)
 {
 
@@ -284,9 +380,34 @@ double F_eval(double Thetae, double Bmag, double nu)
 	}
 }
 
+#define GFAC (2.*M_PI*ME*CL/EE)
+double G_eval(double Thetae, double Bmag, double nu)
+{
+
+	double L;
+	double linear_interp_G(double);
+
+	L = GFAC*nu/(Bmag*pow(Thetae*KAPPA,2.));
+  //K = KFAC * nu / (Bmag * Thetae * Thetae);
+
+	if (L > LMAX) {
+		return 0.;
+	} else if (L < LMIN) {
+		/* use a good approximation */
+		//x = pow(K, 0.333333333333333333);
+		//return (x * (37.67503800178 + 2.240274341836 * x));
+	  return 0.;
+  } else {
+		return linear_interp_G(L);
+	}
+}
+
 #undef KFAC
 #undef KMIN
 #undef KMAX
+#undef GFAC
+#undef LMIN
+#undef LMAX
 #undef EPSABS
 #undef EPSREL
 
@@ -298,7 +419,7 @@ double linear_interp_K2(double Thetae)
 
 	lT = log(Thetae);
 
-	di = (lT - lT_min) * dlT;
+	di = (lT - lT_min)/dlT;
 	i = (int) di;
 	di = di - i;
 
@@ -313,9 +434,25 @@ double linear_interp_F(double K)
 
 	lK = log(K);
 
-	di = (lK - lK_min) * dlK;
+	di = (lK - lK_min)/dlK;
 	i = (int) di;
 	di = di - i;
 
 	return exp((1. - di) * F[i] + di * F[i + 1]);
 }
+
+double linear_interp_G(double L)
+{
+
+	int i;
+	double di, lL;
+
+	lL = log(L);
+
+	di = (lL - lL_min)/dlL;
+	i = (int) di;
+	di = di - i;
+
+	return exp((1. - di) * G[i] + di * G[i + 1]);
+}
+

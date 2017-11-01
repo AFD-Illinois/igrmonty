@@ -134,7 +134,7 @@ void init_weight_table(void)
 
     //#pragma omp for collapse(3)
     ZLOOP {
-        get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
+      get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
         if (Ne == 0. || Thetae < THETAE_MIN)
           continue;
 

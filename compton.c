@@ -441,7 +441,7 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
   double ge_samp;
   do {
     double lge_min = log(GSL_MAX(1., 0.01*Thetae));
-    double lge_max = log(GSL_MAX(100., 200.*Thetae));
+    double lge_max = log(GSL_MAX(100., 1000.*Thetae));
     ge_samp = exp(lge_min + (lge_max - lge_min)*monty_rand()); 
   } while (fdist(ge_samp, Thetae)/f_max < monty_rand());
 
