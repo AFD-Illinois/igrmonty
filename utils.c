@@ -135,12 +135,13 @@ void init_weight_table(void)
     //#pragma omp for collapse(3)
     ZLOOP {
       get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
-        if (Ne == 0. || Thetae < THETAE_MIN)
-          continue;
+      if (Ne == 0. || Thetae < THETAE_MIN)
+        continue;
 
-        for (int l = lstart; l < lend; l++)
-          sum[l] += int_jnu(Ne, Thetae, B, nu[l])*sfac*geom[i][j].g;
+      for (int l = lstart; l < lend; l++) {
+        sum[l] += int_jnu(Ne, Thetae, B, nu[l])*sfac*geom[i][j].g;
       }
+    }
   } // omp parallel
 
 
@@ -369,7 +370,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   }*/
 
   //*nz = geom[i][j].g * Ne * Bmag * Thetae * Thetae * ninterp / K2;
-  *nz = geom[i][j].g*ninterp;
+  *nz = geom[i][j].g*ninterp/omp_get_num_threads();
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
       "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  K2=%g  ninterp=%g nz = %e\n\n",

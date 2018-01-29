@@ -16,6 +16,10 @@ double TP_OVER_TE;
 
 static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
 static double MBH;
+  
+static int with_radiation;
+static int with_derefine_poles;
+static int with_electrons;
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
@@ -226,12 +230,12 @@ double bias_func(double Te, double w)
   bias = Te*Te/(5. * max_tau_scatt);
   //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
-  if (bias < TP_OVER_TE)
-    bias = TP_OVER_TE;
+  //if (bias < TP_OVER_TE)
+  //  bias = TP_OVER_TE;
   if (bias > max)
     bias = max;
 
-  return bias / TP_OVER_TE;
+  return bias;// / TP_OVER_TE;
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
@@ -242,8 +246,11 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double sig ;
 
   *Ne = p[KRHO][i][j][k] * Ne_unit;
-  *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
-  //*Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  if (with_electrons) {
+    *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
+  } else {
+    *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  }
 
   Bp[1] = p[B1][i][j][k];
   Bp[2] = p[B2][i][j][k];
@@ -305,9 +312,12 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   kel = interp_scalar(X, p[KEL]);
 
   *Ne = rho*Ne_unit;
-  *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
-  //uu = interp_scalar(X, p[UU]);
-  //*Thetae = uu/rho*Thetae_unit;
+  if (with_electrons) {
+    *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
+  } else {
+    double uu = interp_scalar(X, p[UU]);
+    *Thetae = uu/rho*Thetae_unit;
+  }
 
   Bp[1] = interp_scalar(X, p[B1]);
   Bp[2] = interp_scalar(X, p[B2]);
@@ -357,6 +367,7 @@ void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
 
   dxdX[0][0] = 1.;
   dxdX[1][1] = exp(X[1]);
+  if (with_derefine_poles) {
   dxdX[2][1] = -exp(mks_smooth*(startx[1]-X[1]))*mks_smooth*(
     M_PI/2. -
     M_PI*X[2] +
@@ -370,6 +381,9 @@ void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
       (2.*poly_alpha*poly_norm*(2.*X[2]-1.)*pow((2.*X[2]-1.)/poly_xt,poly_alpha-1.))/((1.+poly_alpha)*poly_xt) -
       (1.-hslope)*M_PI*cos(2.*M_PI*X[2])
       );
+  } else {
+    dxdX[2][2] = M_PI - (hslope - 1.)*M_PI*cos(2.*M_PI*X[2]);
+  }
   dxdX[3][3] = 1.;
 }
 
@@ -430,8 +444,12 @@ void bl_coord(double *X, double *r, double *th)
   *th = thG + exp(mks_smooth*(startx[1] - X[1]))*(thJ - thG);
 }
 
-double dOmega_func(double Xi[NDIM], double Xf[NDIM])
+//double dOmega_func(double Xi[NDIM], double Xf[NDIM])
+double dOmega_func(int j)
 {
+  double dbin = (stopx[2]-startx[2])/(2.*N_THBINS);
+  double Xi[NDIM] = {0., stopx[1], j*dbin, 0.};
+  double Xf[NDIM] = {0., stopx[1], (j+1)*dbin, 0.};
 
   double ri, rf, thi, thf;
   bl_coord(Xi, &ri, &thi);
@@ -449,7 +467,6 @@ void init_data(int argc, char *argv[])
 {
   char *fname = argv[2];
   double dV, V;
-  int with_radiation;
 
   hid_t file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (file_id < 0) {
@@ -458,6 +475,9 @@ void init_data(int argc, char *argv[])
   }
 
   // Read header
+  H5LTread_dataset_int(file_id, "RADIATION", &with_radiation);
+  H5LTread_dataset_int(file_id, "DEREFINE_POLES", &with_derefine_poles);
+  H5LTread_dataset_int(file_id, "ELECTRONS", &with_electrons);
   H5LTread_dataset_int(file_id, "N1", &N1);
   H5LTread_dataset_int(file_id, "N2", &N2);
   H5LTread_dataset_int(file_id, "N3", &N3);
@@ -469,15 +489,18 @@ void init_data(int argc, char *argv[])
   H5LTread_dataset_double(file_id, "dx3",  &dx[3]);
   H5LTread_dataset_double(file_id, "a", &a);
   H5LTread_dataset_double(file_id, "gam", &gam);
-  H5LTread_dataset_double(file_id, "game", &game);
-  H5LTread_dataset_double(file_id, "gamp", &gamp);
+  if (with_electrons) {
+    H5LTread_dataset_double(file_id, "game", &game);
+    H5LTread_dataset_double(file_id, "gamp", &gamp);
+  }
   H5LTread_dataset_double(file_id, "Rin", &Rin);
   H5LTread_dataset_double(file_id, "Rout", &Rout);
   H5LTread_dataset_double(file_id, "hslope", &hslope);
   H5LTread_dataset_double(file_id, "poly_xt", &poly_xt);
   H5LTread_dataset_double(file_id, "poly_alpha", &poly_alpha);
   H5LTread_dataset_double(file_id, "mks_smooth", &mks_smooth);
-  H5LTread_dataset_int(file_id, "RADIATION", &with_radiation);
+
+  printf("HDR!\n");
 
   // Set polylog grid normalization
   poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
@@ -510,10 +533,12 @@ void init_data(int argc, char *argv[])
 
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
- 
-    Thetae_unit = MP/ME;
 
-    //Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
+    if (with_electrons) {
+      Thetae_unit = MP/ME;
+    } else {
+      Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
+    }
   }
 
   // Set remaining units and constants
@@ -524,7 +549,13 @@ void init_data(int argc, char *argv[])
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
   Rh = 1. + sqrt(1. - a * a);
 
+  printf("M_unit = %e\n", M_unit);
+  printf("Ne_unit = %e\n", Ne_unit);
+  printf("RHO_unit = %e\n", RHO_unit);
+  printf("L_unit = %e\n", L_unit);
+  printf("T_unit = %e\n", T_unit);
   printf("B_unit = %e\n", B_unit);
+  printf("Thetae_unit = %e\n", Thetae_unit);
 
   // Allocate storage and set geometry
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
@@ -543,8 +574,10 @@ void init_data(int argc, char *argv[])
   H5LTread_dataset_double(file_id, "B1",   &p[B1][0][0][0]);
   H5LTread_dataset_double(file_id, "B2",   &p[B2][0][0][0]);
   H5LTread_dataset_double(file_id, "B3",   &p[B3][0][0][0]);
-  H5LTread_dataset_double(file_id, "KEL",  &p[KEL][0][0][0]);
-  H5LTread_dataset_double(file_id, "KTOT", &p[KTOT][0][0][0]);
+  if (with_electrons) {
+    H5LTread_dataset_double(file_id, "KEL",  &p[KEL][0][0][0]);
+    H5LTread_dataset_double(file_id, "KTOT", &p[KTOT][0][0][0]);
+  }
 
   H5Fclose(file_id);
 
@@ -574,7 +607,7 @@ void init_data(int argc, char *argv[])
 #define SPECTRUM_FILE_NAME "spectrum.dat"
 void report_spectrum(int N_superph_made)
 {
-  double dOmega, nuLnu, tau_scatt, L, Xi[NDIM], Xf[NDIM];
+  double dOmega, nuLnu, tau_scatt, L;//, Xi[NDIM], Xf[NDIM];
   FILE *fp;
 
   double nu0,nu1,nu,fnu ;
@@ -589,24 +622,28 @@ void report_spectrum(int N_superph_made)
   /* output */
   max_tau_scatt = 0.;
   L = 0.;
+  double dL = 0.;
   for (int i = 0; i < N_EBINS; i++) {
     // Output log_10(photon energy/(me c^2))
     fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
 
     for (int j = 0; j < N_THBINS; j++) {
       // Convert accumulated photon number to nuLnu, in units of Lsun
-      coord(i, j, 0, Xi);
-      coord(i, j+1, 0, Xf);
-      dOmega = 2.*dOmega_func(Xi, Xf);
+      //coord(N1-1, j, 0, Xi);
+      //coord(N2-1, j+1, 0, Xf);
+      dOmega = 2.*dOmega_func(j);
+      //dOmega = 2.*dOmega_func(Xi, Xf);
 
       nuLnu = (ME*CL*CL)*(4.*M_PI/dOmega)*(1./dlE);
 
       nuLnu *= spect[j][i].dEdlE/LSUN;
+      dL += ME*CL*CL*spect[j][i].dEdlE;
 
       tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
 
-      fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
+      fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
         nuLnu,
+        dOmega,
         spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL),
         tau_scatt,
         spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL),
@@ -633,12 +670,23 @@ void report_spectrum(int N_superph_made)
     }
     fprintf(fp, "\n");
   }
+  printf("dL = %e\n", dL);
   fprintf(stderr,
     "luminosity %g, dMact %g, efficiency %g, L/Ladv %g, max_tau_scatt %g\n",
     L, dMact * M_unit / T_unit / (MSUN / YEAR),
     L * LSUN / (dMact * M_unit * CL * CL / T_unit),
     L * LSUN / (Ladv * M_unit * CL * CL / T_unit),
     max_tau_scatt);
+
+  double LEdd = 4.*M_PI*GNEWT*MBH*MP*CL/(SIGMA_THOMSON);
+  double MdotEdd = 4.*M_PI*GNEWT*MBH*MP/(SIGMA_THOMSON*CL*0.1);
+  printf("MdotEdd = %e\n", MdotEdd);
+  double Mdot = dMact*M_unit/T_unit;
+  double mdot = Mdot/MdotEdd;
+  printf("Mdot = %e mdot = %e\n", Mdot, mdot);
+  double Lum = L*LSUN;
+  double lum = Lum/LEdd;
+  printf("L = %e lum = %e\n", Lum, lum);
 
   fprintf(stderr, "\n");
   fprintf(stderr, "N_superph_made: %d\n", N_superph_made);

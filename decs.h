@@ -20,7 +20,7 @@
 
 /* Range of initial superphoton frequencies */
 #define NUMIN 1.e9
-#define NUMAX 1.e20
+#define NUMAX 1.e28
 #define LNUMIN log(NUMIN)
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
@@ -31,10 +31,10 @@
 #define WEIGHT_MIN  (1.e28)
 
 #define SYNCHROTRON (1)
-#define BREMSSTRAHLUNG (1)
-#define COMPTON (1)
+#define BREMSSTRAHLUNG (0)
+#define COMPTON (0)
 #define KAPPA (5.)
-#define DIST_KAPPA (1)
+#define DIST_KAPPA (0)
 
 /* mnemonics for primitive vars; conserved vars */
 #define KRHO     0
@@ -274,7 +274,8 @@ void init_geometry(void);
 void init_data(int argc, char *argv[]);
 void init_nint_table(void);
 void init_storage(void);
-double dOmega_func(double Xi[NDIM], double Xf[NDIM]);
+//double dOmega_func(double Xi[NDIM], double Xf[NDIM]);
+double dOmega_func(int j);
 
 double linear_interp_weight(double nu);
 
