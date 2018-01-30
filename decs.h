@@ -35,6 +35,7 @@
 #define BREMSSTRAHLUNG (0)
 #define COMPTON (0)
 #define KAPPA (5.)
+<<<<<<< HEAD
 #define DIST_KAPPA (0)*/
 
 /* mnemonics for primitive vars; conserved vars */
