@@ -5,6 +5,7 @@ void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM]);
 
+//#define OLD_WGT (1)
 #define OLD_WGT (0)
 
 void init_model(int argc, char *argv[])
@@ -87,7 +88,7 @@ void init_weight_table(void)
     //#pragma omp for collapse(3)
     ZLOOP {
         get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
-        if (Ne == 0. || Thetae < THETAE_MIN)
+        if (Ne == 0.)// || Thetae < THETAE_MIN)
           continue;
 
         K2 = K2_eval(Thetae);
@@ -135,7 +136,7 @@ void init_weight_table(void)
     //#pragma omp for collapse(3)
     ZLOOP {
       get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
-      if (Ne == 0. || Thetae < THETAE_MIN)
+      if (Ne == 0.)// || Thetae < THETAE_MIN)
         continue;
 
       for (int l = lstart; l < lend; l++) {
@@ -231,7 +232,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
-  if (Ne == 0. || Thetae < THETAE_MIN) {
+  if (Ne == 0.) {// || Thetae < THETAE_MIN) {
     *nz = 0.;
     *dnmax = 0.;
     return;
@@ -294,8 +295,6 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
     *nz = 0.;
     *dnmax = 0.;
   }
-
-  printf("%i %i %i nz = %e\n", i,j,k,*nz);
 }
 #else
 void init_zone(int i, int j, int k, double *nz, double *dnmax)
@@ -307,7 +306,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
-  if (Ne == 0. || Thetae < THETAE_MIN) {
+  if (Ne == 0.) {// || Thetae < THETAE_MIN) {
     *nz = 0.;
     *dnmax = 0.;
     return;

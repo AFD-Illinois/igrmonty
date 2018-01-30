@@ -14,18 +14,19 @@
 #include <omp.h>
 #include <time.h>
 #include "constants.h"
+#include "model.h"
 
-#define NDIM  4
-#define NPRIM 8
+//#define NDIM  4
+//#define NPRIM 8
 
 /* Range of initial superphoton frequencies */
-#define NUMIN 1.e9
+/*#define NUMIN 1.e9
 #define NUMAX 1.e28
 #define LNUMIN log(NUMIN)
 #define LNUMAX log(NUMAX)
-#define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
+#define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)*/
 
-#define THETAE_MAX  1000.
+/*#define THETAE_MAX  1000.
 #define THETAE_MIN  0.3
 //#define TP_OVER_TE  (3.)
 #define WEIGHT_MIN  (1.e28)
@@ -34,10 +35,10 @@
 #define BREMSSTRAHLUNG (0)
 #define COMPTON (0)
 #define KAPPA (5.)
-#define DIST_KAPPA (0)
+#define DIST_KAPPA (0)*/
 
 /* mnemonics for primitive vars; conserved vars */
-#define KRHO     0
+/*#define KRHO     0
 #define UU      1
 #define U1      2
 #define U2      3
@@ -46,13 +47,13 @@
 #define B2      6
 #define B3      7
 #define KEL     8
-#define KTOT    9
+#define KTOT    9*/
 
 /* numerical convenience */
-#define SMALL 1.e-40
+//#define SMALL 1.e-40
 
 /* physical parameters */
-#define MMW 0.5   /* mean molecular weight, in units of mp */
+//#define MMW 0.5   /* mean molecular weight, in units of mp */
 
 /** data structures **/
 struct of_photon {
@@ -172,7 +173,7 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   double Ne, double Thetae, double B, double Ucon[NDIM], double Bcon[NDIM],
   double Gcov[NDIM][NDIM]);
 
-void report_bad_input();
+void report_bad_input(int argc);
 
 /* OpenMP specific functions */
 void omp_reduce_spect(void);

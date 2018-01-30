@@ -21,6 +21,16 @@ static int with_radiation;
 static int with_derefine_poles;
 static int with_electrons;
 
+void report_bad_input(int argc) 
+{
+  if (argc < 3) {
+    fprintf(stderr, "usage: \n");
+    fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
+    fprintf(stderr, "  bhlight: grmonty Ns fname\n");
+    exit(0);
+  }
+}
+
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
 #define RMAX  100.
@@ -522,7 +532,7 @@ void init_data(int argc, char *argv[])
   } else {
     // Enough command line args?
     if (argc < 6) {
-      report_bad_input();
+      report_bad_input(argc);
     }
   
     sscanf(argv[3], "%lf", &M_unit);

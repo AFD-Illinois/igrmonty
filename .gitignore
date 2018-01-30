@@ -1,0 +1,7 @@
+model.c
+model.h
+*.p
+*.png
+*.dat
+*.pyc
+grmonty

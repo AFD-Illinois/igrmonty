@@ -136,5 +136,16 @@ def build():
 
   sys.exit()
 
+if len(sys.argv) != 2:
+  print 'ERROR: Format is'
+  print '  python build.py [model]'
+  sys.exit()
+if (not os.path.isfile('model/' + sys.argv[1] + '.c')):
+  print 'ERROR Model %s does not exist' % sys.argv[1]
+  sys.exit()
+
+import shutil
+shutil.copyfile('model/' + sys.argv[1] + '.c', 'model.c')
+shutil.copyfile('model/' + sys.argv[1] + '.h', 'model.h')
 build()
 
