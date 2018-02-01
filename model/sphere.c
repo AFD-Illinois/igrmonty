@@ -19,6 +19,7 @@ double TP_OVER_TE;
 #define BETA (20.)
 #define TAUS (1.e-4)
 #define THETAE (10.)
+#define MBH (4.e6) 
 
 void report_bad_input(int argc) 
 {
@@ -410,9 +411,10 @@ void init_data(int argc, char *argv[])
   stopx[2] = startx[2]+N2*dx[2];
   stopx[3] = startx[3]+N3*dx[3];
 
-  L_unit = 1.47704e13;
-  T_unit = 492.688;
-  M_unit = 5.389836e23;
+  
+  L_unit = GNEWT*MBH*MSUN/(CL*CL);
+  T_unit = L_unit/CL;
+  M_unit = 1.e20;
   TP_OVER_TE = 1.;
   Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
 
