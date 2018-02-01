@@ -60,6 +60,25 @@ void ****malloc_rank4(int n1, int n2, int n3, int n4, int size)
   return A;
 }
 
+double **malloc_rank2_double(int n1, int n2)
+{
+
+  double **A;
+  double *space;
+  int i;
+
+  space = malloc_rank1(n1*n2, sizeof(double));
+
+  A = malloc_rank1(n1, sizeof(double *));
+
+  for(i=0;i<n1;i++){
+    A[i] = &(space[n2*i]);
+    //A[i] = malloc_rank1(n2,sizeof(double *));
+  }
+
+  return A;
+}
+
 double ****malloc_rank4_double(int n1, int n2, int n3, int n4)
 {
 

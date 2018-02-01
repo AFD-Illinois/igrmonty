@@ -8,9 +8,9 @@
 #define THETAE_MIN (0.3)
 #define WEIGHT_MIN (1.e28)
 
-#define SYNCHROTRON (0)
-#define BREMSSTRAHLUNG (1)
-#define COMPTON (0)
+#define SYNCHROTRON (1)
+#define BREMSSTRAHLUNG (0)
+#define COMPTON (1)
 #define KAPPA (5.)
 #define DIST_KAPPA (0)
 

@@ -11,10 +11,14 @@ double ****p;
 double ***ne;
 double ***thetae;
 double ***b;
+double **A;
 
 double TP_OVER_TE;
 
-#define RSPHERE 40.
+#define RSPHERE (20.)
+#define BETA (20.)
+#define TAUS (1.e-4)
+#define THETAE (10.)
 
 void report_bad_input(int argc) 
 {
@@ -476,22 +480,28 @@ void init_data(int argc, char *argv[])
       p[B3][i][j][k] = 0.;
     }
 
+    double Ne = TAUS/(SIGMA_THOMSON*RSPHERE*L_unit);
+    p[KRHO][i][j][k] = Ne/Ne_unit*exp(-pow(X[1]/RSPHERE,2));
+    p[UU][i][j][k] = THETAE*p[KRHO][i][j][k]/Thetae_unit;
+
+
     V += dV*geom[i][j].g;
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
-
-    if (i <= 20) {
-      double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
-      get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
-      lower(Ucon, geom[i][j].gcov, Ucov);
-      dMact += geom[i][j].g*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
-      Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
-    }
   }
-
-  dMact /= 21.;
-  Ladv /= 21.;
   bias_norm /= V;
-  fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
+
+  // Add a uniform vertical magnetic field
+  ZLOOP {
+    double X[NDIM], r, th;
+    coord(i, j, k, X);
+    r = X[1];
+    th = X[2];
+    
+    double Bnet = sqrt(2.*(gam-1.)*p[UU][i][j][k]/(BETA));
+    p[B1][i][j][k] = Bnet*cos(th);
+    p[B2][i][j][k] = -Bnet*sin(th)/r;
+    p[B3][i][j][k] = 0.;
+  }
 }
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////

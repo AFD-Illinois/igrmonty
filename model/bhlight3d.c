@@ -33,7 +33,7 @@ void report_bad_input(int argc)
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
-#define RMAX  100.
+#define RMAX  1000.
 #define ROULETTE  1.e4
 int stop_criterion(struct of_photon *ph)
 {
@@ -604,7 +604,16 @@ void init_data(int argc, char *argv[])
       dMact += geom[i][j].g*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
       Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
     }
+
+    //double X[NDIM], r, th;
+    //coord(i,j,k,X);
+    //bl_coord(X, &r, &th);
+    //if (j == N2/2) {
+    //  printf("[%i] r = %e RHO = %e\n", i, r, p[KRHO][i][j][k]);
+   // }
   }
+
+  //exit(-1);
 
   dMact /= 21.;
   Ladv /= 21.;
