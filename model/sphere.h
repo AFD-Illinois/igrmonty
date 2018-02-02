@@ -1,6 +1,6 @@
 #define NDIM 4
-#define NUMIN 1.e8
-#define NUMAX 1.e28
+#define NUMIN 1.e9
+#define NUMAX 1.e16
 #define LNUMIN log(NUMIN)
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
@@ -10,7 +10,7 @@
 
 #define SYNCHROTRON (1)
 #define BREMSSTRAHLUNG (0)
-#define COMPTON (0)
+#define COMPTON (1)
 #define KAPPA (5.)
 #define DIST_KAPPA (0)
 
