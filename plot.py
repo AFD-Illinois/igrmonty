@@ -20,9 +20,9 @@ for n in xrange(nbin):
   nuLnu[n,:] = data[:,NVAR*n+1]*LSUN
 
 ax = plt.subplot(1,1,1)
-#for n in xrange(nbin):
-#  ax.step(nu, nuLnu[n], where='mid')
-ax.step(nu, nuLnu.mean(axis=0), where='mid', color='k')
+for n in xrange(nbin):
+  ax.step(nu, nuLnu[n], where='mid')
+#ax.step(nu, nuLnu.mean(axis=0), where='mid', color='k')
 #ax.step(nu, nuLnu[-1], where='mid', color='k', linewidth=2)
 ax.set_xscale('log'); ax.set_yscale('log')
 #ax.axvline(1000.*ME*CL**2/HPL, color='k', linestyle='--')
