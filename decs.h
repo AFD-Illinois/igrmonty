@@ -98,9 +98,9 @@ struct of_spectrum {
   double E0;
 };
 
-#define N_ESAMP   200
-#define N_EBINS   200
-#define N_THBINS  6
+//#define N_ESAMP   200
+//#define N_EBINS   200
+//#define N_THBINS  6
 
 extern struct of_spectrum spect[N_THBINS][N_EBINS];
 
