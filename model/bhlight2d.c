@@ -249,7 +249,7 @@ double bias_func(double Te, double w)
   max = 0.5 * w / WEIGHT_MIN;
 
   //bias = Te*Te;
-  bias = Te*Te/(5. * max_tau_scatt);
+  bias = 10.*Te*Te/(5. * max_tau_scatt);
   //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   //if (bias < TP_OVER_TE)
@@ -511,6 +511,8 @@ void init_data(int argc, char *argv[])
   safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMIN
   safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMAX
   safe_fscanf(fp, "%lf ", &idum); // MONIKA_TPTE
+
+  Rh = 1. + sqrt(1. - a*a);
 
   with_electrons = 1;
 
