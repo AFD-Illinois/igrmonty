@@ -13,8 +13,9 @@ def add_machine(name, compiler, c_flags, l_flags, gsl_dir):
 
 def get_machine():
   for key in machines:
-    if os.uname()[1] == machines[key]['NAME']:
-      return machines[os.uname()[1]]
+    if machines[key]['NAME'] in os.uname()[1]:
+    #if os.uname()[1] == machines[key]['NAME']:
+      return machines[key]
   print('UNKNOWN MACHINE ' + os.uname()[1])
   sys.exit()
 
@@ -47,3 +48,9 @@ add_machine(name='lmc',
             c_flags='-Ofast -std=c99 -Wall -fopenmp -g -DVERSION=\"$(GIT_VERSION)\"',
             l_flags='-lm -lgsl -lgslcblas',
             gsl_dir='')
+
+add_machine(name='stampede2',
+            compiler='h5pcc',
+            c_flags='-Ofast -std=c99 -Wall -fopenmp -g -DVERSION=\"$(GIT_VERSION)\"',
+            l_flags='-lm -lgsl -lgslcblas',
+            gsl_dir='/opt/apps/intel17/gsl/2.3')
