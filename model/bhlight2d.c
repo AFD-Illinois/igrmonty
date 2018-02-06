@@ -249,7 +249,7 @@ double bias_func(double Te, double w)
   max = 0.5 * w / WEIGHT_MIN;
 
   //bias = Te*Te;
-  bias = 10.*Te*Te/(5. * max_tau_scatt);
+  bias = 16.*Te*Te/(5.*max_tau_scatt);
   //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   //if (bias < TP_OVER_TE)
@@ -456,7 +456,7 @@ void init_data(int argc, char *argv[])
   char *fname = argv[2];
   fp = fopen(fname, "r");
   if (fp == NULL) {
-    fprintf(stderr, "Can't open sim data file\n");
+    fprintf(stderr, "Can't open sim data file %s\n", fname);
     exit(-1);
   } else {
     fprintf(stderr, "Successfully opened %s\n", fname);
@@ -505,12 +505,13 @@ void init_data(int argc, char *argv[])
   safe_fscanf(fp, "%lf ", &Rout);
   safe_fscanf(fp, "%lf ", &hslope);
   safe_fscanf(fp, "%lf ", &R0);
-  safe_fscanf(fp, "%d ", &idum); // WITH_ELECTRONS
-  safe_fscanf(fp, "%d ", &idum); // SPEC_THETABINS
-  safe_fscanf(fp, "%d ", &idum); // SPEC_FREQBINS
-  safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMIN
-  safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMAX
-  safe_fscanf(fp, "%lf ", &idum); // MONIKA_TPTE
+  while ( (fgetc(fp)) != '\n' ) ;
+  //safe_fscanf(fp, "%d ", &idum); // WITH_ELECTRONS
+  //safe_fscanf(fp, "%d ", &idum); // SPEC_THETABINS
+  //safe_fscanf(fp, "%d ", &idum); // SPEC_FREQBINS
+  //safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMIN
+  //safe_fscanf(fp, "%lf ", &fdum); // SPEC_NUMAX
+  //safe_fscanf(fp, "%lf ", &idum); // MONIKA_TPTE
 
   Rh = 1. + sqrt(1. - a*a);
 
@@ -581,8 +582,10 @@ void init_data(int argc, char *argv[])
       &p[KELNOCOND][i][j][k],
       &p[PHI][i][j][k],
       &p[FLR][i][j][k]);
+  
+    while ( (fgetc(fp)) != '\n' ) ;
 
-    safe_fscanf(fp, "%lf", &divb);
+    /*safe_fscanf(fp, "%lf", &divb);
 
     safe_fscanf(fp, "%lf %lf %lf %lf",
       &Ucon[0], &Ucon[1], &Ucon[2], &Ucon[3]);
@@ -611,7 +614,7 @@ void init_data(int argc, char *argv[])
     safe_fscanf(fp, "%lf ", &fdum); // N_esuper
     safe_fscanf(fp, "%lf ", &fdum); // N_esuper_electron
 
-    safe_fscanf(fp, "%lf ", &fdum); // Thetae
+    safe_fscanf(fp, "%lf ", &fdum); // Thetae*/
 
     bias_norm += dV*gdet*pow(p[KELCOND][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit, 2.);
     V += dV*gdet;
