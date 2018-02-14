@@ -17,7 +17,7 @@ Canfield, Howard, and Liang, 1987, ApJ 323, 565.
    
 */
 
-#define OLD_E_SAMP (1)
+#define OLD_E_SAMP (0)
 
 void sample_scattered_photon(double k[4], double p[4], double kp[4])
 {
