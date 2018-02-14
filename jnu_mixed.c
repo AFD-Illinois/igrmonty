@@ -1,6 +1,7 @@
 
 
 #include "decs.h"
+//#include "gsl_sf_gamma.h"
 //#pragma omp threadprivate(r)
 /* 
 
@@ -14,10 +15,11 @@ good for Thetae > 1
 */
 
 // For kappa = 5
-#define GAM1 (4.0122013020041507)
-#define GAM2 (2.)
-#define GAM3 (1.0555465648134663)
-#define GAM4 (1.411932800087401)
+//#define GAM1 (4.0122013020041507)
+//#define GAM2 (2.)
+//#define GAM3 (1.0555465648134663)
+//#define GAM4 (1.411932800087401)
+double GAM1, GAM2, GAM3, GAM4;
 #define NUCUT (1.e14)
 
 double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
@@ -306,6 +308,12 @@ void init_emiss_tables(void)
 
   // Kappa synchrotron lookup table
   {
+    // Store & evaluate Gamma functions
+    GAM1 = gsl_sf_gamma(KAPPA - 4./3.);
+    GAM2 = gsl_sf_gamma(KAPPA - 2.);
+    GAM3 = gsl_sf_gamma(KAPPA/4. - 1./3.);
+    GAM4 = gsl_sf_gamma(KAPPA/4. + 4./3.);
+   
     double L;
     gsl_function func;
     gsl_integration_workspace *w;

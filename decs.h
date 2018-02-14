@@ -12,6 +12,7 @@
 #include <gsl/gsl_permutation.h>
 #include <gsl/gsl_linalg.h>
 #include <gsl/gsl_integration.h>
+#include <gsl/gsl_sf_gamma.h>
 #include <omp.h>
 #include <time.h>
 #include "constants.h"
