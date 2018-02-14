@@ -18,6 +18,7 @@ good for Thetae > 1
 #define GAM2 (2.)
 #define GAM3 (1.0555465648134663)
 #define GAM4 (1.411932800087401)
+#define NUCUT (1.e14)
 
 double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
@@ -146,8 +147,10 @@ double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
   if (isnan(Jslo) || isinf(Jslo) || Jslo < 0. || Jslo > 1.e100) {
     printf("JSLO ERROR! %e\n", Jslo);
   }
+
+  double cut = exp(-nu/NUCUT);
   
-  return js*Js;
+  return js*Js*cut;
 }
 
 #undef CST
@@ -208,8 +211,9 @@ double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
 
   double nuc = EE*B/(2.*M_PI*ME*CL);
 	double js = Ne*EE*EE*nuc/CL;
+  double cut = exp(-nu/NUCUT);
 
-	return js*G_eval(Thetae, B, nu);
+	return js*G_eval(Thetae, B, nu)*cut;
   
   /*
   double K = 2.*M_PI*ME*CL*nu/(EE*B*pow(Thetae*KAPPA,2));

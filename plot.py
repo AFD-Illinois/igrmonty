@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 ME   = 9.1093897e-28
 CL   = 2.99792458e10
@@ -7,6 +8,8 @@ HPL  = 6.6260755e-27
 LSUN = 3.827e33
 
 fnam = 'spectrum.dat'
+if len(sys.argv) == 2:
+  fnam = sys.argv[1]
 
 data = np.loadtxt(fnam)
 nu = 10.**(data[:,0])*ME*CL**2/HPL
