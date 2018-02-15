@@ -49,12 +49,63 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne)
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {
+  #if DIST_KAPPA && BREMSSTRAHLUNG
+  printf("ERROR absorptivities not set up for bremss and kappa!\n");
+  exit(-1);
+  #endif
+  
+  #if DIST_KAPPA
+  // Pandya+ 2016 absorptivity
+  double Aslo, Ashi, As;
+
+  double kap = KAPPA;
+  double w = Thetae;
+  double nuc = EE*B/(2.*M_PI*ME*CL);
+  double nuk = nuc*pow(w*kap,2)*sin(theta);
+  double Xk = nu/nuk;
+
+  Aslo  = pow(Xk,-2./3.)*pow(3.,1./6.)*10./41.;
+  Aslo *= 2.*M_PI/(pow(w*kap,10./3.-kap));
+  Aslo *= (kap - 2.)*(kap - 1.)*kap/(3.*kap - 1.);
+  Aslo *= gsl_sf_gamma(5./3.); 
+  // Evaluate 2F1(a,b;c,z), using analytic continuation if |z| > 1
+  double a = kap - 1./3.;
+  double b = kap + 1.;
+  double c = kap + 2./3.;
+  double z = -kap*w;
+  double hg2F1;
+  if (fabs(z) == 1.) {
+    hg2F1 = 0.;
+  } else if (fabs(z) < 1.) {
+    hg2F1 = gsl_sf_hyperg_2F1(a, b, c, z);
+  } else {
+    hg2F1  = pow(1.-z,-a)*gsl_sf_gamma(c)*gsl_sf_gamma(b-a)/(gsl_sf_gamma(b)*gsl_sf_gamma(c-a))*gsl_sf_hyperg_2F1(a,c-b,a-b+1,1./(1.-z));
+    hg2F1 += pow(1.-z,-b)*gsl_sf_gamma(c)*gsl_sf_gamma(a-b)/(gsl_sf_gamma(a)*gsl_sf_gamma(c-b))*gsl_sf_hyperg_2F1(b,c-a,b-a+1,1./(1.-z));
+  }
+  Aslo *= hg2F1;
+
+  Ashi  = pow(Xk,-(1. + kap)/2.)*pow(M_PI,3./2.)/3.;
+  Ashi *= (kap - 2.)*(kap - 1.)*kap/pow(w*kap,3.);
+  Ashi *= (2.*gsl_sf_gamma(2. + kap/2.)/(2. + kap) - 1.);
+  Ashi *= (pow(3./kap,19./4.) + 3./5.);
+
+  double xbr = pow(-7./4. + 8./5.*kap,-43./50.);
+
+  As = pow(pow(Aslo,-xbr) + pow(Ashi,-xbr),-1./xbr);
+  double alphas = Ne*EE*EE/(nu*ME*CL)*As;
+
+  return nu*alphas;
+
+  #else
 	double j, bnu;
 
 	j = jnu_inv(nu, Thetae, Ne, B, theta);
 	bnu = Bnu_inv(nu, Thetae);
 
+  //double alpha_kirch = j/(bnu + 1.e-100);
+
 	return (j / (bnu + 1.e-100));
+  #endif // DIST_KAPPA
 }
 
 

@@ -197,7 +197,7 @@ double jnu_kappa_integrand(double th, void *params)
   Jshi = pow(Xk,-(kap-2.)/2.)*sth*pow(3.,(kap-1.)/2.)*(kap-2.)*(kap-1.)/4.*GAM3*GAM4;
   double x = 3.*pow(kap,-3./2.);
   Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
-  return sth*Js;
+  return Js;
 }
 //#define EPSABS (0.)
 //#define EPSREL (1.e-6)
