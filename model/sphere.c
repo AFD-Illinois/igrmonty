@@ -17,7 +17,7 @@ double TP_OVER_TE;
 
 #define RSPHERE (20.)
 #define BETA (20.)
-#define TAUS (1.e-4)
+#define TAUS (1.e-5)
 #define THETAE (10.)
 #define MBH (4.e6) 
 
@@ -32,7 +32,7 @@ void report_bad_input(int argc)
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
-#define RMAX  100.
+#define RMAX  1000.
 #define ROULETTE  1.e4
 int stop_criterion(struct of_photon *ph)
 {
@@ -236,7 +236,7 @@ double bias_func(double Te, double w)
   max = 0.5 * w / WEIGHT_MIN;
 
   //bias = Te*Te;
-  bias = Te*Te/(5. * max_tau_scatt);
+  bias = 10.*Te*Te/(5. * max_tau_scatt);
   //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   //if (bias < TP_OVER_TE)

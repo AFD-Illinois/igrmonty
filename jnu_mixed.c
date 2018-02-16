@@ -20,7 +20,6 @@ good for Thetae > 1
 //#define GAM3 (1.0555465648134663)
 //#define GAM4 (1.411932800087401)
 double GAM1, GAM2, GAM3, GAM4;
-#define NUCUT (1.e14)
 
 double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);

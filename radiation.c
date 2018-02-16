@@ -93,8 +93,9 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 
   As = pow(pow(Aslo,-xbr) + pow(Ashi,-xbr),-1./xbr);
   double alphas = Ne*EE*EE/(nu*ME*CL)*As;
+  double cut = exp(-nu/NUCUT);
 
-  return nu*alphas;
+  return nu*alphas*cut;
 
   #else
 	double j, bnu;

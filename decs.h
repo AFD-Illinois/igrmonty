@@ -19,6 +19,8 @@
 #include "constants.h"
 #include "model.h"
 
+#define NUCUT (1.e14)
+
 //#define NDIM  4
 //#define NPRIM 8
 
