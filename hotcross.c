@@ -73,14 +73,14 @@ void init_hotcross(void)
       double norm = getnorm_dNdg(pow(10., lT));
       for (i = 0; i <= NW; i++) {
      
-        if (i == 0) {
+        /*if (i == 0) {
         printf("%g ,", norm);
           //printf("T = %e norm = %e\n", pow(10., lT), norm);
       double Thetae = pow(10., lT);
       double normlow = sqrt(2./(M_PI*pow(KAPPA*Thetae,3.)))*gsl_sf_gamma(KAPPA+1.)/gsl_sf_gamma(KAPPA-1./2.);
       double normhigh = (KAPPA-2.)*(KAPPA-1.)/(2.*KAPPA*KAPPA*pow(Thetae,3.));
       //printf("normlow = %e normhigh = %e\n", normlow, normhigh);
-        }
+        }*/
         
       
       lw = lminw + i * dlw;
