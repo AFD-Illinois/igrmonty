@@ -1,0 +1,10 @@
+# template parameter file
+
+Ns            100000
+MBH           4.6e+6
+M_unit        1.9e+18
+TP_OVER_TE    3.
+
+dump          dump_00001200.h5
+spectrum      spectrum.dat
+              

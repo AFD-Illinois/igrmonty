@@ -42,6 +42,7 @@
 #include "decs.h"
 
 /* defining declarations for global variables */
+Params params = { 0 };
 struct of_geom **geom;
 int nthreads;
 int N1, N2, N3, n_within_horizon;
@@ -65,23 +66,25 @@ int main(int argc, char *argv[])
 {
   //omp_set_num_threads(1);
   double N_superph_made;
-  //int quit_flag;
-  //struct of_photon ph;
   time_t currtime, starttime;
-
-  report_bad_input(argc);
 
   // Spectral bin parameters
   dlE = 0.25;   // bin width
   lE0 = log(1.e-12);  // location of first bin, in electron rest-mass units
 
-  init_model(argc, argv);
+  // Load parameters
+  for (int i=0; i<argc-1; ++i) {
+    if ( strcmp(argv[i], "-par") == 0 ) {
+      load_par(argv[i+1], &params);
+    }
+  }
+
+  init_model(argc, argv, &params);
 
   N_superph_made = 0;
   N_superph_recorded = 0;
   N_scatt = 0;
   starttime = time(NULL);
-  //quit_flag = 0;
 
   printf("SYNCH: %i\n", SYNCHROTRON);
   printf("BREMS: %i\n", BREMSSTRAHLUNG);
@@ -139,7 +142,7 @@ int main(int argc, char *argv[])
 
   omp_reduce_spect();
 
-  report_spectrum((int) N_superph_made);
+  report_spectrum((int) N_superph_made, &params);
 
   return 0;
 }

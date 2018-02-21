@@ -23,7 +23,7 @@ static int with_electrons;
 
 void report_bad_input(int argc) 
 {
-  if (argc < 3) {
+  if (argc < 6) {
     fprintf(stderr, "usage: \n");
     fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
     fprintf(stderr, "  bhlight: grmonty Ns fname\n");
@@ -473,12 +473,19 @@ double dOmega_func(int j)
 #include <hdf5.h>
 #include <hdf5_hl.h>
 
-void init_data(int argc, char *argv[])
+void init_data(int argc, char *argv[], Params *params)
 {
-  char *fname = argv[2];
+  const char *fname = NULL;
   double dV, V;
+  hid_t file_id;
 
-  hid_t file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+  if (params->loaded && strlen(params->dump) > 0) {
+    fname = params->dump;
+  } else {
+    fname = argv[2];
+  }
+
+  file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
   if (file_id < 0) {
     fprintf(stderr, "File %s does not exist! Exiting...\n", fname);
     exit(-1);
@@ -530,14 +537,18 @@ void init_data(int argc, char *argv[])
     H5LTread_dataset_double(file_id, "Mbh", &MBH);
     H5LTread_dataset_double(file_id, "tp_over_te", &TP_OVER_TE);
   } else {
+
     // Enough command line args?
-    if (argc < 6) {
+    if (! params->loaded) { 
       report_bad_input(argc);
+      sscanf(argv[3], "%lf", &M_unit);
+      sscanf(argv[4], "%lf", &MBH);
+      sscanf(argv[5], "%lf", &TP_OVER_TE);
+    } else {
+      M_unit = params->M_unit;
+      MBH = params->MBH;
+      TP_OVER_TE = params->TP_OVER_TE;
     }
-  
-    sscanf(argv[3], "%lf", &M_unit);
-    sscanf(argv[4], "%lf", &MBH);
-    sscanf(argv[5], "%lf", &TP_OVER_TE);
 
     MBH *= MSUN;
 
@@ -624,7 +635,7 @@ void init_data(int argc, char *argv[])
 //////////////////////////////////// OUTPUT ////////////////////////////////////
 
 #define SPECTRUM_FILE_NAME "spectrum.dat"
-void report_spectrum(int N_superph_made)
+void report_spectrum(int N_superph_made, Params *params)
 {
   double dOmega, nuLnu, tau_scatt, L;//, Xi[NDIM], Xf[NDIM];
   FILE *fp;
@@ -632,7 +643,12 @@ void report_spectrum(int N_superph_made)
   double nu0,nu1,nu,fnu ;
   double dsource = 8000*PC ;
 
-  fp = fopen(SPECTRUM_FILE_NAME, "w");
+  if (params->loaded && strlen(params->spectrum) > 0) {
+    fp = fopen(params->spectrum, "w");
+  } else {
+    fp = fopen(SPECTRUM_FILE_NAME, "w");
+  }
+  
   if (fp == NULL) {
     fprintf(stderr, "trouble opening spectrum file\n");
     exit(0);

@@ -389,7 +389,7 @@ double dOmega_func(int j)
 
 //////////////////////////////// INITIALIZATION ////////////////////////////////
 
-void init_data(int argc, char *argv[])
+void init_data(int argc, char *argv[], Params *params)
 {
   double dV, V;
 
@@ -509,7 +509,7 @@ void init_data(int argc, char *argv[])
 //////////////////////////////////// OUTPUT ////////////////////////////////////
 
 #define SPECTRUM_FILE_NAME "spectrum.dat"
-void report_spectrum(int N_superph_made)
+void report_spectrum(int N_superph_made, Params *params)
 {
   double dOmega, nuLnu, tau_scatt, L;//, Xi[NDIM], Xf[NDIM];
   FILE *fp;
@@ -517,7 +517,12 @@ void report_spectrum(int N_superph_made)
   double nu0,nu1,nu,fnu ;
   double dsource = 8000*PC ;
 
-  fp = fopen(SPECTRUM_FILE_NAME, "w");
+  if (params->loaded && strlen(params->spectrum) > 0) {
+    fp = fopen(params->spectrum, "w");
+  } else {
+    fp = fopen(SPECTRUM_FILE_NAME, "w");
+  }
+
   if (fp == NULL) {
     fprintf(stderr, "trouble opening spectrum file\n");
     exit(0);
