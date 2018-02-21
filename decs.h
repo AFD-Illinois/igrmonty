@@ -18,6 +18,7 @@
 #include <time.h>
 #include "constants.h"
 #include "model.h"
+#include "par.h"
 
 #define NUCUT (1.e14)
 
@@ -174,7 +175,7 @@ extern double max_tau_scatt, Ladv, dMact, bias_norm;
 /* core monte carlo/radiative transport routines */
 void track_super_photon(struct of_photon *ph);
 void record_super_photon(struct of_photon *ph);
-void report_spectrum(int N_superph_made);
+void report_spectrum(int N_superph_made, Params *params);
 void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   double Ne, double Thetae, double B, double Ucon[NDIM], double Bcon[NDIM],
   double Gcov[NDIM][NDIM]);
@@ -258,7 +259,7 @@ void sample_scattered_photon(double k[NDIM], double p[NDIM],
    basic interfaces define the model **/
 
 /* physics related */
-void init_model(int argc, char *argv[]);
+void init_model(int argc, char *argv[], Params *params);
 void make_super_photon(struct of_photon *ph, int *quit_flag);
 double bias_func(double Te, double w);
 void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -278,7 +279,7 @@ void bl_coord(double *X, double *r, double *th);
 void make_zone_centered_tetrads(void);
 void set_units(char *munitstr);
 void init_geometry(void);
-void init_data(int argc, char *argv[]);
+void init_data(int argc, char *argv[], Params *params);
 void init_nint_table(void);
 void init_storage(void);
 //double dOmega_func(double Xi[NDIM], double Xf[NDIM]);
