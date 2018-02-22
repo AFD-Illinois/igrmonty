@@ -357,38 +357,30 @@ struct df_params {
   double Thetae;
 };
 
+// Function that, when zero, gives gamma for which dN/d log gam is maximized
 double dfdgam(double ge, void *params)
 {
   struct df_params *p = (struct df_params*) params;
-  double Thetae = p->Thetae;
-
-  //double df = pow(ge,2)/Thetae;
-  //df *= (-pow(ge,3) + 5.*pow(ge,2)*Thetae + ge - 3.*Thetae)/Thetae;
+  double Te = p->Thetae;
 
   #if DIST_KAPPA
-  {
-    ge = GSL_MAX(ge, 1.+1.e-10);
-    double kap = KAPPA;
-    double df = -ge*kap*Thetae*pow((ge-1.)/(kap*Thetae),-kap);
-    df *= ((2.-3*ge*ge)*kap*Thetae + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.));
-    return df;
-  }
+  double kap = KAPPA;
+  return ((2.-3*ge*ge)*kap*Te + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.)); 
+  #else
+  return ge - pow(ge,3.) - 2.*Te + 3.*pow(ge,2.)*Te;
   #endif
-
-  double df = pow(ge,3)/Thetae;
-  df *= (-pow(ge,3) + 6.*pow(ge,2)*Thetae + ge - 4.*Thetae);
-
-  return df;
 }
+
 // Maxwell-Juettner distribution, prefactor removed for sampling
+// dN / d \log \gamma
 double fdist(double ge, double Thetae)
 {
   #if DIST_KAPPA
   double kap = KAPPA;
-  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.);
+  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.)*exp(-ge/1000.);
+  #else
+  return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
   #endif
-  //return (1.-1./pow(ge,2))*pow(ge,5)*exp(-ge/Thetae);
-  return ge*(1.-1./pow(ge,2))*pow(ge,5)*exp(-ge/Thetae);
 }
 
 #include <gsl/gsl_errno.h>
@@ -397,6 +389,12 @@ double fdist(double ge, double Thetae)
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
 	#if OLD_E_SAMP
+  
+  // Sanity check
+  #if DIST_KAPPA
+  printf("Can't use old E sampling with kappa distribution!\n");
+  exit(-1);
+  #endif
   double y;
 
 	/* checked */
@@ -409,7 +407,7 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 	return;
   #else
 
-  // Relativistic kappa distribution does not like very small Thetae
+  // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
   if (Thetae < 0.01) {
     *gamma_e = 1.000001;
 	  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
@@ -421,8 +419,8 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
   const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double ge_max = 1. + Thetae;
-  double ge_lo = GSL_MAX(1., 0.1*Thetae);
-  double ge_hi = GSL_MAX(10., 10.*Thetae);
+  double ge_lo = GSL_MAX(1., 0.01*Thetae);
+  double ge_hi = GSL_MAX(100., 100.*Thetae);
   //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
   gsl_function F;
   struct df_params params = {Thetae};
