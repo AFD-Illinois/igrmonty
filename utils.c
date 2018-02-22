@@ -8,16 +8,26 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 //#define OLD_WGT (1)
 #define OLD_WGT (0)
 
-void init_model(int argc, char *argv[])
+void init_model(int argc, char *argv[], Params *params)
 {
   fprintf(stderr, "getting simulation data...\n");
 
-  double Ntot;
-  sscanf(argv[1], "%lf", &Ntot);
-	Ns = (int) Ntot;
+  if (params->loaded) {
+
+    Ns = (int) params->Ns;
+
+  } else {
+
+    report_bad_input(argc);
+
+    double Ntot;
+    sscanf(argv[1], "%lf", &Ntot);
+	  Ns = (int) Ntot;
+
+  }
 
   // Read dumpfile
-  init_data(argc, argv);
+  init_data(argc, argv, params);
 
   // make look-up table for hot cross sections
   init_hotcross();
