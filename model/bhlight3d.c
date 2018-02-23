@@ -483,6 +483,7 @@ void init_data(int argc, char *argv[], Params *params)
     fname = params->dump;
   } else {
     fname = argv[2];
+    strncpy((char *)params->dump, argv[2], 255);
   }
 
   file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
@@ -634,6 +635,185 @@ void init_data(int argc, char *argv[], Params *params)
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
 
+#if HDF5_OUTPUT
+void report_spectrum(int N_superph_made, Params *params)
+{
+
+  hid_t fid = -1;
+
+  if (params->loaded && strlen(params->spectrum) > 0) {
+    fid = H5Fcreate(params->spectrum, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  } else {
+    fid = H5Fcreate("spectrum.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+  }
+
+  if (fid < 0) {
+    fprintf(stderr, "! unable to open/create hdf5 file.\n");
+    exit(-3);
+  }
+
+  h5io_add_attribute_str(fid, "/", "githash", xstr(VERSION));
+
+  h5io_add_group(fid, "/params");
+
+  h5io_add_data_dbl(fid, "/params/NUCUT", NUCUT);
+  h5io_add_data_dbl(fid, "/params/GAMMACUT", GAMMACUT);
+  h5io_add_data_dbl(fid, "/params/NUMAX", NUMAX);
+  h5io_add_data_dbl(fid, "/params/NUMIN", NUMIN);
+  h5io_add_data_dbl(fid, "/params/LNUMAX", LNUMAX);
+  h5io_add_data_dbl(fid, "/params/LNUMIN", LNUMIN);
+  h5io_add_data_dbl(fid, "/params/DLNU", DLNU);
+  h5io_add_data_dbl(fid, "/params/THETAE_MAX", THETAE_MIN);
+  h5io_add_data_dbl(fid, "/params/THETAE_MIN", THETAE_MAX);
+  h5io_add_data_dbl(fid, "/params/TP_OVER_TE", TP_OVER_TE);
+  h5io_add_data_dbl(fid, "/params/WEIGHT_MIN", WEIGHT_MIN);
+  h5io_add_data_dbl(fid, "/params/KAPPA", KAPPA);
+  h5io_add_data_dbl(fid, "/params/L_unit", L_unit);
+  h5io_add_data_dbl(fid, "/params/T_unit", T_unit);
+  h5io_add_data_dbl(fid, "/params/M_unit", M_unit);
+  h5io_add_data_dbl(fid, "/params/B_unit", B_unit);
+  h5io_add_data_dbl(fid, "/params/Ne_unit", Ne_unit);
+  h5io_add_data_dbl(fid, "/params/RHO_unit", RHO_unit);
+  h5io_add_data_dbl(fid, "/params/U_unit", U_unit);
+  h5io_add_data_dbl(fid, "/params/Thetae_unit", Thetae_unit);
+  h5io_add_data_dbl(fid, "/params/MBH", MBH);
+  h5io_add_data_dbl(fid, "/params/a", a);
+  h5io_add_data_dbl(fid, "/params/Rin", Rin);
+  h5io_add_data_dbl(fid, "/params/Rout", Rout);
+  h5io_add_data_dbl(fid, "/params/hslope", hslope);
+  h5io_add_data_dbl(fid, "/params/t", t);
+
+  h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
+  h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);
+  h5io_add_data_int(fid, "/params/COMPTON", COMPTON);
+  h5io_add_data_int(fid, "/params/DIST_KAPPA", DIST_KAPPA);
+  h5io_add_data_int(fid, "/params/N_ESAMP", N_ESAMP);
+  h5io_add_data_int(fid, "/params/N_EBINS", N_EBINS);
+  h5io_add_data_int(fid, "/params/N_THBINS", N_THBINS);
+  h5io_add_data_int(fid, "/params/N1", N1);
+  h5io_add_data_int(fid, "/params/N2", N2);
+  h5io_add_data_int(fid, "/params/N3", N3);
+  h5io_add_data_int(fid, "/params/Ns", Ns);
+  h5io_add_data_int(fid, "/params/Nrecorded", N_superph_recorded);
+  h5io_add_data_int(fid, "/params/Nmade", N_superph_made);
+  h5io_add_data_int(fid, "/params/Nscattered", N_scatt);
+
+  h5io_add_data_str(fid, "/params/dump", params->dump);
+
+  // temporary data buffers
+  double lnu_buf[N_EBINS];
+  double dOmega_buf[N_THBINS];
+  double nuLnu_buf[N_EBINS][N_THBINS];
+  double tau_abs_buf[N_EBINS][N_THBINS];
+  double tau_scatt_buf[N_EBINS][N_THBINS];
+  double x1av_buf[N_EBINS][N_THBINS];
+  double x2av_buf[N_EBINS][N_THBINS];
+  double x3av_buf[N_EBINS][N_THBINS];
+  double nscatt_buf[N_EBINS][N_THBINS];
+
+  // normal output routine
+  double dOmega, nuLnu, tau_scatt, L, nu0, nu1, nu, fnu, dL;
+  double dsource = 8000 * PC;
+
+  max_tau_scatt = 0.;
+  L = 0.;
+  dL = 0.;
+
+  for (int j=0; j<N_THBINS; ++j) {
+    dOmega_buf[j] = 2. * dOmega_func(j);
+  }
+
+  for (int i=0; i<N_EBINS; ++i) {
+    lnu_buf[i] = (i * dlE + lE0) / M_LN10;
+    for (int j=0; j<N_THBINS; ++j) {
+
+      dOmega = 2. * dOmega_func(j);
+
+      nuLnu = (ME * CL * CL) * (4. * M_PI / dOmega) * (1. / dlE);
+      nuLnu *= spect[j][i].dEdlE/LSUN;
+
+      tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
+
+      nuLnu_buf[i][j] = nuLnu;
+      tau_abs_buf[i][j] = spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL);
+      tau_scatt_buf[i][j] = tau_scatt;
+      x1av_buf[i][j] = spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL);
+      x2av_buf[i][j] = sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL)));
+      x3av_buf[i][j] = sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL)));
+      nscatt_buf[i][j] = spect[j][i].nscatt / (spect[j][i].dNdlE + SMALL);
+
+      if (tau_scatt > max_tau_scatt) max_tau_scatt = tau_scatt;
+
+      dL += ME * CL * CL * spect[j][i].dEdlE;
+      L += nuLnu * dOmega * dlE / (4. * M_PI);
+
+      nu0 = ME * CL * CL * exp((i-0.5) * dlE + lE0) / HPL;
+      nu1 = ME * CL * CL * exp((i+0.5) * dlE + lE0) / HPL;
+
+      if (nu0 < 230.e9 && nu1 > 230.e9) {
+        nu = ME * CL * CL * exp(i * dlE + lE0) / HPL;
+        fnu = nuLnu * LSUN / (4. * M_PI * dsource * dsource * nu * JY);
+        fprintf(stderr, "fnu: %10.5g\n", fnu);
+      }
+
+    }
+  }
+
+  h5io_add_group(fid, "/output");
+
+  h5io_add_data_dbl_1d(fid, "/output/lnu", N_EBINS, lnu_buf);
+  h5io_add_data_dbl_1d(fid, "/output/dOmega", N_THBINS, dOmega_buf);
+  h5io_add_data_dbl_2d(fid, "/output/nuLnu", N_EBINS, N_THBINS, nuLnu_buf);
+  h5io_add_data_dbl_2d(fid, "/output/tau_abs", N_EBINS, N_THBINS, tau_abs_buf);
+  h5io_add_data_dbl_2d(fid, "/output/tau_scatt", N_EBINS, N_THBINS, tau_scatt_buf);
+  h5io_add_data_dbl_2d(fid, "/output/x1av", N_EBINS, N_THBINS, x1av_buf);
+  h5io_add_data_dbl_2d(fid, "/output/x2av", N_EBINS, N_THBINS, x2av_buf);
+  h5io_add_data_dbl_2d(fid, "/output/x3av", N_EBINS, N_THBINS, x3av_buf);
+  h5io_add_data_dbl_2d(fid, "/output/nscatt", N_EBINS, N_THBINS, nscatt_buf);
+
+  double LEdd = 4. * M_PI * GNEWT * MBH * MP * CL / SIGMA_THOMSON;
+  double MdotEdd = 4. * M_PI * GNEWT * MBH * MP / ( SIGMA_THOMSON * CL * 0.1 );
+  double Lum = L * LSUN;
+  double lum = Lum / LEdd;
+  double Mdot = dMact * M_unit / T_unit;
+  double mdot = Mdot / MdotEdd;
+
+  h5io_add_data_dbl(fid, "/output/L", Lum);
+  h5io_add_data_dbl(fid, "/output/Mdot", Mdot);
+  h5io_add_data_dbl(fid, "/output/LEdd", LEdd);
+  h5io_add_data_dbl(fid, "/output/MdotEdd", MdotEdd);
+
+  h5io_add_attribute_str(fid, "/output/L", "units", "erg/s");
+  h5io_add_attribute_str(fid, "/output/LEdd", "units", "erg/s");
+  h5io_add_attribute_str(fid, "/output/Mdot", "units", "g/s");
+  h5io_add_attribute_str(fid, "/output/MdotEdd", "units", "g/s");
+
+  // diagnostic output to screen
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "MBH = %g Msun\n", MBH/MSUN);
+  fprintf(stderr, "a = %g\n", a);
+
+  fprintf(stderr, "dL = %g\n", dL);
+  fprintf(stderr, "dMact = %g\n", dMact * M_unit / T_unit / (MSUN / YEAR));
+  fprintf(stderr, "efficiency = %g\n", L * LSUN / (dMact * M_unit * CL * CL / T_unit));
+  fprintf(stderr, "L/Ladv = %g\n", L * LSUN / (Ladv * M_unit * CL * CL / T_unit));
+  fprintf(stderr, "max_tau_scatt = %g\n", max_tau_scatt);
+  fprintf(stderr, "Mdot = %g g/s, MdotEdd = %g g/s, mdot = %g MdotEdd\n", Mdot, MdotEdd, mdot);
+  fprintf(stderr, "L = %g erg/s, LEdd = %g erg/s, lum = %g LEdd\n", Lum, LEdd, lum);
+
+  fprintf(stderr, "\n");
+
+  fprintf(stderr, "N_superph_made = %d\n", N_superph_made);
+  fprintf(stderr, "N_superph_scatt = %d\n", N_scatt);
+  fprintf(stderr, "N_superph_recorded = %d\n", N_superph_recorded);
+
+  H5Fclose(fid);
+
+}
+
+#else
+
 #define SPECTRUM_FILE_NAME "spectrum.dat"
 void report_spectrum(int N_superph_made, Params *params)
 {
@@ -730,4 +910,6 @@ void report_spectrum(int N_superph_made, Params *params)
 
   fclose(fp);
 }
+
+#endif // HDF5_OUTPUT
 
