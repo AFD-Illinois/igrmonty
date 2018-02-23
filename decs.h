@@ -21,6 +21,7 @@
 #include "par.h"
 
 #define NUCUT (1.e14)
+#define GAMMACUT (1000.)
 
 //#define NDIM  4
 //#define NPRIM 8

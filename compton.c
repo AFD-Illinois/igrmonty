@@ -377,7 +377,7 @@ double fdist(double ge, double Thetae)
 {
   #if DIST_KAPPA
   double kap = KAPPA;
-  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.)*exp(-ge/1000.);
+  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.)*exp(-ge/GAMMACUT);
   #else
   return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
   #endif
