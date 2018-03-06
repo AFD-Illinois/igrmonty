@@ -567,9 +567,6 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_int(fid, "/params/N2", N2);
   h5io_add_data_int(fid, "/params/N3", N3);
   h5io_add_data_int(fid, "/params/Ns", Ns);
-  h5io_add_data_int(fid, "/params/Nrecorded", N_superph_recorded);
-  h5io_add_data_int(fid, "/params/Nmade", N_superph_made);
-  h5io_add_data_int(fid, "/params/Nscattered", N_scatt);
 
   h5io_add_data_str(fid, "/params/dump", params->dump);
 
@@ -643,6 +640,10 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl_2d(fid, "/output/x2av", N_EBINS, N_THBINS, x2av_buf);
   h5io_add_data_dbl_2d(fid, "/output/x3av", N_EBINS, N_THBINS, x3av_buf);
   h5io_add_data_dbl_2d(fid, "/output/nscatt", N_EBINS, N_THBINS, nscatt_buf);
+
+  h5io_add_data_int(fid, "/output/Nrecorded", N_superph_recorded);
+  h5io_add_data_int(fid, "/output/Nmade", N_superph_made);
+  h5io_add_data_int(fid, "/output/Nscattered", N_scatt);
 
   double LEdd = 4. * M_PI * GNEWT * MBH * MP * CL / SIGMA_THOMSON;
   double MdotEdd = 4. * M_PI * GNEWT * MBH * MP / ( SIGMA_THOMSON * CL * 0.1 );
