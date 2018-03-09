@@ -40,7 +40,7 @@ def build():
 
   host = machines.get_machine()
 
-  C_FLAGS = '-std=c99 ' + host['COMPILER_FLAGS']
+  C_FLAGS = '-std=c99 -DVERSION=$(GIT_VERSION) ' + host['COMPILER_FLAGS']
 
   # MATH AND DYNAMIC LINKING
   LIB_FLAGS = '-lm -ldl'
@@ -78,6 +78,7 @@ def build():
 
   # WRITE MAKEFILE
   mf = open('makefile', 'w')
+  mf.write('GIT_VERSION = $(shell git describe --dirty --always --tags)' + '\n')
   mf.write('CC = ' + host['COMPILER'] + '\n')
   mf.write('CCFLAGS = ' + C_FLAGS + ' ' + LIBRARIES + ' ' + INCLUDES + '\n')
   mf.write('LIB_FLAGS = ' + LIB_FLAGS + '\n')

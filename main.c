@@ -50,6 +50,7 @@ double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
 struct of_spectrum spect[N_THBINS][N_EBINS] = { };
 
+double t;
 double a;
 double R0, Rin, Rh, Rout, Rms;
 double hslope;

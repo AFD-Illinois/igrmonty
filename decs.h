@@ -142,6 +142,7 @@ extern int N1, N2, N3;
 extern int n_within_horizon;
 
 /* some coordinate parameters */
+extern double t;
 extern double a;
 extern double R0, Rin, Rh, Rout, Rms;
 extern double hslope;
@@ -163,6 +164,8 @@ extern double TP_OVER_TE;
 extern double max_tau_scatt, Ladv, dMact, bias_norm;
 
 // Macros
+#define xstr(s) str(s)
+#define str(s) #s
 #define ZLOOP for (int i = 0; i < N1; i++) \
               for (int j = 0; j < N2; j++) \
               for (int k = 0; k < N3; k++)

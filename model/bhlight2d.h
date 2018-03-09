@@ -36,3 +36,6 @@
 #define N_EBINS 200
 #define N_THBINS 6
 
+#define HDF5_OUTPUT (0)
+#include "h5io.h"
+
