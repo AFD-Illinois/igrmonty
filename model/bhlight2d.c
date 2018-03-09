@@ -591,9 +591,7 @@ void init_data(int argc, char *argv[], Params *params)
       &p[PHI][i][j][k],
       &p[FLR][i][j][k]);
   
-    while ( (fgetc(fp)) != '\n' ) ;
-
-    /*safe_fscanf(fp, "%lf", &divb);
+    safe_fscanf(fp, "%lf", &divb);
 
     safe_fscanf(fp, "%lf %lf %lf %lf",
       &Ucon[0], &Ucon[1], &Ucon[2], &Ucon[3]);
@@ -609,6 +607,10 @@ void init_data(int argc, char *argv[], Params *params)
     safe_fscanf(fp, "%lf ", &vmin);
     safe_fscanf(fp, "%lf ", &vmax);
     safe_fscanf(fp, "%lf ", &gdet);
+
+    while ( (fgetc(fp)) != '\n' ) ;
+
+    /*
 
     safe_fscanf(fp, "%lf ", &fdum); // <G_0>
     safe_fscanf(fp, "%lf ", &fdum); // <G_1>
