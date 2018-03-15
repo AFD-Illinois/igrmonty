@@ -21,7 +21,7 @@ class color:
   BLUE    = '\033[94m'
   NORMAL  = '\033[0m'
 
-def build():
+def build(model):
   NOPARAM = 1
   DEBUG = 0
   for n in range(len(sys.argv)):
@@ -40,7 +40,7 @@ def build():
 
   host = machines.get_machine()
 
-  C_FLAGS = '-std=c99 -DVERSION=$(GIT_VERSION) ' + host['COMPILER_FLAGS']
+  C_FLAGS = '-std=c99 -DMODEL=' + model + ' -DVERSION=$(GIT_VERSION) ' + host['COMPILER_FLAGS']
 
   # MATH AND DYNAMIC LINKING
   LIB_FLAGS = '-lm -ldl'
@@ -148,5 +148,5 @@ if (not os.path.isfile('model/' + sys.argv[1] + '.c')):
 import shutil
 shutil.copyfile('model/' + sys.argv[1] + '.c', 'model.c')
 shutil.copyfile('model/' + sys.argv[1] + '.h', 'model.h')
-build()
+build(sys.argv[1])
 

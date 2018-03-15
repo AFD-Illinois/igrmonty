@@ -569,6 +569,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_int(fid, "/params/Ns", Ns);
 
   h5io_add_data_str(fid, "/params/dump", params->dump);
+  h5io_add_data_str(fid, "/params/model", xstr(MODEL));
 
   // temporary data buffers
   double lnu_buf[N_EBINS];
