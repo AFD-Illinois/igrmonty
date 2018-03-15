@@ -131,8 +131,7 @@ void init_weight_table(void)
   double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
   //double jcst = M_SQRT2*EE*EE*EE/(27*ME*CL*CL);
 
-  // THIS IS BROKEN WITH OPENMP!!
-  //#pragma omp parallel
+  #pragma omp parallel
   {
     int lstart, lend, myid, nthreads;
     double Ne, Thetae, B, Ucon[NDIM], Bcon[NDIM];
@@ -379,7 +378,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   }*/
 
   //*nz = geom[i][j].g * Ne * Bmag * Thetae * Thetae * ninterp / K2;
-  *nz = geom[i][j].g*ninterp/omp_get_num_threads();
+  *nz = geom[i][j].g * ninterp;
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
       "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  ninterp=%g nz = %e\n\n",

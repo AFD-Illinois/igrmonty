@@ -110,6 +110,7 @@ struct of_spectrum {
 //#define N_THBINS  6
 
 extern struct of_spectrum spect[N_THBINS][N_EBINS];
+#pragma omp threadprivate(spect)
 
 struct of_grid {
   struct of_spectrum spec[N_EBINS];

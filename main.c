@@ -103,7 +103,7 @@ int main(int argc, char *argv[])
   }*/
   
   int quit_flag = 0;
-  #pragma omp parallel private(spect)
+  #pragma omp parallel
   {
     struct of_photon ph;
     while (1) {
