@@ -241,7 +241,8 @@ double dNdg_unnorm(double lge, void *params)
   double w = thetae;
   double ge = exp(lge);
   //printf("lge = %e ge = %e te = %e dNdge = %e\n", lge, ge, w, ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap*w), -(kap+1.)));
-  return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap*w), -(kap+1.));
+  double cut = cut = exp(-ge/GAMMACUT);
+  return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap*w), -(kap+1.))*cut;
 }
 
 double getnorm_dNdg(double thetae)

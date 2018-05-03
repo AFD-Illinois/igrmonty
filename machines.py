@@ -21,8 +21,10 @@ def get_machine():
 
 add_machine(name='meade', 
             compiler='h5pcc',  
-            c_flags='-O3 -Wall -Werror -fdiagnostics-color -fopenmp',
-            l_flags='',
+            #c_flags='-O3 -Wall -Werror -fdiagnostics-color -fopenmp',
+            #l_flags='',
+            c_flags='-O3 -std=c99 -Wall -fopenmp -g',
+            l_flags='-lm -lgsl -lgslcblas',
             gsl_dir='/home/brryan/Software/gsl')
 
 add_machine(name='bh',

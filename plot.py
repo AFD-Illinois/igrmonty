@@ -12,15 +12,16 @@ if len(sys.argv) == 2:
   fnam = sys.argv[1]
 
 data = np.loadtxt(fnam)
-nu = 10.**(data[:,0])*ME*CL**2/HPL
+#nu = 10.**(data[:,0])*ME*CL**2/HPL
+nu = data[:,0]
 
-NVAR = 8
+NVAR = 1
 nbin = (len(data[0])-1)/NVAR
 print nbin
 
 nuLnu = np.zeros([nbin, len(nu)])
 for n in xrange(nbin):
-  nuLnu[n,:] = data[:,NVAR*n+1]*LSUN
+  nuLnu[n,:] = data[:,NVAR*n+1]
 
 ax = plt.subplot(1,1,1)
 for n in xrange(nbin):
@@ -30,7 +31,8 @@ for n in xrange(nbin):
 ax.set_xscale('log'); ax.set_yscale('log')
 #ax.axvline(1000.*ME*CL**2/HPL, color='k', linestyle='--')
 nuLnu_max = nuLnu.max()
-ax.set_ylim([1.e-10*nuLnu_max, 1.e1*nuLnu_max])
-ax.set_xlim([1.e8, 1.e24])
+ax.set_ylim([1.e28, 1.e37])
+#ax.set_ylim([1.e-10*nuLnu_max, 1.e1*nuLnu_max])
+ax.set_xlim([1.e10, 1.e22])
 plt.show()
 

@@ -365,7 +365,9 @@ double dfdgam(double ge, void *params)
 
   #if DIST_KAPPA
   double kap = KAPPA;
-  return ((2.-3*ge*ge)*kap*Te + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.)); 
+  //return ((2.-3*ge*ge)*kap*Te + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.)); 
+  double gc = GAMMACUT;
+  return (1.-ge)*ge*(-ge+ge*ge*ge+gc*(2.+ge*(1.+ge*(-2.+kap)+kap))) + ge*(ge-ge*ge*ge+gc*(-2.+3.*ge*ge))*kap*Te;
   #else
   return ge - pow(ge,3.) - 2.*Te + 3.*pow(ge,2.)*Te;
   #endif
@@ -420,7 +422,7 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
   gsl_root_fsolver *s;
   double ge_max = 1. + Thetae;
   double ge_lo = GSL_MAX(1., 0.01*Thetae);
-  double ge_hi = GSL_MAX(100., 100.*Thetae);
+  double ge_hi = GSL_MAX(100., 1000.*Thetae);
   //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
   gsl_function F;
   struct df_params params = {Thetae};
