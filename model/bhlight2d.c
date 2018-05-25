@@ -671,8 +671,8 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/LNUMAX", LNUMAX);
   h5io_add_data_dbl(fid, "/params/LNUMIN", LNUMIN);
   h5io_add_data_dbl(fid, "/params/DLNU", DLNU);
-  h5io_add_data_dbl(fid, "/params/THETAE_MAX", THETAE_MIN);
-  h5io_add_data_dbl(fid, "/params/THETAE_MIN", THETAE_MAX);
+  h5io_add_data_dbl(fid, "/params/THETAE_MIN", THETAE_MIN);
+  h5io_add_data_dbl(fid, "/params/THETAE_MAX", THETAE_MAX);
   h5io_add_data_dbl(fid, "/params/TP_OVER_TE", TP_OVER_TE);
   h5io_add_data_dbl(fid, "/params/WEIGHT_MIN", WEIGHT_MIN);
   h5io_add_data_dbl(fid, "/params/KAPPA", KAPPA);
