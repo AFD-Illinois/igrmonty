@@ -68,6 +68,9 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
 
 double jnu_bremss(double nu, double Ne, double Thetae)
 {
+  if (Thetae < THETAE_MIN) 
+    return 0;
+
   double Te = Thetae*ME*CL*CL/KBOL;
   double rel = (1. + 4.4e-10*Te);
   double x, efac;
