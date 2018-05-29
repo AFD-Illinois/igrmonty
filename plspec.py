@@ -18,13 +18,14 @@ nspec = len(lw)
 #
 i = np.arange(0,nbins,1)
 #
-nLn = np.log10(tdata[1+i*7,:] + 1.e-30)
-tauabs = tdata[2+i*7,:]
-tauscatt = tdata[3+i*7,:]
-x1av = tdata[4+i*7,:]
-x2av = tdata[5+i*7,:]
-x3av = tdata[6+i*7,:]
-nscatt = tdata[7+i*7,:]
+nvars = 8
+nLn = np.log10(tdata[1+i*nvars,:] + 1.e-30)
+tauabs = tdata[2+i*nvars,:]
+tauscatt = tdata[3+i*nvars,:]
+x1av = tdata[4+i*nvars,:]
+x2av = tdata[5+i*nvars,:]
+x3av = tdata[6+i*nvars,:]
+nscatt = tdata[7+i*nvars,:]
 #
 # normalize 
 me = 9.1e-28
@@ -71,6 +72,6 @@ plt.xlim((minlognu, maxlognu))
 plt.ylim((33.5-5, 33.5+2))
 #
 # plot on screen, where you can save to file after viewing plot
-plt.show()
+#plt.show()
 # or, uncomment to save directly...
-#plt.savefig('tst.pdf')
+plt.savefig('tst.pdf')
