@@ -15,7 +15,7 @@ double **A;
 
 double TP_OVER_TE;
 
-#define TAUS  (1.e-3)
+#define TAUS  (1.e0)
 #define KBTE  (25)
 #define KBTBB (0.25)
 
@@ -254,6 +254,7 @@ void omp_reduce_spect()
 
 double bias_func(double Te, double w)
 {
+  return 1./TAUS;
   double bias, max ;
 
   max = 0.5 * w / WEIGHT_MIN;
@@ -482,7 +483,7 @@ void init_data(int argc, char *argv[], Params *params)
     //th = X[2];                                                                   
     //double Ne = TAUS/(SIGMA_THOMSON*RSPHERE*L_unit);                             
     p[KRHO][i][j][k] = 1.;//*exp(-pow(X[1]/RSPHERE,2));                  
-    p[UU][i][j][k] = (KBTE/(ME*CL*CL))*p[KRHO][i][j][k]/Thetae_unit;                        
+    p[UU][i][j][k] = (KBTE*KEV/(ME*CL*CL))*p[KRHO][i][j][k]/Thetae_unit;                        
     p[U1][i][j][k] = 0.;                                                         
     p[U2][i][j][k] = 0.;                                                         
     p[U3][i][j][k] = 0.;                                                         
