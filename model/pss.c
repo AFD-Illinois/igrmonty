@@ -15,13 +15,17 @@ double **A;
 
 double TP_OVER_TE;
 
-#define RSPHERE (100.)
-#define BETA (20.)
-#define TAUS (1.e-5)
-#define THETAE (10.)
-#define MBH (4.e6) 
+#define TAUS  (1.e-3)
+#define KBTE  (25)
+#define KBTBB (0.25)
 
-#define TBB (1.e6)
+
+//#define THETAE (10.)
+//#define MBH (4.e6) 
+
+#define TBB (KBTBB*KEV/KBOL)
+#define TE (KBTE*KEV/KBOL)
+//#define RSPHERE (1.)
 
 void report_bad_input(int argc) 
 {
@@ -417,9 +421,9 @@ void init_data(int argc, char *argv[], Params *params)
   N1 = 128;
   N2 = 128;
   N3 = 1;
-  gam = 13./9.;
+  gam = 5./3.;
   Rin = 0.;
-  Rout = RSPHERE;
+  Rout = 1.;//RSPHERE;
   startx[1] = 0.;
   startx[2] = 0.;
   startx[3] = 0.;
@@ -433,17 +437,24 @@ void init_data(int argc, char *argv[], Params *params)
   stopx[3] = startx[3]+N3*dx[3];
 
   
-  L_unit = GNEWT*MBH*MSUN/(CL*CL);
+  L_unit = RSUN;
   T_unit = L_unit/CL;
-  M_unit = 1.e19;
+  Ne_unit = TAUS/(SIGMA_THOMSON*L_unit);
+  RHO_unit = (MP + ME)*Ne_unit;
+  M_unit = RHO_unit*pow(L_unit,3);
+  
+
+  //L_unit = GNEWT*MBH*MSUN/(CL*CL);
+  //T_unit = L_unit/CL;
+  //M_unit = 1.e19;
   TP_OVER_TE = 1.;
   Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
 
   // Set remaining units and constants
-  RHO_unit = M_unit/pow(L_unit,3);
+  //RHO_unit = M_unit/pow(L_unit,3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  Ne_unit = RHO_unit/(MP + ME);
+  //Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
   //Rh = 1. + sqrt(1. - a * a);
 
@@ -465,21 +476,18 @@ void init_data(int argc, char *argv[], Params *params)
   V = dMact = Ladv = 0.;                                                         
   dV = dx[1]*dx[2]*dx[3];                                                        
   ZLOOP {                                                                        
-    double X[NDIM], r, th;                                                       
-    coord(i, j, k, X);                                                           
-    r = X[1];                                                                    
-    th = X[2];                                                                   
-    double Ne = TAUS/(SIGMA_THOMSON*RSPHERE*L_unit);                             
-    p[KRHO][i][j][k] = Ne/Ne_unit;//*exp(-pow(X[1]/RSPHERE,2));                  
-    p[UU][i][j][k] = THETAE*p[KRHO][i][j][k]/Thetae_unit;                        
+    //double X[NDIM], r, th;                                                       
+    //coord(i, j, k, X);                                                           
+    //r = X[1];                                                                    
+    //th = X[2];                                                                   
+    //double Ne = TAUS/(SIGMA_THOMSON*RSPHERE*L_unit);                             
+    p[KRHO][i][j][k] = 1.;//*exp(-pow(X[1]/RSPHERE,2));                  
+    p[UU][i][j][k] = (KBTE/(ME*CL*CL))*p[KRHO][i][j][k]/Thetae_unit;                        
     p[U1][i][j][k] = 0.;                                                         
     p[U2][i][j][k] = 0.;                                                         
     p[U3][i][j][k] = 0.;                                                         
-    double RHO0 = Ne/Ne_unit;                                                    
-    double UU0 = THETAE*RHO0/Thetae_unit;                                        
-    double Bnet = sqrt(2.*(gam-1.)*UU0/(BETA));                                  
-    p[B1][i][j][k] = Bnet*cos(th);                                               
-    p[B2][i][j][k] = -Bnet*sin(th)/r;                                            
+    p[B1][i][j][k] = 0.;                                               
+    p[B2][i][j][k] = 0.;                                            
     p[B3][i][j][k] = 0.;                                                         
     V += dV*geom[i][j].g;                                                        
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);

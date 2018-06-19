@@ -18,6 +18,7 @@
 #define PC			(3.085678e18		)	/* parsec */
 #define MSUN			(1.989e33		)	/* solar mass */
 #define LSUN                    (3.827e33               ) 	/* Luminousity of Sun */
+#define RSUN      (6.96e10)
 #define YEAR                    (31536000.              ) 	/* No. of seconds in year */
 #define EV      (1.6021772e-12)
 #define KEV     (1000.*EV)
