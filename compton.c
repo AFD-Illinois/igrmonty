@@ -17,8 +17,6 @@ Canfield, Howard, and Liang, 1987, ApJ 323, 565.
    
 */
 
-#define OLD_E_SAMP (0)
-
 void sample_scattered_photon(double k[4], double p[4], double kp[4])
 {
 	double ke[4], kpe[4];
@@ -390,25 +388,6 @@ double fdist(double ge, double Thetae)
 #include <gsl/gsl_roots.h>
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
-	#if OLD_E_SAMP
-  
-  // Sanity check
-  #if DIST_KAPPA
-  printf("Can't use old E sampling with kappa distribution!\n");
-  exit(-1);
-  #endif
-  double y;
-
-	/* checked */
-	y = sample_y_distr(Thetae);
-
-	/* checked */
-	*gamma_e = y * y * Thetae + 1.;
-	*beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
-
-	return;
-  #else
-
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
   if (Thetae < 0.01) {
     *gamma_e = 1.000001;
@@ -453,11 +432,8 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
     ge_samp = exp(lge_min + (lge_max - lge_min)*monty_rand()); 
   } while (fdist(ge_samp, Thetae)/f_max < monty_rand());
 
-  //printf("ge_samp = %e\n", ge_samp);
   *gamma_e = ge_samp;                                                
   *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
-  //exit(-1);
-  #endif
 }
 
 /* 

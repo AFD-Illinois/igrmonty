@@ -21,6 +21,8 @@ double TP_OVER_TE;
 #define THETAE (10.)
 #define MBH (4.e6) 
 
+#define TBB (1.e6)
+
 void report_bad_input(int argc) 
 {
   if (argc != 2) {
@@ -28,6 +30,23 @@ void report_bad_input(int argc)
     fprintf(stderr, "  grmonty Ns\n");
     exit(0);
   }
+
+  printf("TBB: %g K\n", TBB);
+  printf("kbTBB: %g keV\n", KBOL*TBB/KEV);
+  printf("NUMAX: %g\n", 2.8214391/HPL*KBOL*TBB);
+}
+
+/////////////////////////////////// EMITTER ////////////////////////////////////
+
+double get_Inu(double nu)
+{
+  return pow(nu,3)*Bnu_inv(nu, KBOL*TBB/(ME*CL*CL));
+}
+
+double get_Imax()
+{
+  double numax = 2.8214391/HPL*KBOL*TBB;
+  return get_Inu(numax);
 }
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
@@ -676,6 +695,7 @@ void report_spectrum(int N_superph_made, Params *params)
   L = 0.;
   double dL = 0.;
   for (int i = 0; i < N_EBINS; i++) {
+    nu = pow((i * dlE + lE0) / M_LN10,10.)*ME*CL*CL/HPL;
     // Output log_10(photon energy/(me c^2))
     //fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
     //fprintf(fp, "%10.5g ", pow((i * dlE + lE0) / M_LN10,10.)*ME*CL*CL/HPL);

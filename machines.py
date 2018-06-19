@@ -51,6 +51,12 @@ add_machine(name='lmc',
             l_flags='-lm -lgsl -lgslcblas',
             gsl_dir='')
 
+add_machine(name='fortran90',
+            compiler='h5pcc',
+            c_flags='-O3 -std=c99 -Wall -fopenmp -g',
+            l_flags='-lm -lgsl -lgslcblas',
+            gsl_dir='/home/brryan/software/gsl/')
+
 add_machine(name='stampede2',
             compiler='h5pcc',
             c_flags='-O3 -std=c99 -Wall -fopenmp -g',

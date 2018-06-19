@@ -15,12 +15,6 @@ import subprocess
 DEBUG = 0
 EXECUTABLE = 'grmonty'
 
-class color:
-  BOLD    = '\033[1m'
-  WARNING = '\033[1;31m'
-  BLUE    = '\033[94m'
-  NORMAL  = '\033[0m'
-
 def build(model):
   NOPARAM = 1
   DEBUG = 0
@@ -53,8 +47,7 @@ def build(model):
 
   print("  CONFIGURATION\n")
   def print_config(key, var):
-    print("    " + color.BOLD + "{:<15}".format(key) + color.NORMAL +
-          str(var))
+    print("    {:<15}".format(key) + str(var))
 
   print_config("MACHINE",    host['NAME'])
   print_config("COMPILER",   host['COMPILER'])
@@ -109,20 +102,17 @@ def build(model):
 
   for stdout_line in iter(popen.stdout.readline, ""):
     if stdout_line.rstrip()[-2:] == '.c':
-      print("    [" + color.BOLD + color.BLUE +
-            "%2d%%" % (100.*float(ncomp)/len(SRC_ALL)) + color.NORMAL +
-            "] " + color.BOLD +
-            stdout_line.rsplit('-c',1)[1].rstrip().lstrip().split('/')[-1] +
-            color.NORMAL)
+      print("    [%2d%%" % (100.*float(ncomp)/len(SRC_ALL)) + "] " +
+            stdout_line.rsplit('-c',1)[1].rstrip().lstrip().split('/')[-1])
       ncomp += 1
   for stderr_line in iter(popen.stderr.readline, ""):
     if first_error == 1 and 'error' in stderr_line:
-      print(color.WARNING + "\n  COMPILER ERROR\n" + color.NORMAL)
+      print("\n  COMPILER ERROR\n")
       first_error = 0
     print(stderr_line.rstrip())
 
   if first_error != 1:
-    print(color.WARNING + "\n  COMPILATION FAILED\n" + color.NORMAL)
+    print("\n  COMPILATION FAILED\n")
     sys.exit()
 
   obj_files = glob.glob('*.o')

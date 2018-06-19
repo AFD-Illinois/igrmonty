@@ -5,9 +5,6 @@ void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM]);
 
-//#define OLD_WGT (1)
-#define OLD_WGT (0)
-
 void init_model(int argc, char *argv[], Params *params)
 {
   fprintf(stderr, "getting simulation data...\n");
@@ -48,10 +45,20 @@ void init_model(int argc, char *argv[], Params *params)
 int n2gen = -1;
 double dnmax;
 int zone_i, zone_j, zone_k;
-// HOW CAN THIS BE THREADSAFE?!?!???!?!?!?!?!??!?!?!
 void make_super_photon(struct of_photon *ph, int *quit_flag)
 {
-	while (n2gen <= 0) {
+	#ifdef EMIT_ORIGIN
+  if (n2gen < 0) {
+    n2gen = Ns;
+  }
+  n2gen--;
+  if (n2gen < 0) {
+    *quit_flag = 1;
+  }
+  
+  sample_origin_photon(ph);
+  #else
+  while (n2gen <= 0) {
 		n2gen = get_zone(&zone_i, &zone_j, &zone_k, &dnmax);
 	}
 
@@ -65,57 +72,9 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
 	if (*quit_flag != 1) {
 		sample_zone_photon(zone_i, zone_j, zone_k, dnmax, ph);
 	}
+  #endif // EMIT_ORIGIN
 }
 
-#if OLD_WGT
-void init_weight_table(void)
-{
-  double sum[N_ESAMP+1], nu[N_ESAMP+1];
-  
-  fprintf(stderr, "Building table for superphoton weights\n");
-
-  #pragma omp parallel for
-  for (int i = 0; i <= N_ESAMP; i++) {
-    sum[i] = 0.;
-    nu[i] = exp(i * DLNU + LNUMIN);
-  }
-
-  double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
-  double jcst = M_SQRT2*EE*EE*EE/(27*ME*CL*CL);
-
-  // THIS IS BROKEN WITH OPENMP!!
-  //#pragma omp parallel
-  {
-    int lstart, lend, myid, nthreads;
-    double Ne, Thetae, K2, B, fac, Ucon[NDIM], Bcon[NDIM];
-    nthreads = omp_get_num_threads();
-    myid = omp_get_thread_num();
-    lstart = myid * (N_ESAMP / nthreads);
-    lend = (myid + 1) * (N_ESAMP / nthreads);
-    if (myid == nthreads - 1)
-      lend = N_ESAMP + 1;
-
-    //#pragma omp for collapse(3)
-    ZLOOP {
-        get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
-        if (Ne == 0.)// || Thetae < THETAE_MIN)
-          continue;
-
-        K2 = K2_eval(Thetae);
-        fac = (jcst*Ne*B*Thetae*Thetae/K2)*sfac*geom[i][j].g;
-        for (int l = lstart; l < lend; l++)
-          sum[l] += fac*F_eval(Thetae, B, nu[l]);
-      }
-  } // omp parallel
-
-
-  #pragma omp parallel for
-  for (int i = 0; i <= N_ESAMP; i++)
-    wgt[i] = log(sum[i]/(HPL*Ns) + WEIGHT_MIN);
-
-  fprintf(stderr, "done.\n\n");
-}
-#else
 void init_weight_table(void)
 {
   double sum[N_ESAMP+1], nu[N_ESAMP+1];
@@ -161,7 +120,6 @@ void init_weight_table(void)
 
   fprintf(stderr, "done.\n\n");
 }
-#endif
 
 #define BTHSQMIN  (1.e-4)
 #define BTHSQMAX  (1.e9)
@@ -169,39 +127,6 @@ void init_weight_table(void)
 double lb_min, dlb;
 double nint[NINT + 1];
 double dndlnu_max[NINT + 1];
-#if OLD_WGT
-void init_nint_table(void)
-{
-  double Bmag, dn;
-  static int firstc = 1;
-
-  if (firstc) {
-    lb_min = log(BTHSQMIN);
-    dlb = log(BTHSQMAX / BTHSQMIN) / NINT;
-    firstc = 0;
-  }
-
-  for (int i = 0; i <= NINT; i++) {
-    nint[i] = 0.;
-    Bmag = exp(i * dlb + lb_min);
-    dndlnu_max[i] = 0.;
-    for (int j = 0; j < N_ESAMP; j++) {
-      dn = F_eval(1., Bmag,
-            exp(j * DLNU +
-          LNUMIN)) / (exp(wgt[j]) + 1.e-100);
-      if (dn > dndlnu_max[i])
-        dndlnu_max[i] = dn;
-      nint[i] += DLNU * dn;
-    }
-
-    nint[i] *= dx[1] * dx[2] * dx[3] * L_unit * L_unit * L_unit
-        * M_SQRT2 * EE * EE * EE / (27. * ME * CL * CL)
-        * 1. / HPL;
-    nint[i] = log(nint[i]);
-    dndlnu_max[i] = log(dndlnu_max[i]);
-  }
-}
-#else
 void init_nint_table(void)
 {
   double Bmag, dn;
@@ -229,83 +154,7 @@ void init_nint_table(void)
     dndlnu_max[i] = log(dndlnu_max[i]);
   }
 }
-#endif
 
-#if OLD_WGT
-void init_zone(int i, int j, int k, double *nz, double *dnmax)
-{
-  int l;
-  double Ne, Thetae, Bmag, lbth;
-  double dl, dn, ninterp, K2;
-  double Ucon[NDIM], Bcon[NDIM];
-
-  get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
-
-  if (Ne == 0.) {// || Thetae < THETAE_MIN) {
-    *nz = 0.;
-    *dnmax = 0.;
-    return;
-  }
-
-  lbth = log(Bmag * Thetae * Thetae);
-
-  dl = (lbth - lb_min) / dlb;
-  l = (int) dl;
-  dl = dl - l;
-  if (l < 0) {
-    *dnmax = 0.;
-    *nz = 0.;
-    return;
-  } else if (l >= NINT) {
-
-    fprintf(stderr,
-      "warning: outside of nint table range %g...change in harm_utils.c\n",
-      Bmag * Thetae * Thetae);
-    fprintf(stderr,"%g %g %g %g\n",Bmag,Thetae,lbth,(lbth - lb_min)/dlb) ;
-    ninterp = 0.;
-    *dnmax = 0.;
-    for (l = 0; l <= N_ESAMP; l++) {
-      dn = F_eval(Thetae, Bmag,
-            exp(j * DLNU +
-          LNUMIN)) / exp(wgt[l]);
-      if (dn > *dnmax)
-        *dnmax = dn;
-      ninterp += DLNU * dn;
-    }
-    ninterp *= dx[1] * dx[2] * dx[3] * L_unit * L_unit * L_unit
-        * M_SQRT2 * EE * EE * EE / (27. * ME * CL * CL)
-        * 1. / HPL;
-  } else {
-    if (isinf(nint[l]) || isinf(nint[l + 1])) {
-      ninterp = 0.;
-      *dnmax = 0.;
-    } else {
-      ninterp =
-          exp((1. - dl) * nint[l] + dl * nint[l + 1]);
-      *dnmax =
-          exp((1. - dl) * dndlnu_max[l] +
-        dl * dndlnu_max[l + 1]);
-    }
-  }
-
-  K2 = K2_eval(Thetae);
-  if (K2 == 0.) {
-    *nz = 0.;
-    *dnmax = 0.;
-    return;
-  }
-
-  *nz = geom[i][j].g * Ne * Bmag * Thetae * Thetae * ninterp / K2;
-  if (*nz > Ns * log(NUMAX / NUMIN)) {
-    fprintf(stderr,
-      "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  K2=%g  ninterp=%g nz = %e\n\n",
-      i, j, geom[i][j].g, Bmag, Thetae, K2, ninterp, *nz);
-    exit(-1);
-    *nz = 0.;
-    *dnmax = 0.;
-  }
-}
-#else
 void init_zone(int i, int j, int k, double *nz, double *dnmax)
 {
   //int l;
@@ -320,44 +169,6 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
     *dnmax = 0.;
     return;
   }
-
-
-/*
-  double lbth = log(Bmag * Thetae * Thetae);
-  double dl = (lbth - lb_min) / dlb;
-  int l = (int) dl;
-  dl = dl - l;
-  if (l < 0) {
-    *dnmax = 0.;
-    *nz = 0.;
-    return;
-  } else if (l >= NINT) {
-
-    fprintf(stderr,
-      "warning: outside of nint table range %g...change in harm_utils.c\n",
-      Bmag * Thetae * Thetae);
-    fprintf(stderr,"%g %g %g %g\n",Bmag,Thetae,lbth,(lbth - lb_min)/dlb) ;
-    ninterp = 0.;
-    *dnmax = 0.;
-    for (int m = 0; m <= N_ESAMP; m++) {
-      dn = int_jnu(Ne, Thetae, Bmag,  exp(m*DLNU +LNUMIN))/exp(wgt[m]);
-      if (dn > *dnmax)
-        *dnmax = dn;
-      ninterp += DLNU*dn;
-    }
-    ninterp *= dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
-  } else {
-    if (isinf(nint[l]) || isinf(nint[l + 1])) {
-      ninterp = 0.;
-      *dnmax = 0.;
-    } else {
-      ninterp =
-          exp((1. - dl) * nint[l] + dl * nint[l + 1]);
-      *dnmax =
-          exp((1. - dl) * dndlnu_max[l] +
-        dl * dndlnu_max[l + 1]);
-    }
-  }*/
   
   ninterp = 0.;
   *dnmax = 0.;
@@ -370,14 +181,6 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   }
   ninterp *= dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
 
-  /*K2 = K2_eval(Thetae);
-  if (K2 == 0.) {
-    *nz = 0.;
-    *dnmax = 0.;
-    return;
-  }*/
-
-  //*nz = geom[i][j].g * Ne * Bmag * Thetae * Thetae * ninterp / K2;
   *nz = geom[i][j].g * ninterp;
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
@@ -387,11 +190,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
     *nz = 0.;
     *dnmax = 0.;
   }
-
-  //printf("%i %i %i nz = %e dnmax = %e\n", i,j,k,*nz,*dnmax);
-  //exit(-1);
 }
-#endif
 
 int zone_flag;
 int get_zone(int *i, int *j, int *k, double *dnmax)
@@ -442,65 +241,47 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   return in2gen;
 }
 
-#if OLD_WGT
-void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
+#include <gsl/gsl_errno.h>
+#include <gsl/gsl_math.h>
+#include <gsl/gsl_roots.h>
+void sample_origin_photon(struct of_photon *ph)
 {
-  double K_tetrad[NDIM], tmpK[NDIM], E, Nln;
-  double nu, th, cth, sth, phi, sphi, cphi, jmax, weight;
-  double Ne, Thetae, Bmag, Ucon[NDIM], Bcon[NDIM], bhat[NDIM];
+  double K_tetrad[NDIM], tmpK[NDIM], E;//, Nln;
+  double nu, /*th, */cth, sth, phi, sphi, cphi, /*jmax, */weight;
+  //double Ne, Thetae, Bmag;//Ucon[NDIM], Bcon[NDIM], bhat[NDIM];
   static double Econ[NDIM][NDIM], Ecov[NDIM][NDIM];
 
-  coord(i, j, k, ph->X);
+  // Assume spherical coordinates
+  ph->X[0] = 0.;
+  ph->X[1] = 1.e-10;
+  ph->X[2] = M_PI/2.;
+  ph->X[3] = 0.;
 
-  Nln = LNUMAX - LNUMIN;
-
-  get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
-
-  // Sample from superphoton distribution in current simulation zone
-  do {
-    nu = exp(monty_rand() * Nln + LNUMIN);
-    weight = linear_interp_weight(nu);
-  } while (monty_rand() > (F_eval(Thetae, Bmag, nu) / weight) / dnmax);
+  // Sample intensity uniformly in frequency
+  nu = exp(monty_rand()*(LNUMAX - LNUMIN) + LNUMIN);
+  weight = get_Inu(nu)/get_Imax();
 
   ph->w = weight;
-  jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2.);
-  do {
-    cth = 2. * monty_rand() - 1.;
-    th = acos(cth);
-
-  } while (monty_rand() >
-     jnu(nu, Ne, Thetae, Bmag, th) / jmax);
-
-  sth = sqrt(1. - cth * cth);
-  phi = 2. * M_PI * monty_rand();
+  
+  cth = 2.*monty_rand() - 1.;
+  //th = acos(cth);
+  sth = sqrt(1. - cth*cth);
+  phi = 2.*M_PI*monty_rand();
   cphi = cos(phi);
   sphi = sin(phi);
 
-  E = nu * HPL / (ME * CL * CL);
+  E = nu*HPL/(ME*CL*CL);
   K_tetrad[0] = E;
-  K_tetrad[1] = E * cth;
-  K_tetrad[2] = E * cphi * sth;
-  K_tetrad[3] = E * sphi * sth;
+  K_tetrad[1] = E*cth;
+  K_tetrad[2] = E*cphi*sth;
+  K_tetrad[3] = E*sphi*sth;
 
-  /*
-  if(E > 1.e-4) fprintf(stdout,"HOT: %d %d %g %g %g %g %g\n",
-    i,j,E/(0.22*(EE*Bmag/(2.*M_PI*ME*CL))*(HPL/(ME*CL*CL))*Thetae*Thetae),
-    ph->X[1],ph->X[2], Thetae,Bmag) ; 
-  */
-
-  if (zone_flag) { // First photon created in this zone, so make the tetrad
-    if (Bmag > 0.) {
-      for (int l = 0; l < NDIM; l++)
-        bhat[l] = Bcon[l] * B_unit / Bmag;
-    } else {
-      for (int l = 1; l < NDIM; l++)
-        bhat[l] = 0.;
-      bhat[1] = 1.;
-    }
-    make_tetrad(Ucon, bhat, geom[i][j].gcov, Econ, Ecov);
-    zone_flag = 0;
-  }
-
+  double Ucon[NDIM] = {1, 0, 0, 0};
+  double ehat[NDIM] = {1, 1, 0, 0};
+  double gcov[NDIM][NDIM];
+  gcov_func(ph->X, gcov);
+  make_tetrad(Ucon, ehat, gcov, Econ, Ecov);
+ 
   tetrad_to_coordinate(Econ, K_tetrad, ph->K);
 
   K_tetrad[0] *= -1.;
@@ -513,11 +294,11 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->X1i = ph->X[1];
   ph->X2i = ph->X[2];
   ph->nscatt = 0;
-  ph->ne0 = Ne;
-  ph->b0 = Bmag;
-  ph->thetae0 = Thetae;
+  ph->ne0 = 0.;
+  ph->b0 = 0.;
+  ph->thetae0 = 0.;
 }
-#else
+
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 {
   double K_tetrad[NDIM], tmpK[NDIM], E, Nln;
@@ -592,7 +373,6 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->b0 = Bmag;
   ph->thetae0 = Thetae;
 }
-#endif
 
 void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM])
 {

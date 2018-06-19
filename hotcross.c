@@ -34,6 +34,10 @@ double getnorm_dNdg(double thetae);
 
 void init_hotcross(void)
 {
+  #if !COMPTON
+  return;
+  #endif
+  
   int i, j, idum, jdum, nread;
   double lw, lT;
   double total_compton_cross_num(double w, double thetae, double norm);

@@ -298,6 +298,7 @@ void ***malloc_rank3(int n1, int n2, int n3, int size);
 void ****malloc_rank4(int n1, int n2, int n3, int n4, int size);
 void *****malloc_rank5(int n1, int n2, int n3, int n4, int n5, int size);
 
+void sample_origin_photon(struct of_photon *ph);
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph);
 double interp_scalar(double X[NDIM], double ***var);
 int get_zone(int *i, int *j, int *k, double *dnamx);
