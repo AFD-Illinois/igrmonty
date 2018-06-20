@@ -15,9 +15,9 @@ double **A;
 
 double TP_OVER_TE;
 
-#define TAUS  (1.e0)
-#define KBTE  (25)
-#define KBTBB (0.25)
+#define TAUS  (1.e-3)
+#define KBTE  (250)
+#define KBTBB (0.0025)
 
 
 //#define THETAE (10.)
@@ -255,6 +255,10 @@ void omp_reduce_spect()
 double bias_func(double Te, double w)
 {
   return 1./TAUS;
+  //double amp = 1. + 4*Te + 16*Te*Te;
+
+  //return amp/TAUS;
+
   double bias, max ;
 
   max = 0.5 * w / WEIGHT_MIN;
