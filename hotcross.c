@@ -55,36 +55,39 @@ void init_hotcross(void)
       "making lookup table for compton cross section...\n");
 #pragma omp parallel for private(i,j,lw,lT)
    
-    /*
+   /* 
     for (i = 0; i <= NW; i++) {
       for (j = 0; j <= NT; j++) {
         lw = lminw + i * dlw;
         lT = lmint + j * dlT;
         table[i][j] =
             log10(total_compton_cross_num
-            (pow(10., lw), pow(10., lT)));
-        printf("table[%i][%i] = %e\n", i,j,table[i][j]);
+            (pow(10., lw), pow(10., lT), 1.));
+        //printf("table[%i][%i] = %e\n", i,j,table[i][j]);
         if (isnan(table[i][j])) {
           fprintf(stderr, "%d %d %g %g\n", i, j, lw, lT);
           exit(0);
         }
       }
-    }*/
-   
+    }
+  */
+
+
+
     // Speed things up
     for (j = 0; j <= NT; j++) {
       lT = lmint + j * dlT;
       double norm = getnorm_dNdg(pow(10., lT));
       for (i = 0; i <= NW; i++) {
      
-        /*if (i == 0) {
-        printf("%g ,", norm);
-          //printf("T = %e norm = %e\n", pow(10., lT), norm);
-      double Thetae = pow(10., lT);
-      double normlow = sqrt(2./(M_PI*pow(KAPPA*Thetae,3.)))*gsl_sf_gamma(KAPPA+1.)/gsl_sf_gamma(KAPPA-1./2.);
-      double normhigh = (KAPPA-2.)*(KAPPA-1.)/(2.*KAPPA*KAPPA*pow(Thetae,3.));
-      //printf("normlow = %e normhigh = %e\n", normlow, normhigh);
-        }*/
+    //    if (i == 0) {
+    //    printf("%g ,", norm);
+    //      //printf("T = %e norm = %e\n", pow(10., lT), norm);
+    //  double Thetae = pow(10., lT);
+    //  double normlow = sqrt(2./(M_PI*pow(KAPPA*Thetae,3.)))*gsl_sf_gamma(KAPPA+1.)/gsl_sf_gamma(KAPPA-1./2.);
+    //  double normhigh = (KAPPA-2.)*(KAPPA-1.)/(2.*KAPPA*KAPPA*pow(Thetae,3.));
+    //  //printf("normlow = %e normhigh = %e\n", normlow, normhigh);
+    //    }
         
       
       lw = lminw + i * dlw;
@@ -98,6 +101,7 @@ void init_hotcross(void)
         }
       }
     }
+    
     
     fprintf(stderr, "\ndone.\n\n");
     fprintf(stderr, "writing to file...\n");

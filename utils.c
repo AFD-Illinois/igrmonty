@@ -241,6 +241,7 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   return in2gen;
 }
 
+#ifdef EMIT_ORIGIN
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
@@ -253,7 +254,7 @@ void sample_origin_photon(struct of_photon *ph)
 
   // Assume spherical coordinates
   ph->X[0] = 0.;
-  ph->X[1] = 1.e-10;
+  ph->X[1] = 1.e-5;
   ph->X[2] = M_PI/2.;
   ph->X[3] = 0.;
 
@@ -270,6 +271,14 @@ void sample_origin_photon(struct of_photon *ph)
   cphi = cos(phi);
   sphi = sin(phi);
 
+  double th = 0.;
+  phi = 0.;
+  sth = sin(th);
+  cth = cos(th);
+  cphi = cos(phi);
+  sphi = sin(phi);
+
+
   E = nu*HPL/(ME*CL*CL);
   K_tetrad[0] = E;
   K_tetrad[1] = E*cth;
@@ -277,7 +286,7 @@ void sample_origin_photon(struct of_photon *ph)
   K_tetrad[3] = E*sphi*sth;
 
   double Ucon[NDIM] = {1, 0, 0, 0};
-  double ehat[NDIM] = {1, 1, 0, 0};
+  double ehat[NDIM] = {1, 0, 0, 1};
   double gcov[NDIM][NDIM];
   gcov_func(ph->X, gcov);
   make_tetrad(Ucon, ehat, gcov, Econ, Ecov);
@@ -298,6 +307,7 @@ void sample_origin_photon(struct of_photon *ph)
   ph->b0 = 0.;
   ph->thetae0 = 0.;
 }
+#endif // EMIT_ORIGIN
 
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 {

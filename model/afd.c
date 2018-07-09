@@ -11,53 +11,31 @@ double ****p;
 double ***ne;
 double ***thetae;
 double ***b;
-double **A;
 
 double TP_OVER_TE;
 
-#define TAUS  (1.e-4)
-//#define KBTE  (250)
-//#define KBTBB (0.0025)
-#define KBTE  (2044)
-#define KBTBB (5.11e-6)
-
-
-//#define THETAE (10.)
-//#define MBH (4.e6) 
-
-#define TBB (KBTBB*KEV/KBOL)
-#define TE (KBTE*KEV/KBOL)
-//#define RSPHERE (1.)
+static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
+static double MBH;
+  
+static int with_radiation;
+enum metrics {MKS, MMKS};
+static int metric;
+//static int with_derefine_poles;
+static int with_electrons;
 
 void report_bad_input(int argc) 
 {
-  if (argc != 2) {
+  if (argc < 3) {
     fprintf(stderr, "usage: \n");
-    fprintf(stderr, "  grmonty Ns\n");
+    fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
+    fprintf(stderr, "  bhlight: grmonty Ns fname\n");
     exit(0);
   }
-
-  printf("TBB: %g K\n", TBB);
-  printf("kbTBB: %g keV\n", KBOL*TBB/KEV);
-  printf("NUMAX: %g\n", 2.8214391/HPL*KBOL*TBB);
-}
-
-/////////////////////////////////// EMITTER ////////////////////////////////////
-
-double get_Inu(double nu)
-{
-  return pow(nu,3)*Bnu_inv(nu, KBOL*TBB/(ME*CL*CL));
-}
-
-double get_Imax()
-{
-  double numax = 2.8214391/HPL*KBOL*TBB;
-  return get_Inu(numax);
 }
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
-#define RMAX  1.e3
+#define RMAX  1000.
 #define ROULETTE  1.e4
 int stop_criterion(struct of_photon *ph)
 {
@@ -67,10 +45,10 @@ int stop_criterion(struct of_photon *ph)
   wmin = WEIGHT_MIN;
 
   // Stop at event horizon
-  X1min = 0.;
+  X1min = log(Rh);
 
   // Stop at large distance
-  X1max = RMAX;
+  X1max = log(RMAX);
 
   if (ph->X[1] < X1min)
     return 1;
@@ -99,11 +77,10 @@ int stop_criterion(struct of_photon *ph)
 
 int record_criterion(struct of_photon *ph)
 {
-  const double X1max = RMAX;
+  const double X1max = log(RMAX);
 
-  if (ph->X[1] > X1max) {
+  if (ph->X[1] > X1max)
     return (1);
-  }
 
   else
     return (0);
@@ -148,8 +125,6 @@ void record_super_photon(struct of_photon *ph)
       max_tau_scatt = ph->tau_scatt;
   }
 
-  ix2 = 0;
-  /*
   // Bin in X2 coord. Get theta bin, while folding around equator
   dx2 = (stopx[2] - startx[2]) / (2. * N_THBINS);
   if (ph->X[2] < 0.5 * (startx[2] + stopx[2]))
@@ -158,10 +133,8 @@ void record_super_photon(struct of_photon *ph)
     ix2 = (int) ((stopx[2] - ph->X[2]) / dx2);
 
   // Check limits
-  if (ix2 < 0 || ix2 >= N_THBINS) {
-    printf("OUTSIDE THETA RANGE ix2 = %i, ph->X[2] = %e\n", ix2, ph->X[2]);
+  if (ix2 < 0 || ix2 >= N_THBINS)
     return;
-  }*/
 
   // Get energy bin (centered on iE*dlE + lE0)
   lE = log(ph->E);
@@ -261,30 +234,18 @@ void omp_reduce_spect()
 
 double bias_func(double Te, double w)
 {
-  //return 1.;
-  #if DIST_KAPPA
-  return 1./sqrt(TAUS);
-  #else
-  return 1./TAUS;
-  #endif
-  //double amp = 1. + 4*Te + 16*Te*Te;
-
-  //return amp/TAUS;
-
   double bias, max ;
 
   max = 0.5 * w / WEIGHT_MIN;
 
   //bias = Te*Te;
-  //bias = 5.*Te*Te/(5. * max_tau_scatt);
-  bias = 10. * Te * Te / (bias_norm * max_tau_scatt);
+  bias = Te*Te/(5. * max_tau_scatt);
+  //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   //if (bias < TP_OVER_TE)
   //  bias = TP_OVER_TE;
   if (bias > max)
     bias = max;
-  //printf("Te = %e max_tau_scatt = %e bias = %e, w= %e, WM = %g\n", Te, max_tau_scatt, bias,
-    //w, WEIGHT_MIN);
 
   return bias;// / TP_OVER_TE;
 }
@@ -297,7 +258,11 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double sig ;
 
   *Ne = p[KRHO][i][j][k] * Ne_unit;
-  *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  if (with_electrons) {
+    *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
+  } else {
+    *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  }
 
   Bp[1] = p[B1][i][j][k];
   Bp[2] = p[B2][i][j][k];
@@ -330,7 +295,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   *B = sqrt(Bcon[0] * Bcov[0] + Bcon[1] * Bcov[1] +
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
-  //if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
+  if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
   if(sig > 1.) *Thetae = SMALL;//*Ne = 1.e-10*Ne_unit;
@@ -341,7 +306,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
 {
-  double rho;
+  double rho, kel;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
   double interp_scalar(double X[NDIM], double ***var);
@@ -356,9 +321,15 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   }
 
   rho = interp_scalar(X, p[KRHO]);
+  kel = interp_scalar(X, p[KEL]);
+
   *Ne = rho*Ne_unit;
-  double uu = interp_scalar(X, p[UU]);
-  *Thetae = uu/rho*Thetae_unit;
+  if (with_electrons) {
+    *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
+  } else {
+    double uu = interp_scalar(X, p[UU]);
+    *Thetae = uu/rho*Thetae_unit;
+  }
 
   Bp[1] = interp_scalar(X, p[B1]);
   Bp[2] = interp_scalar(X, p[B2]);
@@ -394,7 +365,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   *B = sqrt(Bcon[0] * Bcov[0] + Bcon[1] * Bcov[1] +
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
-  //if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
+  if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
   if (sig > 1.) *Thetae = SMALL;//*Ne = 1.e-10*Ne_unit;
@@ -402,17 +373,90 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
+void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
+{
+  MUNULOOP dxdX[mu][nu] = 0.;
+
+  if (metric == MKS) {
+    dxdX[0][0] = 1.;
+    dxdX[1][1] = exp(X[1]);
+    dxdX[2][2] = M_PI - (hslope - 1.)*M_PI*cos(2.*M_PI*X[2]);
+    dxdX[3][3] = 1.;
+  } else if (metric == MMKS) {
+    dxdX[0][0] = 1.;
+    dxdX[1][1] = exp(X[1]);
+    dxdX[2][1] = -exp(mks_smooth*(startx[1]-X[1]))*mks_smooth*(
+      M_PI/2. -
+      M_PI*X[2] +
+      poly_norm*(2.*X[2]-1.)*(1+(pow((-1.+2*X[2])/poly_xt,poly_alpha))/(1 + poly_alpha)) -
+      1./2.*(1. - hslope)*sin(2.*M_PI*X[2])
+      );
+    dxdX[2][2] = M_PI + (1. - hslope)*M_PI*cos(2.*M_PI*X[2]) +
+      exp(mks_smooth*(startx[1]-X[1]))*(
+        -M_PI +
+        2.*poly_norm*(1. + pow((2.*X[2]-1.)/poly_xt,poly_alpha)/(poly_alpha+1.)) +
+        (2.*poly_alpha*poly_norm*(2.*X[2]-1.)*pow((2.*X[2]-1.)/poly_xt,poly_alpha-1.))/((1.+poly_alpha)*poly_xt) -
+        (1.-hslope)*M_PI*cos(2.*M_PI*X[2])
+        );
+    dxdX[3][3] = 1.;
+  }
+}
+
 void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
 {
   MUNULOOP gcov[mu][nu] = 0.;
 
-  gcov[0][0] = -1.;
+  double sth, cth, s2, rho2;
+  double r, th;
 
-  gcov[1][1] = 1.;
+  bl_coord(X, &r, &th);
 
-  gcov[2][2] = pow(X[1],2);
+  cth = cos(th);
+  sth = sin(th);
 
-  gcov[3][3] = pow(X[1]*sin(X[2]),2);
+  s2 = sth*sth;
+  rho2 = r*r + a*a*cth*cth;
+
+  gcov[0][0] = -1. + 2.*r/rho2;
+  gcov[0][1] = 2.*r/rho2;
+  gcov[0][3] = -2.*a*r*s2/rho2;
+
+  gcov[1][0] = gcov[0][1];
+  gcov[1][1] = 1. + 2.*r/rho2;
+  gcov[1][3] = -a*s2*(1. + 2.*r/rho2);
+
+  gcov[2][2] = rho2;
+
+  gcov[3][0] = gcov[0][3];
+  gcov[3][1] = gcov[1][3];
+  gcov[3][3] = s2*(rho2 + a*a*s2*(1. + 2.*r/rho2));
+
+  // Apply coordinate transformation to code coordinates X
+  double dxdX[NDIM][NDIM];
+  set_dxdX(X, dxdX);
+
+  double gcov_ks[NDIM][NDIM];
+  MUNULOOP {
+    gcov_ks[mu][nu] = gcov[mu][nu];
+    gcov[mu][nu] = 0.;
+  }
+
+  MUNULOOP {
+		for (int lam = 0; lam < NDIM; lam++) {
+			for (int kap = 0; kap < NDIM; kap++) {
+				gcov[mu][nu] += gcov_ks[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+			}
+		}
+  }
+}
+
+void bl_coord(double *X, double *r, double *th)
+{
+  *r = exp(X[1]) + R0;
+  double thG = M_PI*X[2] + ((1. - hslope)/2.)*sin(2.*M_PI*X[2]);
+  double y = 2*X[2] - 1.;
+  double thJ = poly_norm*y*(1. + pow(y/poly_xt,poly_alpha)/(poly_alpha+1.)) + 0.5*M_PI;
+  *th = thG + exp(mks_smooth*(startx[1] - X[1]))*(thJ - thG);
 }
 
 //double dOmega_func(double Xi[NDIM], double Xf[NDIM])
@@ -422,58 +466,132 @@ double dOmega_func(int j)
   double Xi[NDIM] = {0., stopx[1], j*dbin, 0.};
   double Xf[NDIM] = {0., stopx[1], (j+1)*dbin, 0.};
 
-  //double ri, rf, thi, thf;
-  //bl_coord(Xi, &ri, &thi);
-  //bl_coord(Xf, &rf, &thf);
+  double ri, rf, thi, thf;
+  bl_coord(Xi, &ri, &thi);
+  bl_coord(Xf, &rf, &thf);
 
-  return 2.*M_PI*(-cos(Xf[2]) + cos(Xi[2]));
+  return 2.*M_PI*(-cos(thf) + cos(thi));
 }
 
 //////////////////////////////// INITIALIZATION ////////////////////////////////
 
+#include <hdf5.h>
+#include <hdf5_hl.h>
+
 void init_data(int argc, char *argv[], Params *params)
 {
+  const char *fname = NULL;
   double dV, V;
+  hid_t file_id;
 
-  N1 = 128;
-  N2 = 128;
-  N3 = 1;
-  gam = 5./3.;
-  Rin = 0.;
-  Rout = 1.;//RSPHERE;
-  startx[1] = 0.;
-  startx[2] = 0.;
-  startx[3] = 0.;
-  dx[1] = (Rout - Rin)/N1;
-  dx[2] = M_PI/N2;
-  dx[3] = 2.*M_PI/N3;
+  if (params->loaded && strlen(params->dump) > 0) {
+    fname = params->dump;
+  } else {
+    fname = argv[2];
+    strncpy((char *)params->dump, argv[2], 255);
+  }
+
+  file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+  if (file_id < 0) {
+    fprintf(stderr, "File %s does not exist! Exiting...\n", fname);
+    exit(-1);
+  }
+
+  // Read header
+  herr_t h5_status;
+  h5_status = H5LTread_dataset_int(file_id, "/header/has_radiation", &with_radiation);
+  if (h5_status < 0) with_radiation = 0;
+  char metric_name[STRLEN] = {0};
+  H5LTread_dataset_string(file_id, "/header/metric", metric_name);
+  if (!strcmp(metric_name, "MKS")) {
+    metric = MKS;
+  } else if (!strcmp(metric_name, "MMKS")) {
+    metric = MMKS;
+  } else {
+    printf("ERROR metric %s not supported\n", metric_name);
+    exit(-1);
+  }
+  h5_status = H5LTread_dataset_int(file_id, "/header/has_electrons", &with_electrons);
+  if (h5_status < 0) with_electrons = 0;
+  H5LTread_dataset_int(file_id, "/header/n1", &N1);
+  H5LTread_dataset_int(file_id, "/header/n2", &N2);
+  H5LTread_dataset_int(file_id, "/header/n3", &N3);
+  H5LTread_dataset_double(file_id, "/geom/startx1",  &startx[1]);
+  H5LTread_dataset_double(file_id, "/geom/startx2",  &startx[2]);
+  H5LTread_dataset_double(file_id, "/geom/startx3",  &startx[3]);
+  H5LTread_dataset_double(file_id, "/geom/dx1",  &dx[1]);
+  H5LTread_dataset_double(file_id, "/geom/dx2",  &dx[2]);
+  H5LTread_dataset_double(file_id, "/geom/dx3",  &dx[3]);
+  if (metric == MKS) {
+    H5LTread_dataset_double(file_id, "/geom/mks/a", &a);
+    H5LTread_dataset_double(file_id, "/geom/mks/hslope", &hslope);
+  } else if (metric == MMKS) {
+    H5LTread_dataset_double(file_id, "/geom/mmks/a", &a);
+    H5LTread_dataset_double(file_id, "/geom/mmks/hslope", &hslope);
+    H5LTread_dataset_double(file_id, "/geom/mmks/poly_alpha", &poly_alpha);
+    H5LTread_dataset_double(file_id, "/geom/mmks/poly_xt", &poly_xt);
+    H5LTread_dataset_double(file_id, "/geom/mmks/mks_smooth", &mks_smooth);
+  }
+  H5LTread_dataset_double(file_id, "gam", &gam);
+  if (with_electrons) {
+    H5LTread_dataset_double(file_id, "game", &game);
+    H5LTread_dataset_double(file_id, "gamp", &gamp);
+  }
+  H5LTread_dataset_double(file_id, "Rin", &Rin);
+  H5LTread_dataset_double(file_id, "Rout", &Rout);
+
+  printf("HDR!\n");
+
+  // Set polylog grid normalization
+  poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
 
   stopx[0] = 1.;
   stopx[1] = startx[1]+N1*dx[1];
   stopx[2] = startx[2]+N2*dx[2];
   stopx[3] = startx[3]+N3*dx[3];
 
-  
-  L_unit = RSUN;
-  T_unit = L_unit/CL;
-  Ne_unit = TAUS/(SIGMA_THOMSON*L_unit);
-  RHO_unit = (MP + ME)*Ne_unit;
-  M_unit = RHO_unit*pow(L_unit,3);
-  
+  // SET UNITS IF NECESSARY
+  // CHECK FOR NUMBER OF COMMAND LINE ARGS HERE!!!
+  if (with_radiation) {
+    H5LTread_dataset_double(file_id, "M_unit", &M_unit);
+    H5LTread_dataset_double(file_id, "T_unit", &T_unit);
+    H5LTread_dataset_double(file_id, "L_unit", &L_unit);
+    H5LTread_dataset_double(file_id, "Thetae_unit", &Thetae_unit);
+    H5LTread_dataset_double(file_id, "Mbh", &MBH);
+    H5LTread_dataset_double(file_id, "tp_over_te", &TP_OVER_TE);
+  } else {
 
-  //L_unit = GNEWT*MBH*MSUN/(CL*CL);
-  //T_unit = L_unit/CL;
-  //M_unit = 1.e19;
-  TP_OVER_TE = 1.;
-  Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
+    // Enough command line args?
+    if (! params->loaded) { 
+      report_bad_input(argc);
+      sscanf(argv[3], "%lf", &M_unit);
+      sscanf(argv[4], "%lf", &MBH);
+      sscanf(argv[5], "%lf", &TP_OVER_TE);
+    } else {
+      M_unit = params->M_unit;
+      MBH = params->MBH;
+      TP_OVER_TE = params->TP_OVER_TE;
+    }
+
+    MBH *= MSUN;
+
+    L_unit = GNEWT*MBH/(CL*CL);
+    T_unit = L_unit/CL;
+
+    if (with_electrons) {
+      Thetae_unit = MP/ME;
+    } else {
+      Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
+    }
+  }
 
   // Set remaining units and constants
-  //RHO_unit = M_unit/pow(L_unit,3);
+  RHO_unit = M_unit/pow(L_unit,3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  //Ne_unit = RHO_unit/(MP + ME);
+  Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
-  //Rh = 1. + sqrt(1. - a * a);
+  Rh = 1. + sqrt(1. - a * a);
 
   printf("M_unit = %e\n", M_unit);
   printf("Ne_unit = %e\n", Ne_unit);
@@ -482,34 +600,59 @@ void init_data(int argc, char *argv[], Params *params)
   printf("T_unit = %e\n", T_unit);
   printf("B_unit = %e\n", B_unit);
   printf("Thetae_unit = %e\n", Thetae_unit);
-  
+
   // Allocate storage and set geometry
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
+  //p = (double****)malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
   p = malloc_rank4_double(NVAR, N1, N2, N3);
+  printf("N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
 
-  // Initialize grid
-  V = dMact = Ladv = 0.;                                                         
-  dV = dx[1]*dx[2]*dx[3];                                                        
-  ZLOOP {                                                                        
-    //double X[NDIM], r, th;                                                       
-    //coord(i, j, k, X);                                                           
-    //r = X[1];                                                                    
-    //th = X[2];                                                                   
-    //double Ne = TAUS/(SIGMA_THOMSON*RSPHERE*L_unit);                             
-    p[KRHO][i][j][k] = 1.;//*exp(-pow(X[1]/RSPHERE,2));                  
-    p[UU][i][j][k] = (KBTE*KEV/(ME*CL*CL))*p[KRHO][i][j][k]/Thetae_unit;                        
-    p[U1][i][j][k] = 0.;                                                         
-    p[U2][i][j][k] = 0.;                                                         
-    p[U3][i][j][k] = 0.;                                                         
-    p[B1][i][j][k] = 0.;                                               
-    p[B2][i][j][k] = 0.;                                            
-    p[B3][i][j][k] = 0.;                                                         
-    V += dV*geom[i][j].g;                                                        
+  // Read data
+  H5LTread_dataset_double(file_id, "RHO",  &p[KRHO][0][0][0]);
+  H5LTread_dataset_double(file_id, "UU",   &p[UU][0][0][0]);
+  H5LTread_dataset_double(file_id, "U1",   &p[U1][0][0][0]);
+  H5LTread_dataset_double(file_id, "U2",   &p[U2][0][0][0]);
+  H5LTread_dataset_double(file_id, "U3",   &p[U3][0][0][0]);
+  H5LTread_dataset_double(file_id, "B1",   &p[B1][0][0][0]);
+  H5LTread_dataset_double(file_id, "B2",   &p[B2][0][0][0]);
+  H5LTread_dataset_double(file_id, "B3",   &p[B3][0][0][0]);
+  if (with_electrons) {
+    H5LTread_dataset_double(file_id, "KEL",  &p[KEL][0][0][0]);
+    H5LTread_dataset_double(file_id, "KTOT", &p[KTOT][0][0][0]);
+  }
+
+  H5Fclose(file_id);
+
+  V = dMact = Ladv = 0.;
+  dV = dx[1]*dx[2]*dx[3];
+  ZLOOP {
+    V += dV*geom[i][j].g;
     bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
-  }                                                                              
+
+    if (i <= 20) {
+      double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
+      get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+      lower(Ucon, geom[i][j].gcov, Ucov);
+      dMact += geom[i][j].g*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
+      Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
+    }
+
+    //double X[NDIM], r, th;
+    //coord(i,j,k,X);
+    //bl_coord(X, &r, &th);
+    //if (j == N2/2) {
+    //  printf("[%i] r = %e RHO = %e\n", i, r, p[KRHO][i][j][k]);
+   // }
+  }
+
+  //exit(-1);
+
+  dMact /= 21.;
+  Ladv /= 21.;
   bias_norm /= V;
+  fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
 }
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
@@ -693,7 +836,7 @@ void report_spectrum(int N_superph_made, Params *params)
 
 }
 
-#else 
+#else
 
 #define SPECTRUM_FILE_NAME "spectrum.dat"
 void report_spectrum(int N_superph_made, Params *params)
@@ -709,7 +852,7 @@ void report_spectrum(int N_superph_made, Params *params)
   } else {
     fp = fopen(SPECTRUM_FILE_NAME, "w");
   }
-
+  
   if (fp == NULL) {
     fprintf(stderr, "trouble opening spectrum file\n");
     exit(0);
@@ -720,11 +863,8 @@ void report_spectrum(int N_superph_made, Params *params)
   L = 0.;
   double dL = 0.;
   for (int i = 0; i < N_EBINS; i++) {
-    nu = pow((i * dlE + lE0) / M_LN10,10.)*ME*CL*CL/HPL;
     // Output log_10(photon energy/(me c^2))
-    //fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
-    //fprintf(fp, "%10.5g ", pow((i * dlE + lE0) / M_LN10,10.)*ME*CL*CL/HPL);
-    fprintf(fp, "%10.5g ", exp(i*dlE + lE0)*ME*CL*CL/HPL);
+    fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
 
     for (int j = 0; j < N_THBINS; j++) {
       // Convert accumulated photon number to nuLnu, in units of Lsun
@@ -735,21 +875,19 @@ void report_spectrum(int N_superph_made, Params *params)
 
       nuLnu = (ME*CL*CL)*(4.*M_PI/dOmega)*(1./dlE);
 
-      nuLnu *= spect[j][i].dEdlE;///LSUN;
+      nuLnu *= spect[j][i].dEdlE/LSUN;
       dL += ME*CL*CL*spect[j][i].dEdlE;
 
       tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
 
-      fprintf(fp, "%10.5g ", nuLnu);
-
-      /*fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
+      fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
         nuLnu,
         dOmega,
         spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL),
         tau_scatt,
         spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL),
         sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL))),
-        sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL))));*/
+        sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL))));
 
 
       nu0 = ME * CL * CL * exp((i - 0.5) * dlE + lE0) / HPL ;
@@ -762,7 +900,7 @@ void report_spectrum(int N_superph_made, Params *params)
       }
 
       // Average # scatterings
-      //fprintf(fp,"%10.5g ",spect[j][i].nscatt/(spect[j][i].dNdlE + SMALL));
+      fprintf(fp,"%10.5g ",spect[j][i].nscatt/(spect[j][i].dNdlE + SMALL));
 
       if (tau_scatt > max_tau_scatt)
         max_tau_scatt = tau_scatt;
@@ -772,9 +910,22 @@ void report_spectrum(int N_superph_made, Params *params)
     fprintf(fp, "\n");
   }
   printf("dL = %e\n", dL);
+  fprintf(stderr,
+    "luminosity %g, dMact %g, efficiency %g, L/Ladv %g, max_tau_scatt %g\n",
+    L, dMact * M_unit / T_unit / (MSUN / YEAR),
+    L * LSUN / (dMact * M_unit * CL * CL / T_unit),
+    L * LSUN / (Ladv * M_unit * CL * CL / T_unit),
+    max_tau_scatt);
 
+  double LEdd = 4.*M_PI*GNEWT*MBH*MP*CL/(SIGMA_THOMSON);
+  double MdotEdd = 4.*M_PI*GNEWT*MBH*MP/(SIGMA_THOMSON*CL*0.1);
+  printf("MdotEdd = %e\n", MdotEdd);
+  double Mdot = dMact*M_unit/T_unit;
+  double mdot = Mdot/MdotEdd;
+  printf("Mdot = %e mdot = %e\n", Mdot, mdot);
   double Lum = L*LSUN;
-  printf("L = %e\n", Lum);
+  double lum = Lum/LEdd;
+  printf("L = %e lum = %e\n", Lum, lum);
 
   fprintf(stderr, "\n");
   fprintf(stderr, "N_superph_made: %d\n", N_superph_made);
@@ -785,3 +936,4 @@ void report_spectrum(int N_superph_made, Params *params)
 }
 
 #endif // HDF5_OUTPUT
+
