@@ -532,10 +532,12 @@ void init_data(int argc, char *argv[], Params *params)
     H5LTread_dataset_double(file_id, "/geom/mmks/poly_xt", &poly_xt);
     H5LTread_dataset_double(file_id, "/geom/mmks/mks_smooth", &mks_smooth);
   }
-  H5LTread_dataset_double(file_id, "gam", &gam);
+  poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*                          
+                         1./pow(poly_xt, poly_alpha));
+  H5LTread_dataset_double(file_id, "/header/gam", &gam);
   if (with_electrons) {
-    H5LTread_dataset_double(file_id, "game", &game);
-    H5LTread_dataset_double(file_id, "gamp", &gamp);
+    H5LTread_dataset_double(file_id, "/header/game", &game);
+    H5LTread_dataset_double(file_id, "/header/gamp", &gamp);
   }
   H5LTread_dataset_double(file_id, "Rin", &Rin);
   H5LTread_dataset_double(file_id, "Rout", &Rout);
