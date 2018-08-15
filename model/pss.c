@@ -435,6 +435,7 @@ void init_data(int argc, char *argv[], Params *params)
 {
   double dV, V;
 
+  NPRIM = 8;
   N1 = 128;
   N2 = 128;
   N3 = 1;

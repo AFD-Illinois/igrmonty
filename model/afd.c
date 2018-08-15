@@ -16,17 +16,16 @@ double TP_OVER_TE;
 
 static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
 static double MBH;
-  
+
 static int with_radiation;
 enum metrics {MKS, MMKS};
 static int metric;
-//static int with_derefine_poles;
 static int with_electrons;
 
-void report_bad_input(int argc) 
+void report_bad_input(int argc)
 {
   if (argc < 3) {
-    fprintf(stderr, "usage: \n");
+    fprintf(stderr, "ERROR usage: \n");
     fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
     fprintf(stderr, "  bhlight: grmonty Ns fname\n");
     exit(0);
@@ -309,7 +308,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double rho, kel;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
-  double interp_scalar(double X[NDIM], double ***var);
+  //double interp_scalar(double X[NDIM], double ***var);
   double sig ;
 
   if (X[1] < startx[1] || X[1] > stopx[1] ||
@@ -498,9 +497,11 @@ void init_data(int argc, char *argv[], Params *params)
   }
 
   // Read header
-  herr_t h5_status;
-  h5_status = H5LTread_dataset_int(file_id, "/header/has_radiation", &with_radiation);
-  if (h5_status < 0) with_radiation = 0;
+  //herr_t h5_status;
+  with_radiation = H5Lexists(file_id, "/header/has_radiation", H5P_DEFAULT);
+  with_electrons = H5Lexists(file_id, "/header/has_electrons", H5P_DEFAULT);
+  //h5_status = H5LTread_dataset_int(file_id, "/header/has_radiation", &with_radiation);
+  //if (h5_status < 0) with_radiation = 0;
   char metric_name[STRLEN] = {0};
   H5LTread_dataset_string(file_id, "/header/metric", metric_name);
   if (!strcmp(metric_name, "MKS")) {
@@ -511,11 +512,13 @@ void init_data(int argc, char *argv[], Params *params)
     printf("ERROR metric %s not supported\n", metric_name);
     exit(-1);
   }
-  h5_status = H5LTread_dataset_int(file_id, "/header/has_electrons", &with_electrons);
-  if (h5_status < 0) with_electrons = 0;
+  //h5_status = H5LTread_dataset_int(file_id, "/header/has_electrons", &with_electrons);
+  //if (h5_status < 0) with_electrons = 0;
   H5LTread_dataset_int(file_id, "/header/n1", &N1);
   H5LTread_dataset_int(file_id, "/header/n2", &N2);
   H5LTread_dataset_int(file_id, "/header/n3", &N3);
+  H5LTread_dataset_int(file_id, "/header/n_prim", &NPRIM);
+  printf("N1 N2 N3 NPRIM = %i %i %i %i\n", N1, N2, N3, NPRIM);
   H5LTread_dataset_double(file_id, "/geom/startx1",  &startx[1]);
   H5LTread_dataset_double(file_id, "/geom/startx2",  &startx[2]);
   H5LTread_dataset_double(file_id, "/geom/startx3",  &startx[3]);
@@ -525,22 +528,24 @@ void init_data(int argc, char *argv[], Params *params)
   if (metric == MKS) {
     H5LTread_dataset_double(file_id, "/geom/mks/a", &a);
     H5LTread_dataset_double(file_id, "/geom/mks/hslope", &hslope);
+    H5LTread_dataset_double(file_id, "/geom/mks/r_in", &Rin);
+    H5LTread_dataset_double(file_id, "/geom/mks/r_out", &Rout);
   } else if (metric == MMKS) {
     H5LTread_dataset_double(file_id, "/geom/mmks/a", &a);
     H5LTread_dataset_double(file_id, "/geom/mmks/hslope", &hslope);
     H5LTread_dataset_double(file_id, "/geom/mmks/poly_alpha", &poly_alpha);
     H5LTread_dataset_double(file_id, "/geom/mmks/poly_xt", &poly_xt);
     H5LTread_dataset_double(file_id, "/geom/mmks/mks_smooth", &mks_smooth);
+    H5LTread_dataset_double(file_id, "/geom/mmks/r_in", &Rin);
+    H5LTread_dataset_double(file_id, "/geom/mmks/r_out", &Rout);
   }
-  poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*                          
+  poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*
                          1./pow(poly_xt, poly_alpha));
   H5LTread_dataset_double(file_id, "/header/gam", &gam);
   if (with_electrons) {
     H5LTread_dataset_double(file_id, "/header/game", &game);
     H5LTread_dataset_double(file_id, "/header/gamp", &gamp);
   }
-  H5LTread_dataset_double(file_id, "Rin", &Rin);
-  H5LTread_dataset_double(file_id, "Rout", &Rout);
 
   printf("HDR!\n");
 
@@ -555,20 +560,39 @@ void init_data(int argc, char *argv[], Params *params)
   // SET UNITS IF NECESSARY
   // CHECK FOR NUMBER OF COMMAND LINE ARGS HERE!!!
   if (with_radiation) {
-    H5LTread_dataset_double(file_id, "M_unit", &M_unit);
-    H5LTread_dataset_double(file_id, "T_unit", &T_unit);
-    H5LTread_dataset_double(file_id, "L_unit", &L_unit);
-    H5LTread_dataset_double(file_id, "Thetae_unit", &Thetae_unit);
-    H5LTread_dataset_double(file_id, "Mbh", &MBH);
-    H5LTread_dataset_double(file_id, "tp_over_te", &TP_OVER_TE);
+    H5LTread_dataset_double(file_id, "/header/Mbh", &MBH);
+    H5LTread_dataset_double(file_id, "/header/units/L_unit", &L_unit);
+    H5LTread_dataset_double(file_id, "/header/units/T_unit", &T_unit);
+    H5LTread_dataset_double(file_id, "/header/units/M_unit", &M_unit);
+    H5LTread_dataset_double(file_id, "/header/units/RHO_unit", &RHO_unit);
+    H5LTread_dataset_double(file_id, "/header/units/U_unit", &U_unit);
+    H5LTread_dataset_double(file_id, "/header/units/B_unit", &B_unit);
+    H5LTread_dataset_double(file_id, "/header/units/Ne_unit", &Ne_unit);
+    H5LTread_dataset_double(file_id, "/header/units/Thetae_unit", &Thetae_unit);
+    printf("GOT UNITS\n");
   } else {
 
     // Enough command line args?
-    if (! params->loaded) { 
-      report_bad_input(argc);
-      sscanf(argv[3], "%lf", &M_unit);
-      sscanf(argv[4], "%lf", &MBH);
-      sscanf(argv[5], "%lf", &TP_OVER_TE);
+    if (! params->loaded) {
+      //report_bad_input(argc);
+      if (with_electrons) {
+        if (argc < 5) {
+          fprintf(stderr, "ERROR usage:\n");
+          fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar]\n");
+          exit(0);
+        }
+        sscanf(argv[3], "%lf", &M_unit);
+        sscanf(argv[4], "%lf", &MBH);
+      } else {
+        if (argc < 6) {
+          fprintf(stderr, "ERROR usage:\n");
+          fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
+          exit(0);
+        }
+        sscanf(argv[3], "%lf", &M_unit);
+        sscanf(argv[4], "%lf", &MBH);
+        sscanf(argv[5], "%lf", &TP_OVER_TE);
+      }
     } else {
       M_unit = params->M_unit;
       MBH = params->MBH;
@@ -606,13 +630,23 @@ void init_data(int argc, char *argv[], Params *params)
   // Allocate storage and set geometry
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
   //p = (double****)malloc_rank4(NVAR, N1, N2, N3, sizeof(double));
-  p = malloc_rank4_double(NVAR, N1, N2, N3);
-  printf("N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
+  //p = malloc_rank4_double(NVAR, N1, N2, N3);
+  double ****ptmp = malloc_rank4_double(N1, N2, N3, NPRIM);
+  p = malloc_rank4_double(NPRIM, N1, N2, N3);
+  printf("NPRIM N1 N2 N3 = %i %i %i %i\n", NPRIM, N1, N2, N3);
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
 
+  H5LTread_dataset_double(file_id, "prims", &ptmp[0][0][0][0]);
+
+  ZLOOP {
+    for (int ip = 0; ip < NPRIM; ip++) {
+      p[ip][i][j][k] = ptmp[i][j][k][ip];
+    }
+  }
+
   // Read data
-  H5LTread_dataset_double(file_id, "RHO",  &p[KRHO][0][0][0]);
+  /*H5LTread_dataset_double(file_id, "RHO",  &p[KRHO][0][0][0]);
   H5LTread_dataset_double(file_id, "UU",   &p[UU][0][0][0]);
   H5LTread_dataset_double(file_id, "U1",   &p[U1][0][0][0]);
   H5LTread_dataset_double(file_id, "U2",   &p[U2][0][0][0]);
@@ -623,7 +657,7 @@ void init_data(int argc, char *argv[], Params *params)
   if (with_electrons) {
     H5LTread_dataset_double(file_id, "KEL",  &p[KEL][0][0][0]);
     H5LTread_dataset_double(file_id, "KTOT", &p[KTOT][0][0][0]);
-  }
+  }*/
 
   H5Fclose(file_id);
 
@@ -854,7 +888,7 @@ void report_spectrum(int N_superph_made, Params *params)
   } else {
     fp = fopen(SPECTRUM_FILE_NAME, "w");
   }
-  
+
   if (fp == NULL) {
     fprintf(stderr, "trouble opening spectrum file\n");
     exit(0);
@@ -866,7 +900,8 @@ void report_spectrum(int N_superph_made, Params *params)
   double dL = 0.;
   for (int i = 0; i < N_EBINS; i++) {
     // Output log_10(photon energy/(me c^2))
-    fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
+    //fprintf(fp, "%10.5g ", (i * dlE + lE0) / M_LN10);
+    fprintf(fp, "%10.5g ", exp(i*dlE + lE0)*ME*CL*CL/HPL);
 
     for (int j = 0; j < N_THBINS; j++) {
       // Convert accumulated photon number to nuLnu, in units of Lsun
@@ -877,12 +912,14 @@ void report_spectrum(int N_superph_made, Params *params)
 
       nuLnu = (ME*CL*CL)*(4.*M_PI/dOmega)*(1./dlE);
 
-      nuLnu *= spect[j][i].dEdlE/LSUN;
+      nuLnu *= spect[j][i].dEdlE;///LSUN;
       dL += ME*CL*CL*spect[j][i].dEdlE;
 
       tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
 
-      fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
+      fprintf(fp, "%10.5g ", nuLnu);
+
+      /*fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
         nuLnu,
         dOmega,
         spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL),
@@ -890,7 +927,7 @@ void report_spectrum(int N_superph_made, Params *params)
         spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL),
         sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL))),
         sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL))));
-
+      */
 
       nu0 = ME * CL * CL * exp((i - 0.5) * dlE + lE0) / HPL ;
       nu1 = ME * CL * CL * exp((i + 0.5) * dlE + lE0) / HPL ;
@@ -925,9 +962,10 @@ void report_spectrum(int N_superph_made, Params *params)
   double Mdot = dMact*M_unit/T_unit;
   double mdot = Mdot/MdotEdd;
   printf("Mdot = %e mdot = %e\n", Mdot, mdot);
-  double Lum = L*LSUN;
+  double Lum = L;
   double lum = Lum/LEdd;
   printf("L = %e lum = %e\n", Lum, lum);
+  printf("eff: %e\n", Lum/(Mdot*CL*CL));
 
   fprintf(stderr, "\n");
   fprintf(stderr, "N_superph_made: %d\n", N_superph_made);

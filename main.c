@@ -45,7 +45,7 @@
 Params params = { 0 };
 struct of_geom **geom;
 int nthreads;
-int N1, N2, N3, n_within_horizon;
+int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
 struct of_spectrum spect[N_THBINS][N_EBINS] = { };
