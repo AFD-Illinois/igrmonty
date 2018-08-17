@@ -452,10 +452,14 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
 void bl_coord(double *X, double *r, double *th)
 {
   *r = exp(X[1]) + R0;
-  double thG = M_PI*X[2] + ((1. - hslope)/2.)*sin(2.*M_PI*X[2]);
-  double y = 2*X[2] - 1.;
-  double thJ = poly_norm*y*(1. + pow(y/poly_xt,poly_alpha)/(poly_alpha+1.)) + 0.5*M_PI;
-  *th = thG + exp(mks_smooth*(startx[1] - X[1]))*(thJ - thG);
+  if (metric == MKS) {
+    double thG = M_PI*X[2] + ((1. - hslope)/2.)*sin(2.*M_PI*X[2]);
+    double y = 2*X[2] - 1.;
+    double thJ = poly_norm*y*(1. + pow(y/poly_xt,poly_alpha)/(poly_alpha+1.)) + 0.5*M_PI;
+    *th = thG + exp(mks_smooth*(startx[1] - X[1]))*(thJ - thG);
+  } else if (metric == MMKS) {
+    *th = M_PI*X[2] + ((1. - hslope)/2.)*sin(2.*M_PI*X[2]);
+  }
 }
 
 //double dOmega_func(double Xi[NDIM], double Xf[NDIM])
