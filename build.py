@@ -15,7 +15,7 @@ import subprocess
 DEBUG = 0
 EXECUTABLE = 'grmonty'
 
-def build(model):
+def build(model,notes):
   NOPARAM = 1
   DEBUG = 0
   for n in range(len(sys.argv)):
@@ -34,7 +34,7 @@ def build(model):
 
   host = machines.get_machine()
 
-  C_FLAGS = '-std=c99 -DMODEL=' + model + ' -DVERSION=$(GIT_VERSION) ' + host['COMPILER_FLAGS']
+  C_FLAGS = '-std=c99 -DMODEL=' + model + ' -DNOTES=' + notes + ' -DVERSION=$(GIT_VERSION) ' + host['COMPILER_FLAGS']
 
   # MATH AND DYNAMIC LINKING
   LIB_FLAGS = '-lm -ldl'
@@ -123,11 +123,18 @@ def build(model):
 
   print("\n  BUILD SUCCESSFUL")
 
+  # print md5sum
+  popen = subprocess.Popen(['md5sum',EXECUTABLE], stdout=subprocess.PIPE, 
+                           stderr=subprocess.PIPE, universal_newlines=True)
+  for line in iter(popen.stdout.readline, ""):
+    print("\n  md5sum: {0:s}".format(line))
+
   print("")
 
   sys.exit()
 
-if len(sys.argv) != 2:
+
+if len(sys.argv) < 2:
   print('ERROR: Format is')
   print('  python build.py [model]')
   sys.exit()
@@ -135,8 +142,14 @@ if (not os.path.isfile('model/' + sys.argv[1] + '.c')):
   print('ERROR Model %s does not exist' % sys.argv[1])
   sys.exit()
 
+if len(sys.argv) > 2:
+  notes = sys.argv[2]
+else:
+  notes = ""
+
 import shutil
 shutil.copyfile('model/' + sys.argv[1] + '.c', 'model.c')
 shutil.copyfile('model/' + sys.argv[1] + '.h', 'model.h')
-build(sys.argv[1])
+
+build(sys.argv[1],notes)
 
