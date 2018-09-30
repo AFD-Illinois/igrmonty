@@ -48,7 +48,7 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-struct of_spectrum spect[N_THBINS][N_EBINS] = { };
+struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 double t;
 double a;
@@ -65,12 +65,15 @@ double max_tau_scatt, Ladv, dMact, bias_norm;
 
 int main(int argc, char *argv[])
 {
-  //omp_set_num_threads(1);
+  // motd
+  fprintf(stderr, "grmonty:pairs. githash: %s\n", xstr(VERSION));
+  fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
+
   double N_superph_made;
   time_t currtime, starttime;
 
-  // Spectral bin parameters
-  dlE = 0.25;   // bin width
+  // spectral bin parameters
+  dlE = 0.25;         // bin width
   lE0 = log(1.e-12);  // location of first bin, in electron rest-mass units
 
   // Load parameters
@@ -87,21 +90,12 @@ int main(int argc, char *argv[])
   N_scatt = 0;
   starttime = time(NULL);
 
-  printf("SYNCH: %i\n", SYNCHROTRON);
-  printf("BREMS: %i\n", BREMSSTRAHLUNG);
-  printf("COMPT: %i\n", COMPTON);
+  fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
+  fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
+  fprintf(stderr, "with compt: %i\n\n", COMPTON);
 
   fprintf(stderr, "Entering main loop...\n");
  
-  // Get number of superphotons for each zone
-  /*void init_zone(int i, int j, int k, double *nz, double *dnmax);
-  ZLOOP {
-    double nz, dnmax;
-    init_zone(i, j, k, &nz, &dnmax);
-    if  (j == N2/2)
-    printf("[%i %i %i] nz = %e dnmax = %e\n", i,j,k,nz,dnmax);
-  }*/
-  
   int quit_flag = 0;
   #pragma omp parallel
   {
@@ -137,7 +131,7 @@ int main(int argc, char *argv[])
   }
 
   currtime = time(NULL);
-  fprintf(stderr, "Final time %g, rate %g ph/s\n",
+  fprintf(stderr, "final time %g, rate %g ph/s\n",
     (double) (currtime - starttime),
     N_superph_made / (currtime - starttime));
 

@@ -13,6 +13,7 @@ double ***thetae;
 double ***b;
 
 double TP_OVER_TE;
+double biasTuning;
 
 static double game;
 static double MBH;
@@ -122,7 +123,7 @@ double stepsize(double X[NDIM], double K[NDIM])
 void record_super_photon(struct of_photon *ph)
 {
   double lE, dx2;
-  int iE, ix2;
+  int iE, ix2, ic;
 
   if (isnan(ph->w) || isnan(ph->E)) {
     fprintf(stderr, "record isnan: %g %g\n", ph->w, ph->E);
@@ -154,57 +155,81 @@ void record_super_photon(struct of_photon *ph)
   if (iE < 0 || iE >= N_EBINS)
     return;
 
+  // Get compton bin
+  ic = ph->nscatt;
+  if (ic > 3) ic = 3;
+
   #pragma omp atomic
   N_superph_recorded++;
   #pragma omp atomic
   N_scatt += ph->nscatt;
 
-  // Add superphoton to spectrum
-  spect[ix2][iE].dNdlE += ph->w;
-  spect[ix2][iE].dEdlE += ph->w * ph->E;
-  spect[ix2][iE].tau_abs += ph->w * ph->tau_abs;
-  spect[ix2][iE].tau_scatt += ph->w * ph->tau_scatt;
-  spect[ix2][iE].X1iav += ph->w * ph->X1i;
-  spect[ix2][iE].X2isq += ph->w * (ph->X2i * ph->X2i);
-  spect[ix2][iE].X3fsq += ph->w * (ph->X[3] * ph->X[3]);
-  spect[ix2][iE].ne0 += ph->w * (ph->ne0);
-  spect[ix2][iE].b0 += ph->w * (ph->b0);
-  spect[ix2][iE].thetae0 += ph->w * (ph->thetae0);
-  spect[ix2][iE].nscatt += ph->w * ph->nscatt;
-  spect[ix2][iE].nph += 1.;
+  double ratio_synch = 1. - ph->ratio_brems;
+
+  // Add superphoton to synch spectrum
+  spect[ic][ix2][iE].dNdlE += ph->w * ratio_synch;
+  spect[ic][ix2][iE].dEdlE += ph->w * ph->E * ratio_synch;
+  spect[ic][ix2][iE].tau_abs += ph->w * ph->tau_abs * ratio_synch;
+  spect[ic][ix2][iE].tau_scatt += ph->w * ph->tau_scatt * ratio_synch;
+  spect[ic][ix2][iE].X1iav += ph->w * ph->X1i * ratio_synch;
+  spect[ic][ix2][iE].X2isq += ph->w * (ph->X2i * ph->X2i) * ratio_synch;
+  spect[ic][ix2][iE].X3fsq += ph->w * (ph->X[3] * ph->X[3]) * ratio_synch;
+  spect[ic][ix2][iE].ne0 += ph->w * (ph->ne0) * ratio_synch;
+  spect[ic][ix2][iE].b0 += ph->w * (ph->b0) * ratio_synch;
+  spect[ic][ix2][iE].thetae0 += ph->w * (ph->thetae0) * ratio_synch;
+  spect[ic][ix2][iE].nscatt += ph->w * ph->nscatt * ratio_synch;
+  spect[ic][ix2][iE].nph += 1.;
+  // .. to brems spectrum
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].dEdlE += ph->w * ph->E * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].tau_abs += ph->w * ph->tau_abs * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].tau_scatt += ph->w * ph->tau_scatt * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].X1iav += ph->w * ph->X1i * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].X2isq += ph->w * (ph->X2i * ph->X2i) * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].X3fsq += ph->w * (ph->X[3] * ph->X[3]) * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].ne0 += ph->w * (ph->ne0) * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].b0 += ph->w * (ph->b0) * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].thetae0 += ph->w * (ph->thetae0) * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].nscatt += ph->w * ph->nscatt * ph->ratio_brems;
+  spect[ic+(N_COMPTBINS+1)][ix2][iE].nph += 1.;
+
 }
 
-struct of_spectrum shared_spect[N_THBINS][N_EBINS] = { };
+struct of_spectrum shared_spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 void omp_reduce_spect()
-{
-  #pragma omp parallel
+{  
+#pragma omp parallel
   {
     #pragma omp critical
     {
-      for (int i = 0; i < N_THBINS; i++) {
-        for (int j = 0; j < N_EBINS; j++) {
-          shared_spect[i][j].dNdlE +=
-              spect[i][j].dNdlE;
-          shared_spect[i][j].dEdlE +=
-              spect[i][j].dEdlE;
-          shared_spect[i][j].tau_abs +=
-              spect[i][j].tau_abs;
-          shared_spect[i][j].tau_scatt +=
-              spect[i][j].tau_scatt;
-          shared_spect[i][j].X1iav +=
-              spect[i][j].X1iav;
-          shared_spect[i][j].X2isq +=
-              spect[i][j].X2isq;
-          shared_spect[i][j].X3fsq +=
-              spect[i][j].X3fsq;
-          shared_spect[i][j].ne0 += spect[i][j].ne0;
-          shared_spect[i][j].b0 += spect[i][j].b0;
-          shared_spect[i][j].thetae0 +=
-              spect[i][j].thetae0;
-          shared_spect[i][j].nscatt +=
-              spect[i][j].nscatt;
-          shared_spect[i][j].nph += spect[i][j].nph;
+      for (int k = 0; k < N_TYPEBINS; k++) {
+        for (int i = 0; i < N_THBINS; i++) {
+          for (int j = 0; j < N_EBINS; j++) {
+            shared_spect[k][i][j].dNdlE +=
+                spect[k][i][j].dNdlE;
+            shared_spect[k][i][j].dEdlE +=
+                spect[k][i][j].dEdlE;
+            shared_spect[k][i][j].tau_abs +=
+                spect[k][i][j].tau_abs;
+            shared_spect[k][i][j].tau_scatt +=
+                spect[k][i][j].tau_scatt;
+            shared_spect[k][i][j].X1iav +=
+                spect[k][i][j].X1iav;
+            shared_spect[k][i][j].X2isq +=
+                spect[k][i][j].X2isq;
+            shared_spect[k][i][j].X3fsq +=
+                spect[k][i][j].X3fsq;
+            shared_spect[k][i][j].ne0 +=  
+                spect[k][i][j].ne0;
+            shared_spect[k][i][j].b0 += 
+                spect[k][i][j].b0;
+            shared_spect[k][i][j].thetae0 +=
+                spect[k][i][j].thetae0;
+            shared_spect[k][i][j].nscatt +=
+                spect[k][i][j].nscatt;
+            shared_spect[k][i][j].nph += 
+                spect[k][i][j].nph;
+          }
         }
       }
     } // omp critical
@@ -213,29 +238,34 @@ void omp_reduce_spect()
 
     #pragma omp master
     {
-      for (int i = 0; i < N_THBINS; i++) {
-        for (int j = 0; j < N_EBINS; j++) {
-          spect[i][j].dNdlE =
-              shared_spect[i][j].dNdlE;
-          spect[i][j].dEdlE =
-              shared_spect[i][j].dEdlE;
-          spect[i][j].tau_abs =
-              shared_spect[i][j].tau_abs;
-          spect[i][j].tau_scatt =
-              shared_spect[i][j].tau_scatt;
-          spect[i][j].X1iav =
-              shared_spect[i][j].X1iav;
-          spect[i][j].X2isq =
-              shared_spect[i][j].X2isq;
-          spect[i][j].X3fsq =
-              shared_spect[i][j].X3fsq;
-          spect[i][j].ne0 = shared_spect[i][j].ne0;
-          spect[i][j].b0 = shared_spect[i][j].b0;
-          spect[i][j].thetae0 =
-              shared_spect[i][j].thetae0;
-          spect[i][j].nscatt =
-              shared_spect[i][j].nscatt;
-          spect[i][j].nph = shared_spect[i][j].nph;
+      for (int k = 0; k < N_TYPEBINS; k++) {
+        for (int i = 0; i < N_THBINS; i++) {
+          for (int j = 0; j < N_EBINS; j++) {
+            spect[k][i][j].dNdlE =
+                shared_spect[k][i][j].dNdlE;
+            spect[k][i][j].dEdlE =
+                shared_spect[k][i][j].dEdlE;
+            spect[k][i][j].tau_abs =
+                shared_spect[k][i][j].tau_abs;
+            spect[k][i][j].tau_scatt =
+                shared_spect[k][i][j].tau_scatt;
+            spect[k][i][j].X1iav =
+                shared_spect[k][i][j].X1iav;
+            spect[k][i][j].X2isq =
+                shared_spect[k][i][j].X2isq;
+            spect[k][i][j].X3fsq =
+                shared_spect[k][i][j].X3fsq;
+            spect[k][i][j].ne0 = 
+                shared_spect[k][i][j].ne0;
+            spect[k][i][j].b0 = 
+                shared_spect[k][i][j].b0;
+            spect[k][i][j].thetae0 =
+                shared_spect[k][i][j].thetae0;
+            spect[k][i][j].nscatt =
+                shared_spect[k][i][j].nscatt;
+            spect[k][i][j].nph = 
+                shared_spect[k][i][j].nph;
+          }
         }
       }
     } // omp master
@@ -244,20 +274,38 @@ void omp_reduce_spect()
 
 double bias_func(double Te, double w)
 {
+  // "ebhlight" model
+  /*
+  double bias, max;
+  
+  double tuningParameter = 1.e3;
+  if (biasTuning > 0) tuningParameter = biasTuning;
+
+  max = 0.5 * w / WEIGHT_MIN;
+  if (Te > SCATTERING_THETAE_MAX) Te = SCATTERING_THETAE_MAX;
+  bias = pow(Te, 2.) / bias_norm * tuningParameter;
+
+  if (bias < TP_OVER_TE) bias = TP_OVER_TE;
+  if (bias > max) bias = max;
+
+  if (isnan(bias) || bias < 0.) bias = TP_OVER_TE;
+
+  return bias / TP_OVER_TE;
+   */
+
+  // "vanilla" model
+  //*
   double bias, max ;
 
   max = 0.5 * w / WEIGHT_MIN;
 
-  //bias = Te*Te;
+  if (Te > SCATTERING_THETAE_MAX) Te = SCATTERING_THETAE_MAX;
   bias = 16.*Te*Te/(5.*max_tau_scatt);
-  //bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
-  //if (bias < TP_OVER_TE)
-  //  bias = TP_OVER_TE;
   if (bias > max)
     bias = max;
 
-  return bias;// / TP_OVER_TE;
+  return bias * biasTuning;
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
@@ -461,6 +509,10 @@ void init_data(int argc, char *argv[], Params *params)
     fname = argv[2];
   }
 
+  if (params->loaded) {
+    biasTuning = params->biasTuning;
+  }
+
   fp = fopen(fname, "r");
 
   if (fp == NULL) {
@@ -610,22 +662,6 @@ void init_data(int argc, char *argv[], Params *params)
 
     while ( (fgetc(fp)) != '\n' ) ;
 
-    /*
-
-    safe_fscanf(fp, "%lf ", &fdum); // <G_0>
-    safe_fscanf(fp, "%lf ", &fdum); // <G_1>
-    safe_fscanf(fp, "%lf ", &fdum); // <G_2>
-    safe_fscanf(fp, "%lf ", &fdum); // <G_3>
-
-    safe_fscanf(fp, "%lf ", &fdum); // qud
-    safe_fscanf(fp, "%lf ", &fdum); // qvisc
-    safe_fscanf(fp, "%lf ", &fdum); // qcoul
-
-    safe_fscanf(fp, "%lf ", &fdum); // N_esuper
-    safe_fscanf(fp, "%lf ", &fdum); // N_esuper_electron
-
-    safe_fscanf(fp, "%lf ", &fdum); // Thetae*/
-
     bias_norm += dV*gdet*pow(p[KELCOND][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit, 2.);
     V += dV*gdet;
 
@@ -709,16 +745,17 @@ void report_spectrum(int N_superph_made, Params *params)
   // temporary data buffers
   double lnu_buf[N_EBINS];
   double dOmega_buf[N_THBINS];
-  double nuLnu_buf[N_EBINS][N_THBINS];
-  double tau_abs_buf[N_EBINS][N_THBINS];
-  double tau_scatt_buf[N_EBINS][N_THBINS];
-  double x1av_buf[N_EBINS][N_THBINS];
-  double x2av_buf[N_EBINS][N_THBINS];
-  double x3av_buf[N_EBINS][N_THBINS];
-  double nscatt_buf[N_EBINS][N_THBINS];
+  double nuLnu_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double tau_abs_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double tau_scatt_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double x1av_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double x2av_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double x3av_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double nscatt_buf[N_TYPEBINS][N_EBINS][N_THBINS];
+  double Lcomponent_buf[N_TYPEBINS];
 
   // normal output routine
-  double dOmega, nuLnu, tau_scatt, L, nu0, nu1, nu, fnu, dL;
+  double dOmega, nuLnu, tau_scatt, L, Lcomponent, dL;
   double dsource = 8000 * PC;
 
   max_tau_scatt = 0.;
@@ -729,53 +766,50 @@ void report_spectrum(int N_superph_made, Params *params)
     dOmega_buf[j] = 2. * dOmega_func(j);
   }
 
-  for (int i=0; i<N_EBINS; ++i) {
-    lnu_buf[i] = (i * dlE + lE0) / M_LN10;
-    for (int j=0; j<N_THBINS; ++j) {
+  for (int k=0; k<N_TYPEBINS; ++k) {
+    Lcomponent = 0.;
+    for (int i=0; i<N_EBINS; ++i) {
+      lnu_buf[i] = (i * dlE + lE0) / M_LN10;
+      for (int j=0; j<N_THBINS; ++j) {
 
-      dOmega = 2. * dOmega_func(j);
+        dOmega = 2. * dOmega_func(j);
 
-      nuLnu = (ME * CL * CL) * (4. * M_PI / dOmega) * (1. / dlE);
-      nuLnu *= spect[j][i].dEdlE/LSUN;
+        nuLnu = (ME * CL * CL) * (4. * M_PI / dOmega) * (1. / dlE);
+        nuLnu *= spect[k][j][i].dEdlE/LSUN;
 
-      tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
+        tau_scatt = spect[k][j][i].tau_scatt/(spect[k][j][i].dNdlE + SMALL);
 
-      nuLnu_buf[i][j] = nuLnu;
-      tau_abs_buf[i][j] = spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL);
-      tau_scatt_buf[i][j] = tau_scatt;
-      x1av_buf[i][j] = spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL);
-      x2av_buf[i][j] = sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL)));
-      x3av_buf[i][j] = sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL)));
-      nscatt_buf[i][j] = spect[j][i].nscatt / (spect[j][i].dNdlE + SMALL);
+        nuLnu_buf[k][i][j] = nuLnu;
+        tau_abs_buf[k][i][j] = spect[k][j][i].tau_abs/(spect[k][j][i].dNdlE + SMALL);
+        tau_scatt_buf[k][i][j] = tau_scatt;
+        x1av_buf[k][i][j] = spect[k][j][i].X1iav/(spect[k][j][i].dNdlE + SMALL);
+        x2av_buf[k][i][j] = sqrt(fabs(spect[k][j][i].X2isq/(spect[k][j][i].dNdlE + SMALL)));
+        x3av_buf[k][i][j] = sqrt(fabs(spect[k][j][i].X3fsq/(spect[k][j][i].dNdlE + SMALL)));
+        nscatt_buf[k][i][j] = spect[k][j][i].nscatt / (spect[k][j][i].dNdlE + SMALL);
 
-      if (tau_scatt > max_tau_scatt) max_tau_scatt = tau_scatt;
+        if (tau_scatt > max_tau_scatt) max_tau_scatt = tau_scatt;
 
-      dL += ME * CL * CL * spect[j][i].dEdlE;
-      L += nuLnu * dOmega * dlE / (4. * M_PI);
+        dL += ME * CL * CL * spect[k][j][i].dEdlE;
+        L += nuLnu * dOmega * dlE / (4. * M_PI);
+        Lcomponent += nuLnu * dOmega * dlE / (4. * M_PI);
 
-      nu0 = ME * CL * CL * exp((i-0.5) * dlE + lE0) / HPL;
-      nu1 = ME * CL * CL * exp((i+0.5) * dlE + lE0) / HPL;
-
-      if (nu0 < 230.e9 && nu1 > 230.e9) {
-        nu = ME * CL * CL * exp(i * dlE + lE0) / HPL;
-        fnu = nuLnu * LSUN / (4. * M_PI * dsource * dsource * nu * JY);
-        fprintf(stderr, "fnu: %10.5g\n", fnu);
       }
-
     }
+    Lcomponent_buf[k] = Lcomponent;
   }
 
   h5io_add_group(fid, "/output");
 
   h5io_add_data_dbl_1d(fid, "/output/lnu", N_EBINS, lnu_buf);
   h5io_add_data_dbl_1d(fid, "/output/dOmega", N_THBINS, dOmega_buf);
-  h5io_add_data_dbl_2d(fid, "/output/nuLnu", N_EBINS, N_THBINS, nuLnu_buf);
-  h5io_add_data_dbl_2d(fid, "/output/tau_abs", N_EBINS, N_THBINS, tau_abs_buf);
-  h5io_add_data_dbl_2d(fid, "/output/tau_scatt", N_EBINS, N_THBINS, tau_scatt_buf);
-  h5io_add_data_dbl_2d(fid, "/output/x1av", N_EBINS, N_THBINS, x1av_buf);
-  h5io_add_data_dbl_2d(fid, "/output/x2av", N_EBINS, N_THBINS, x2av_buf);
-  h5io_add_data_dbl_2d(fid, "/output/x3av", N_EBINS, N_THBINS, x3av_buf);
-  h5io_add_data_dbl_2d(fid, "/output/nscatt", N_EBINS, N_THBINS, nscatt_buf);
+  h5io_add_data_dbl_3d(fid, "/output/nuLnu", N_TYPEBINS, N_EBINS, N_THBINS, nuLnu_buf);
+  h5io_add_data_dbl_3d(fid, "/output/tau_abs", N_TYPEBINS, N_EBINS, N_THBINS, tau_abs_buf);
+  h5io_add_data_dbl_3d(fid, "/output/tau_scatt", N_TYPEBINS, N_EBINS, N_THBINS, tau_scatt_buf);
+  h5io_add_data_dbl_3d(fid, "/output/x1av", N_TYPEBINS, N_EBINS, N_THBINS, x1av_buf);
+  h5io_add_data_dbl_3d(fid, "/output/x2av", N_TYPEBINS, N_EBINS, N_THBINS, x2av_buf);
+  h5io_add_data_dbl_3d(fid, "/output/x3av", N_TYPEBINS, N_EBINS, N_THBINS, x3av_buf);
+  h5io_add_data_dbl_3d(fid, "/output/nscatt", N_TYPEBINS, N_EBINS, N_THBINS, nscatt_buf);
+  h5io_add_data_dbl_1d(fid, "/output/Lcomponent", N_TYPEBINS, Lcomponent_buf);
 
   h5io_add_data_int(fid, "/output/Nrecorded", N_superph_recorded);
   h5io_add_data_int(fid, "/output/Nmade", N_superph_made);
