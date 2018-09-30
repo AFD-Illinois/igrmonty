@@ -15,6 +15,7 @@ void load_par (const char *fname, Params *params) {
 
   // set default values here
   params->TP_OVER_TE = 3.;
+  params->biasTuning = 1.;
 
   // modify parameters/types below
   while (fgets(line, 255, fp) != NULL) {
@@ -24,10 +25,16 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
+    read_param(line, "bias", &(params->biasTuning), TYPE_DBL);
     read_param(line, "TP_OVER_TE", &(params->TP_OVER_TE), TYPE_DBL);
 
     read_param(line, "dump", (void *)(params->dump), TYPE_STR);
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
+    
+    // two point model
+    read_param(line, "lnumin", &(params->lnumin), TYPE_DBL);
+    read_param(line, "lnumax", &(params->lnumax), TYPE_DBL);
+    read_param(line, "alpha_spec", &(params->alpha_spec), TYPE_DBL);
     
   }
 

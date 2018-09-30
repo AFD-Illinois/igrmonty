@@ -6,6 +6,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "model.h"
+
 #define TYPE_INT (1)
 #define TYPE_DBL (2)
 #define TYPE_STR (3)
@@ -15,9 +17,14 @@ typedef struct params_t {
   double Ns;
   double MBH;
   double M_unit;
+  double biasTuning;
   double TP_OVER_TE;
   const char dump[256];
   const char spectrum[256];
+
+  // two point model
+  double lnumin, lnumax, alpha_spec;
+
   char loaded;
 } Params;
 
