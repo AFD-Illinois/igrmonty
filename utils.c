@@ -88,31 +88,19 @@ void init_weight_table(void)
   }
 
   double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
-  //double jcst = M_SQRT2*EE*EE*EE/(27*ME*CL*CL);
 
-  #pragma omp parallel
-  {
-    int lstart, lend, myid, nthreads;
+  #pragma omp parallel for shared(sum) schedule(dynamic,1) collapse(3)
+  ZLOOP {
     double Ne, Thetae, B, Ucon[NDIM], Bcon[NDIM];
-    nthreads = omp_get_num_threads();
-    myid = omp_get_thread_num();
-    lstart = myid * (N_ESAMP / nthreads);
-    lend = (myid + 1) * (N_ESAMP / nthreads);
-    if (myid == nthreads - 1)
-      lend = N_ESAMP + 1;
+    get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
 
-    //#pragma omp for collapse(3)
-    ZLOOP {
-      get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
-      if (Ne == 0.)// || Thetae < THETAE_MIN)
-        continue;
+    if (Ne == 0.) continue;
 
-      for (int l = lstart; l < lend; l++) {
-        sum[l] += int_jnu(Ne, Thetae, B, nu[l])*sfac*geom[i][j].g;
-      }
+    for (int l=0; l<N_ESAMP; ++l) {
+     #pragma omp atomic
+      sum[l] += int_jnu(Ne, Thetae, B, nu[l]) * sfac * geom[i][j].g;
     }
-  } // omp parallel
-
+  }
 
   #pragma omp parallel for
   for (int i = 0; i <= N_ESAMP; i++)
@@ -127,6 +115,7 @@ void init_weight_table(void)
 double lb_min, dlb;
 double nint[NINT + 1];
 double dndlnu_max[NINT + 1];
+
 void init_nint_table(void)
 {
   double Bmag, dn;
@@ -216,16 +205,6 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
       }
     }
   }
-  /*zj++;
-  if (zj >= N2) {
-    zj = 0;
-    zi++;
-    if (zi >= N1) {
-      in2gen = 1;
-      *i = N1;
-      return 1;
-    }
-  }*/
   
   init_zone(zi, zj, zk, &n2gen, dnmax);
   if (fmod(n2gen, 1.) > monty_rand()) {
@@ -237,6 +216,12 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   *i = zi;
   *j = zj;
   *k = zk;
+
+#ifdef MODEL_TRANSPARENT
+  in2gen *= 10000;
+  if (zi != 20) return 0;
+  if (zj > 1 && zj < N2-2) return 0;
+#endif
 
   return in2gen;
 }
@@ -318,9 +303,33 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 
   coord(i, j, k, ph->X);
 
-  Nln = LNUMAX - LNUMIN;
+  
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+
+
+#ifdef MODEL_TRANSPARENT
+
+  // monochromatic
+  if (lnumin == lnumax) {
+    nu = pow(10., lnumin);
+    ph->w = 1.e+40;
+  }
+
+  // power law spectrum
+  else {
+    double lnu = monty_rand() * (lnumax - lnumin) + lnumin;
+    nu = pow(10., lnu);
+    double numin = pow(10., lnumin);
+    ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec); 
+  }
+
+  // isotropic emission
+  cth = 2. * monty_rand() - 1.;
+
+#else
+
+  Nln = LNUMAX - LNUMIN;
 
   // Sample from superphoton distribution in current simulation zone
   do {
@@ -336,6 +345,8 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 
   } while (monty_rand() >
      jnu(nu, Ne, Thetae, Bmag, th) / jmax);
+
+  #endif
 
   sth = sqrt(1. - cth * cth);
   phi = 2. * M_PI * monty_rand();
@@ -382,6 +393,10 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->ne0 = Ne;
   ph->b0 = Bmag;
   ph->thetae0 = Thetae;
+  ph->ratio_brems = jnu_ratio_brems(nu, Ne, Thetae, Bmag, th);
+#ifdef TRACK_PH_CREATION
+  ph->isrecorded = 0;
+#endif // TRACK_PH_CREATION
 }
 
 void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM])

@@ -67,6 +67,11 @@ void track_super_photon(struct of_photon *ph)
     if (stop_criterion(ph))
       break;
 
+
+#ifdef MODEL_TRANSPARENT
+    if (0 == 1) {
+#endif
+
     // Allow photon to interact with matter
     gcov_func(ph->X, Gcov);
     get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
@@ -185,6 +190,11 @@ void track_super_photon(struct of_photon *ph)
       }
     }
 
+
+#ifdef MODEL_TRANSPARENT
+    }
+#endif
+    
     nstep++;
 
     // Signs that something's wrong with the integration

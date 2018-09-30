@@ -248,8 +248,7 @@ double dNdg_unnorm(double lge, void *params)
   double kap = KAPPA;
   double w = thetae;
   double ge = exp(lge);
-  //printf("lge = %e ge = %e te = %e dNdge = %e\n", lge, ge, w, ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap*w), -(kap+1.)));
-  double cut = cut = exp(-ge/GAMMACUT);
+  double cut = exp(-ge/GAMMACUT);
   return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap*w), -(kap+1.))*cut;
 }
 
@@ -264,9 +263,7 @@ double getnorm_dNdg(double thetae)
   F.params = params;
 
   double lge_min = 0.;
-  double lge_max = log(1. + 100.*thetae);//log(GSL_MAX(10.*thetae, 10.));
-  //gsl_integration_qags(&F, lge_min, lge_max, 1.e100, 1.e-5, 1000, w,
-  //    &result, &error);
+  double lge_max = log(1. + 100.*thetae);
   gsl_integration_qag(&F, lge_min, lge_max, 1.e100, 1.e-7, 1000, 6, w,
       &result, &error);
   gsl_integration_workspace_free(w);

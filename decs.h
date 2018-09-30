@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
+#include <unistd.h>
 #include <math.h>
 #include <gsl/gsl_rng.h>
 #include <gsl/gsl_randist.h>
@@ -22,48 +23,13 @@
 
 #define NUCUT (1.e14)
 #define GAMMACUT (1000.)
+#define SCATTERING_THETAE_MAX (1000.)
+
+#define N_COMPTBINS (3) // e.g., once, twice, >twice
+#define N_TYPEBINS (2*(N_COMPTBINS+1)) // synch & brems
 
 #define STRLEN (2048)
 
-//#define NDIM  4
-//#define NPRIM 8
-
-/* Range of initial superphoton frequencies */
-/*#define NUMIN 1.e9
-#define NUMAX 1.e28
-#define LNUMIN log(NUMIN)
-#define LNUMAX log(NUMAX)
-#define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)*/
-
-/*#define THETAE_MAX  1000.
-#define THETAE_MIN  0.3
-//#define TP_OVER_TE  (3.)
-#define WEIGHT_MIN  (1.e28)
-
-#define SYNCHROTRON (1)
-#define BREMSSTRAHLUNG (0)
-#define COMPTON (0)
-#define KAPPA (5.)
-<<<<<<< HEAD
-#define DIST_KAPPA (0)*/
-
-/* mnemonics for primitive vars; conserved vars */
-/*#define KRHO     0
-#define UU      1
-#define U1      2
-#define U2      3
-#define U3      4
-#define B1      5
-#define B2      6
-#define B3      7
-#define KEL     8
-#define KTOT    9*/
-
-/* numerical convenience */
-//#define SMALL 1.e-40
-
-/* physical parameters */
-//#define MMW 0.5   /* mean molecular weight, in units of mp */
 
 /** data structures **/
 struct of_photon {
@@ -83,6 +49,10 @@ struct of_photon {
   double E0;
   double E0s;
   int nscatt;
+  double ratio_brems; // ratio_synch = 1 - ratio_brems
+#ifdef TRACK_PH_CREATION
+  int isrecorded;
+#endif // TRACK_PH_CREATION
 };
 
 struct of_geom {
@@ -111,7 +81,7 @@ struct of_spectrum {
 //#define N_EBINS   200
 //#define N_THBINS  6
 
-extern struct of_spectrum spect[N_THBINS][N_EBINS];
+extern struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS];
 #pragma omp threadprivate(spect)
 
 struct of_grid {
@@ -167,6 +137,7 @@ extern double TP_OVER_TE;
 extern double max_tau_scatt, Ladv, dMact, bias_norm;
 
 // Macros
+#define NULL_CHECK(val,msg,fail) if (val == NULL) { fprintf(stderr, "%s\n", msg); exit(fail); }
 #define xstr(s) str(s)
 #define str(s) #s
 #define ZLOOP for (int i = 0; i < N1; i++) \
@@ -175,6 +146,7 @@ extern double max_tau_scatt, Ladv, dMact, bias_norm;
 #define DLOOP  for(int k = 0; k < NDIM; k++) \
                for(int l = 0; l < NDIM; l++)
 #define MULOOP for(int mu = 0; mu < NDIM; mu++)
+#define NULOOP for(int nu = 0; nu < NDIM; nu++)
 #define MUNULOOP for(int mu=0; mu < NDIM; mu++) \
                  for(int nu=0; nu < NDIM; nu++)
 
@@ -242,6 +214,8 @@ double jnu_inv(double nu, double thetae, double ne, double B,
 
   /* emissivity */
 double jnu(double nu, double Ne, double Thetae, double B,
+     double theta);
+double jnu_ratio_brems(double nu, double Ne, double Thetae, double B,
      double theta);
 double int_jnu(double Ne, double Thetae, double Bmag, double nu);
 void init_emiss_tables(void);
