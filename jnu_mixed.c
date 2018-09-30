@@ -47,6 +47,28 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta)
   return j;
 }
 
+double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta)
+{
+  double synch = 0.;
+  double brems = 0.;
+
+  #if SYNCHROTRON
+  #if DIST_KAPPA
+  synch = jnu_kappa(nu, Ne, Thetae, B, theta);
+  #else
+  synch = jnu_synch(nu, Ne, Thetae, B, theta);
+  #endif // DIST_KAPPA
+  #endif // SYNCHROTRON
+
+  #if BREMSSTRAHLUNG
+  brems = jnu_bremss(nu, Ne, Thetae);
+  #endif // BREMSSTRAHLUNG
+
+  if ( synch + brems == 0 ) return 0.;
+  
+  return brems / ( synch + brems );
+}
+
 double int_jnu(double Ne, double Thetae, double B, double nu)
 {
   double intj = 0.;
@@ -69,20 +91,51 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
 double jnu_bremss(double nu, double Ne, double Thetae)
 {
   if (Thetae < THETAE_MIN) 
-    return 0;
+    return 0.;
 
-  double Te = Thetae*ME*CL*CL/KBOL;
-  double rel = (1. + 4.4e-10*Te);
-  double x, efac;
+  double Te = Thetae * ME * CL * CL / KBOL;
+  double x = HPL*nu/(KBOL*Te);
+  double efac = 0.;
   double gff = 1.2;
-
-  x = HPL*nu/(KBOL*Te);
-
+  
   if (x < 1.e-3) {
-    efac = (24 - 24*x + 12*x*x - 4.*x*x*x + x*x*x*x)/24.;
+    efac = (24. - 24.*x + 12.*x*x - 4.*x*x*x + x*x*x*x) / 24.;
   } else {
     efac = exp(-x);
   }
+
+#if 1   // following Straub+ 2012
+  double Fei=0., Fee=0., fei=0., fee=0.;
+
+  double SOMMERFELD_ALPHA = 1. / 137.036;
+  double eta = 0.5616;
+  double e_charge = 4.80e-10; // in esu
+  double re = e_charge * e_charge / ME / CL / CL;
+  double gammaE = 0.577; // = - Log[0.5616] 
+
+  if (x > 1) {
+    gff = sqrt(3. / M_PI / x);
+  } else {
+    gff = sqrt(3.) / M_PI * log(4 / gammaE / x);
+  }
+
+  if (Thetae < 1) {
+    Fei = 4. * sqrt(2.*Thetae/M_PI/M_PI/M_PI) * (1. + 1.781*pow(Thetae,1.34));
+    Fee = 20./9./sqrt(M_PI) * (44. - 3.*M_PI*M_PI) * pow(Thetae,1.5);
+    Fee *= (1. + 1.1*Thetae + Thetae*Thetae - 1.25*pow(Thetae,2.5));
+  } else {
+    Fei = 9.*Thetae/(2.*M_PI) * ( log(1.123 * Thetae + 0.48) + 1.5 );
+    Fee = 24. * Thetae * ( log(2.*eta*Thetae) + 1.28 );
+  }
+  fei = Ne * Ne * SIGMA_THOMSON * SOMMERFELD_ALPHA * ME * CL * CL * CL * Fei;
+  fee = Ne * Ne * re * re * SOMMERFELD_ALPHA * ME * CL * CL * CL * Fee;
+
+  return (fei+fee) / (4.*M_PI) * HPL/KBOL/Te * efac * gff;
+ 
+#else 
+  // Method from Rybicki & Lightman, ultimately from Novikov & Thorne
+
+  double rel = (1. + 4.4e-10*Te);
 
   double jv = 1./(4.*M_PI)*pow(2,5)*M_PI*pow(EE,6)/(3.*ME*pow(CL,3));
   jv *= pow(2.*M_PI/(3.*KBOL*ME),1./2.);
@@ -90,6 +143,8 @@ double jnu_bremss(double nu, double Ne, double Thetae)
   jv *= efac*rel*gff;
 
   return jv;
+#endif 
+
 }
 
 #define CST 1.88774862536	/* 2^{11/12} */
