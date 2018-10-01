@@ -508,6 +508,8 @@ void init_data(int argc, char *argv[], Params *params)
   double dV, V;
   hid_t file_id;
 
+  NPRIM = 8;
+
   if (params->loaded && strlen(params->dump) > 0) {
     fname = params->dump;
   } else {

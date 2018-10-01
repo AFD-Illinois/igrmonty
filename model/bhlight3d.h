@@ -1,5 +1,4 @@
 #define NDIM 4
-#define NPRIM 8
 #define NUMIN 1.e8
 #define NUMAX 1.e24
 #define LNUMIN log(NUMIN)

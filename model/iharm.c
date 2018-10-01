@@ -516,6 +516,8 @@ void init_data(int argc, char *argv[], Params *params)
   double dV, V;
   int nprims = 0;
 
+  NPRIM = 10;
+
   if (params->loaded && strlen(params->dump) > 0) {
     fname = params->dump;
   } else {
