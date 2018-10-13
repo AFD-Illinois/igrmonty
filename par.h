@@ -18,12 +18,17 @@ typedef struct params_t {
   double MBH;
   double M_unit;
   double biasTuning;
-  double TP_OVER_TE;
   const char dump[256];
   const char spectrum[256];
 
   // two point model
   double lnumin, lnumax, alpha_spec;
+
+  // electron temperature models
+  double TP_OVER_TE;
+  double beta_crit;
+  double trat_small;
+  double trat_large;
 
   char loaded;
 } Params;

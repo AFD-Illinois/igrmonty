@@ -1,6 +1,14 @@
 #include "decs.h"
 
 #define NVAR (10)
+#define USE_FIXED_TPTE (0)
+#define USE_MIXED_TPTE (1)
+
+// 
+static double tp_over_te = 5.;
+static double trat_small = 2.;
+static double trat_large = 70.;
+static double beta_crit = 1.;
 
 // Grid functions
 double ****bcon;
@@ -284,13 +292,6 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double sig ;
 
-  *Ne = p[KRHO][i][j][k] * Ne_unit;
-  if (with_electrons) {
-    *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
-  } else {
-    *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
-  }
-
   Bp[1] = p[B1][i][j][k];
   Bp[2] = p[B2][i][j][k];
   Bp[3] = p[B3][i][j][k];
@@ -322,6 +323,21 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   *B = sqrt(Bcon[0] * Bcov[0] + Bcon[1] * Bcov[1] +
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
+  *Ne = p[KRHO][i][j][k] * Ne_unit;
+  if (with_electrons == 1) {
+    *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
+  } else if (with_electrons == 2) {
+    double beta = p[UU][i][j][k]*(gam-1.)/0.5/(*B)/(*B);
+    double betasq = beta*beta / beta_crit / beta_crit;
+    double trat = trat_large * betasq/(1. + betasq) + trat_small /(1. + betasq);
+    Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
+    *Thetae = Thetae_unit * p[UU][i][j][k] / p[KRHO][i][j][k];
+  } else {
+    *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
+  }
+
+
+
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
@@ -333,7 +349,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
 {
-  double rho, kel;
+  double rho, kel, uu;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
   double interp_scalar(double X[NDIM], double ***var);
@@ -349,14 +365,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
   rho = interp_scalar(X, p[KRHO]);
   kel = interp_scalar(X, p[KEL]);
-
-  *Ne = rho*Ne_unit;
-  if (with_electrons) {
-    *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
-  } else {
-    double uu = interp_scalar(X, p[UU]);
-    *Thetae = uu/rho*Thetae_unit;
-  }
+  uu = interp_scalar(X, p[UU]);
 
   Bp[1] = interp_scalar(X, p[B1]);
   Bp[2] = interp_scalar(X, p[B2]);
@@ -391,6 +400,20 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
   *B = sqrt(Bcon[0] * Bcov[0] + Bcon[1] * Bcov[1] +
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
+
+  *Ne = rho*Ne_unit;
+  if (with_electrons == 1) {
+    *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
+  } else if (with_electrons == 2) {
+    double beta2 = pow(uu * (gam-1.) / 0.5 / (*B)/(*B), 2.);
+    beta2 /= (beta_crit * beta_crit);
+    double trat = trat_large * beta2/(1.+beta2) + trat_small/(1.+beta2);
+    Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
+    *Thetae = Thetae_unit * uu / rho;
+  } else {
+    double uu = interp_scalar(X, p[UU]);
+    *Thetae = uu/rho*Thetae_unit;
+  }
 
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
 
@@ -520,6 +543,9 @@ void init_data(int argc, char *argv[], Params *params)
 
   if (params->loaded && strlen(params->dump) > 0) {
     fname = params->dump;
+    trat_small = params->trat_small;
+    trat_large = params->trat_large;
+    beta_crit = params->beta_crit;
   } else {
     fname = argv[2];
     strncpy((char *)params->dump, argv[2], 255);
@@ -563,13 +589,35 @@ void init_data(int argc, char *argv[], Params *params)
     hdf5_read_single_val(&gamp, "gam_p", H5T_IEEE_F64LE);
   }
 
+  if (!USE_FIXED_TPTE && !USE_MIXED_TPTE) {
+    if (with_electrons != 1) {
+      fprintf(stderr, "! no electron temperature model specified in model/iharm.c\n");
+      exit(-3);
+    }
+    with_electrons = 1;
+    Thetae_unit = MP/ME;
+  } else if (USE_FIXED_TPTE && !USE_MIXED_TPTE) {
+    with_electrons = 0; // force TP_OVER_TE to overwrite electron temperatures
+    fprintf(stderr, "using fixed tp_over_te ratio = %g\n", tp_over_te);
+    Thetae_unit = MP/ME * (gam-1.) / (1. + tp_over_te);
+    Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
+  } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE) {
+    with_electrons = 2;
+    fprintf(stderr, "using mixed tp_over_te with trat_small = %g and trat_large = %g\n", trat_small, trat_large);
+  } else {
+    fprintf(stderr, "! please change electron model in model/iharm.c\n");
+    exit(-3);
+  }
+
   if (with_radiation) {
     fprintf(stderr, "custom radiation field tracking information loaded...\n");
     hdf5_set_directory("/header/units/");
     hdf5_read_single_val(&M_unit, "M_unit", H5T_IEEE_F64LE);
     hdf5_read_single_val(&T_unit, "T_unit", H5T_IEEE_F64LE);
     hdf5_read_single_val(&L_unit, "L_unit", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&Thetae_unit, "Thetae_unit", H5T_IEEE_F64LE);
+    if (!USE_FIXED_TPTE && !USE_MIXED_TPTE) {
+      hdf5_read_single_val(&Thetae_unit, "Thetae_unit", H5T_IEEE_F64LE);
+    }
     hdf5_read_single_val(&MBH, "Mbh", H5T_IEEE_F64LE);
     hdf5_read_single_val(&TP_OVER_TE, "tp_over_te", H5T_IEEE_F64LE);
   } else {
@@ -586,11 +634,6 @@ void init_data(int argc, char *argv[], Params *params)
     MBH *= MSUN;
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
-    if (with_electrons) {
-      Thetae_unit = MP/ME;
-    } else {
-      Thetae_unit = MP/ME*(gam-1.)*1./(1. + TP_OVER_TE);
-    }
   }
 
   hdf5_set_directory("/header/geom/");
@@ -675,7 +718,7 @@ void init_data(int argc, char *argv[], Params *params)
   fstart[3] = 7;
   hdf5_read_array(p[B3][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
 
-  if (with_electrons) {
+  if (with_electrons == 1) {
 
     fstart[3] = 8;
     hdf5_read_array(p[KEL][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
