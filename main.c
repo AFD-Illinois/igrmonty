@@ -66,7 +66,7 @@ double max_tau_scatt, Ladv, dMact, bias_norm;
 int main(int argc, char *argv[])
 {
   // motd
-  fprintf(stderr, "grmonty:pairs. githash: %s\n", xstr(VERSION));
+  fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
   double N_superph_made;
