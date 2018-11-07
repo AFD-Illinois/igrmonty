@@ -1,8 +1,8 @@
 #include "decs.h"
 
 #define NVAR (10)
-#define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (1)
+#define USE_FIXED_TPTE (1)
+#define USE_MIXED_TPTE (0)
 
 // 
 static double tp_over_te = 5.;
@@ -146,6 +146,16 @@ void record_super_photon(struct of_photon *ph)
   lE = log(ph->E);
   iE = (int) ((lE - lE0) / dlE + 2.5) - 2;
 
+  double tE = pow(10., (iE*dlE + lE0)/ M_LN10) * 1.236e20;
+  //if ( tE > 1.e12 ) return;
+  //if ( tE < 1.e10 ) return;
+
+  lE0 = -10;
+  dlE = 0.5;
+  // TODO: this is a beta bin
+  lE = log(ph->beta0);
+  iE = (int) ((lE - lE0) / dlE + 2.5) - 2;
+
   // Check limits
   if (iE < 0 || iE >= N_EBINS)
     return;
@@ -285,6 +295,10 @@ double bias_func(double Te, double w)
   return bias;// / TP_OVER_TE;
 }
 
+double get_fluid_zone_pressure(int i, int j, int k) {
+  return 4. / 9. * p[UU][i][j][k];
+}
+
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM])
 {
@@ -335,8 +349,6 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   } else {
     *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
   }
-
-
 
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 

@@ -303,8 +303,6 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 
   coord(i, j, k, ph->X);
 
-  
-
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
 
@@ -382,6 +380,17 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 
   K_tetrad[0] *= -1.;
   tetrad_to_coordinate(Ecov, K_tetrad, tmpK);
+
+
+  double Bcov[4];
+  double gcov[4][4];
+  gcov_func(ph->X, gcov);
+  lower(Bcon, gcov, Bcov);
+
+  double bsq = 0.;
+  for (int i=0; i<4; ++i) bsq += Bcon[i] * Bcov[i];
+  double get_fluid_zone_pressure(int i, int j, int k);
+  ph->beta0 = get_fluid_zone_pressure(i,j,k) / bsq;
 
   ph->E = ph->E0 = ph->E0s = -tmpK[0];
   ph->L = tmpK[3];
