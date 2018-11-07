@@ -1,77 +1,75 @@
-#!/usr/bin/python
-#
-# first argument is dump number.
-# you must edit the file to change which variable is plotted!
-#
-# import
+"""
+  
+$ python plspec.py path/to/spectrum/files
+
+"""
+
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
-#
-# open spectrum file
-data = np.loadtxt("spectrum.dat")
-tdata = np.transpose( data )
-#
-lw = tdata[0,:]	# log of photon energy in electron rest-mass units
-#
-nbins = 6
-nspec = len(lw)
-#
-i = np.arange(0,nbins,1)
-#
-nvars = 8
-nLn = np.log10(tdata[1+i*nvars,:] + 1.e-30)
-tauabs = tdata[2+i*nvars,:]
-tauscatt = tdata[3+i*nvars,:]
-x1av = tdata[4+i*nvars,:]
-x2av = tdata[5+i*nvars,:]
-x3av = tdata[6+i*nvars,:]
-nscatt = tdata[7+i*nvars,:]
-#
-# normalize 
-me = 9.1e-28
-c = 3.e10
-h = 6.626e-27
-lw = lw + np.log10(me*c*c/h)   # convert to Hz from electron rest-mass energy
-Lsol = 3.83e33  
-nLn = nLn + np.log10(Lsol)  # convert to erg/s from Lsol
-#
-plt.step(lw, nLn[0])
-plt.step(lw, nLn[1])
-plt.step(lw, nLn[2])
-plt.step(lw, nLn[3])
-plt.step(lw, nLn[4])
-plt.step(lw, nLn[5])
-#
-# labels
-plt.rc('text', usetex=True) 
-plt.rc('font', size = 16)
-plt.rc('font', family='times new roman')
-plt.xlabel('$\\nu [{\\rm Hz}]$', weight='bold', fontsize=20)
-plt.ylabel('$\\nu L_\\nu [{\\rm erg\\,\\,s}^{-1}]$', weight='bold', fontsize=20)
-#
-minlognu = 9
-maxlognu = 22
-#
-eV = 1.602e-12
-mum = 1.e-4 # 1 micron
-ang = 1.e-8 # 1 angstrom
+import h5py
 
-def plotenergy( freq, lab ):
-	tmplnu = (np.log10(freq) - minlognu)/(maxlognu - minlognu)
-	plt.figtext(tmplnu, 0.88, lab, rotation=-90, fontsize=15, va='top')
-	return
+ME   = 9.1093897e-28
+CL   = 2.99792458e10
+HPL  = 6.6260755e-27
+LSUN = 3.827e33
 
-plotenergy(30.e3*eV/h, '30 keV')
-plotenergy(1.e3*eV/h, '1 keV')
-plotenergy(c/(5000.*ang), '5000 $\\AA$')
-plotenergy(c/(2.*mum), '2 $\\mu$m')
-plotenergy(c/(10.*mum), '10 $\\mu$m')
-plotenergy(c/0.1, '1 mm')
-#
-plt.xlim((minlognu, maxlognu))
-plt.ylim((33.5-5, 33.5+2))
-#
-# plot on screen, where you can save to file after viewing plot
-#plt.show()
-# or, uncomment to save directly...
-plt.savefig('tst.pdf')
+MANY_SPEC = True
+
+if __name__ == "__main__":
+
+  fnamelist = sys.argv[1:]
+
+  for fname in fnamelist:
+    print("plotting spectrum for {0:s}".format(fname))
+
+    with h5py.File(fname, "r") as fp:
+
+      nu = None
+      nuLnu = None
+
+      # load data
+      if "githash" in fp.attrs.keys():
+        nu = np.power(10.,fp["output"]["lnu"]) * ME * CL * CL / HPL
+        nuLnu = np.array(fp["output"]["nuLnu"]) * LSUN
+        if MANY_SPEC:
+          nuLnu = nuLnu[:,:,-1]
+        else:
+          nuLnu = nuLnu[:,-1]
+      else:
+        nu = np.power(10.,fp["ebin"]) * ME * CL * CL / HPL
+        nuLnu = fp["nuLnu"][:,0] * LSUN
+
+      # plot
+      plt.close("all")
+      ax = plt.subplot(1,1,1)
+      print(nuLnu.shape)
+      if MANY_SPEC:
+        ax.step(nu, nuLnu.sum(axis=0), "k", label="total")
+        ax.step(nu, nuLnu[0,:], label="(synch) base")
+        ax.step(nu, nuLnu[1,:], label="(synch) once")
+        ax.step(nu, nuLnu[2,:], label="(synch) twice")
+        ax.step(nu, nuLnu[3,:], label="(synch) > twice")
+        ax.step(nu, nuLnu[4,:], label="(brems) base")
+        ax.step(nu, nuLnu[5,:], label="(brems) once")
+        ax.step(nu, nuLnu[6,:], label="(brems) twice")
+        ax.step(nu, nuLnu[7,:], label="(brems) > twice")
+      else:
+        ax.step(nu, nuLnu, "k", label="total")
+
+      # formatting
+      nuLnu_max = nuLnu.max()
+      ax.set_xscale("log")
+      ax.set_yscale("log")
+      ax.set_xlim([1.e8, 1.e24])
+      ax.set_ylim([1.e-10 * nuLnu_max, 1.e1 * nuLnu_max])
+
+      ax.set_xlim([1.e9,1.e24])
+
+      ax.set_xlabel(r"$\nu$ (Hz)", fontsize=16)
+      ax.set_ylabel(r"$\nu L_\nu$ (erg s$^{-1}$)", fontsize=16)
+
+      # saving
+      plt.legend()
+      plt.grid()
+      plt.savefig(fname.replace(".h5",".png"))
