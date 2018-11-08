@@ -1,14 +1,16 @@
 #include "decs.h"
 
 #define NVAR (10)
-#define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (1)
+#define USE_FIXED_TPTE (1)
+#define USE_MIXED_TPTE (0)
 
 // 
-static double tp_over_te = 5.;
+static double tp_over_te = 3.;
 static double trat_small = 2.;
 static double trat_large = 70.;
 static double beta_crit = 1.;
+
+double biasTuning = 1.;
 
 // Grid functions
 double ****bcon;
@@ -269,6 +271,7 @@ void omp_reduce_spect()
 
 double bias_func(double Te, double w)
 {
+  /*
   double bias, max ;
 
   max = 0.5 * w / WEIGHT_MIN;
@@ -283,6 +286,19 @@ double bias_func(double Te, double w)
     bias = max;
 
   return bias;// / TP_OVER_TE;
+   */
+
+  // use old method with bias tuning parameter
+  double bias, max;
+
+  max = 0.5 * w / WEIGHT_MIN;
+
+  if (Te > SCATTERING_THETAE_MAX) Te = SCATTERING_THETAE_MAX;
+  bias = 16. * Te * Te / (5. * max_tau_scatt);
+
+  if (bias > max) bias = max;
+
+  return bias * biasTuning;
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
@@ -546,6 +562,7 @@ void init_data(int argc, char *argv[], Params *params)
     trat_small = params->trat_small;
     trat_large = params->trat_large;
     beta_crit = params->beta_crit;
+    biasTuning = params->biasTuning;
   } else {
     fname = argv[2];
     strncpy((char *)params->dump, argv[2], 255);
