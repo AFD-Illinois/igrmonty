@@ -1,8 +1,8 @@
 #include "decs.h"
 
 #define NVAR (10)
-#define USE_FIXED_TPTE (1)
-#define USE_MIXED_TPTE (0)
+#define USE_FIXED_TPTE (0)
+#define USE_MIXED_TPTE (1)
 
 // 
 static double tp_over_te = 3.;
@@ -346,7 +346,9 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
     double beta = p[UU][i][j][k]*(gam-1.)/0.5/(*B)/(*B);
     double betasq = beta*beta / beta_crit / beta_crit;
     double trat = trat_large * betasq/(1. + betasq) + trat_small /(1. + betasq);
-    Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
+    //Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
+    // see, e.g., Eq. 8 of the EHT GRRT formula list
+    Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
     *Thetae = Thetae_unit * p[UU][i][j][k] / p[KRHO][i][j][k];
   } else {
     *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
