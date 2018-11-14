@@ -841,6 +841,16 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_str(fid, "/params/dump", params->dump);
   h5io_add_data_str(fid, "/params/model", xstr(MODEL));
 
+  h5io_add_group(fid, "/params/electrons");
+  if (with_electrons == 0) {
+    h5io_add_data_dbl(fid, "/params/electrons/tp_over_te", tp_over_te);
+  } else if (with_electrons == 2) {
+    h5io_add_data_dbl(fid, "/params/electrons/rlow", trat_small);
+    h5io_add_data_dbl(fid, "/params/electrons/rhigh", trat_large);
+  }
+  h5io_add_data_int(fid, "/params/electrons/type", with_electrons);
+
+
   // temporary data buffers
   double lnu_buf[N_EBINS];
   double dOmega_buf[N_THBINS];
