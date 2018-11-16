@@ -104,7 +104,7 @@ extern double ***b;
 /** model independent */
 extern int nthreads;
 
-extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
+extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 
 extern int Ns;
 extern int N_superph_recorded, N_scatt;

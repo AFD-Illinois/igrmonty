@@ -118,6 +118,7 @@ double dndlnu_max[NINT + 1];
 
 void init_nint_table(void)
 {
+  /*
   double Bmag, dn;
   static int firstc = 1;
 
@@ -142,6 +143,7 @@ void init_nint_table(void)
     nint[i] = log(nint[i]);
     dndlnu_max[i] = log(dndlnu_max[i]);
   }
+   */
 }
 
 void init_zone(int i, int j, int k, double *nz, double *dnmax)
@@ -164,13 +166,13 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   for (int m = 0; m <= N_ESAMP; m++) {
     double nu = exp(m*DLNU +LNUMIN);
     dn = int_jnu(Ne, Thetae, Bmag, nu)/(HPL*exp(wgt[m]));
-    if (dn > *dnmax)
+    if (dn > *dnmax) {
       *dnmax = dn;
+    }
     ninterp += DLNU*dn;
   }
-  ninterp *= dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
 
-  *nz = geom[i][j].g * ninterp;
+  *nz = geom[i][j].g * ninterp * dx[1]*dx[2]*dx[3] * L_unit*L_unit*L_unit;
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
       "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  ninterp=%g nz = %e\n\n",
@@ -178,6 +180,21 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
     exit(-1);
     *nz = 0.;
     *dnmax = 0.;
+  }
+
+  // *nz gives an idea of how many superphotons we want in this entire zone.
+  // then *nz / N_ESAMP is the number of superphotons we want to create per
+  // energy bin.
+  for (int m=0; m<N_ESAMP; ++m) {
+    double nu = exp(m*DLNU +LNUMIN);
+    dn = int_jnu(Ne, Thetae, Bmag, nu)/(HPL*exp(wgt[m]));
+    if (*nz > 0) {
+      if (dn == 0) {
+        zwgt[m] = log(WEIGHT_MIN);
+      } else {
+        zwgt[m] = log( exp(wgt[m]) * dn * DLNU / ninterp * N_ESAMP + WEIGHT_MIN );
+      }
+    }
   }
 }
 
@@ -294,6 +311,19 @@ void sample_origin_photon(struct of_photon *ph)
 }
 #endif // EMIT_ORIGIN
 
+double zone_linear_interp_weight(double nu) {
+
+  int i;
+  double di, lnu;
+
+  lnu = log(nu);
+  di = (lnu - LNUMIN)/DLNU;
+  i = (int)di;
+  di = di - i;
+
+  return exp((1. - di)*zwgt[i] + di*zwgt[i + 1]);
+}
+
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 {
   double K_tetrad[NDIM], tmpK[NDIM], E, Nln;
@@ -332,10 +362,8 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   Nln = LNUMAX - LNUMIN;
 
   // Sample from superphoton distribution in current simulation zone
-  do {
-    nu = exp(monty_rand() * Nln + LNUMIN);
-    weight = linear_interp_weight(nu);
-  } while (monty_rand() > (int_jnu(Ne, Thetae, Bmag, nu)/(HPL*weight))/dnmax);
+  nu = exp(monty_rand() * Nln + LNUMIN);
+  weight = zone_linear_interp_weight(nu);
 
   ph->w = weight;
   jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2.);
@@ -343,10 +371,9 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
     cth = 2. * monty_rand() - 1.;
     th = acos(cth);
 
-  } while (monty_rand() >
-     jnu(nu, Ne, Thetae, Bmag, th) / jmax);
+  } while (monty_rand() > jnu(nu, Ne, Thetae, Bmag, th) / jmax);
 
-  #endif
+#endif
 
   sth = sqrt(1. - cth * cth);
   phi = 2. * M_PI * monty_rand();

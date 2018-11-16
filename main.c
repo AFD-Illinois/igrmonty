@@ -46,7 +46,7 @@ Params params = { 0 };
 struct of_geom **geom;
 int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
-double F[N_ESAMP + 1], wgt[N_ESAMP + 1];
+double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
@@ -95,6 +95,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
 
   fprintf(stderr, "Entering main loop...\n");
+  fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
  
   int quit_flag = 0;
   #pragma omp parallel
