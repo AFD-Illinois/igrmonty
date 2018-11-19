@@ -1,18 +1,24 @@
 #include "decs.h"
 
 #define NVAR (10)
-#define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (1)
+#define USE_FIXED_TPTE (1)
+#define USE_MIXED_TPTE (0)
 
-// 
+// electron model. these values will be overwritten by anything found in par.c 
+// or in the runtime parameter file.
+// with_electrons ->
+//     0 : constant TP_OVER_TE
+//     1 : use dump file model (kawazura?)
+//     2: use mixed TP_OVER_TE (moscibrodzka "beta" model)
 static double tp_over_te = 3.;
 static double trat_small = 2.;
 static double trat_large = 70.;
 static double beta_crit = 1.;
+static int with_electrons;
 
 double biasTuning = 1.;
 
-// Grid functions
+// fluid data
 double ****bcon;
 double ****bcov;
 double ****ucon;
@@ -24,12 +30,19 @@ double ***b;
 
 double TP_OVER_TE;
 
+// metric parameters
+//  note: if METRIC_eKS, then the code will use "exponentialKS" coordinates
+//        defined by x^a = { x^0, log(x^1), x^2, x^3 } where x^0, x^1, x^2,
+//        x^3 are normal KS coordinates. in addition you must set METRIC_*
+//        in order to specify how Xtoijk and gdet_zone should work.
+int METRIC_eKS;
+static int with_derefine_poles, METRIC_MKS3;
 static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
 static double MBH;
+
+static hdf5_blob fluid_header = { 0 };
   
 static int with_radiation;
-static int with_derefine_poles;
-static int with_electrons;
 
 void report_bad_input(int argc) 
 {
@@ -575,6 +588,9 @@ void init_data(int argc, char *argv[], Params *params)
     exit(-1);
   }
 
+  // get dump info to copy to grmonty output
+  fluid_header = hdf5_get_blob("/header");
+
   // read header
   hdf5_set_directory("/header/");
 
@@ -796,6 +812,9 @@ void report_spectrum(int N_superph_made, Params *params)
   }
 
   h5io_add_attribute_str(fid, "/", "githash", xstr(VERSION));
+
+  h5io_add_blob(fid, "/fluid_header", fluid_header);
+  hdf5_close_blob(fluid_header);
 
   h5io_add_group(fid, "/params");
 
