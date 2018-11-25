@@ -1,5 +1,4 @@
 
-
 #include "decs.h"
 //#include "gsl_sf_gamma.h"
 //#pragma omp threadprivate(r)
@@ -234,7 +233,9 @@ double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 
 	j_fac = Ne * Bmag * Thetae * Thetae / K2;
 
-	return JCST * j_fac * F_eval(Thetae, Bmag, nu);
+  double rval = JCST * j_fac * F_eval(Thetae, Bmag, nu);
+
+	return rval;
 }
 
 double jnu_kappa_integrand(double th, void *params)
@@ -408,8 +409,6 @@ void init_emiss_tables(void)
 	/* Avoid doing divisions later */
 	//dlK = 1. / dlK;
 	//dlT = 1. / dlT;
-
-	fprintf(stderr, "done.\n\n");
 
 	return;
 }

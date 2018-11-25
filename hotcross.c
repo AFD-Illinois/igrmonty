@@ -51,8 +51,7 @@ void init_hotcross(void)
   fp = fopen(HOTCROSS, "r");
   if (fp == NULL || 1) {// || 1) {
     //fprintf(stderr, "file %s not found.\n", HOTCROSS);
-    fprintf(stderr,
-      "making lookup table for compton cross section...\n");
+    fprintf(stderr, "making lookup table for compton cross section... ");
 #pragma omp parallel for private(i,j,lw,lT)
    
    /* 
@@ -103,8 +102,8 @@ void init_hotcross(void)
     }
     
     
-    fprintf(stderr, "\ndone.\n\n");
-    fprintf(stderr, "writing to file...\n");
+    fprintf(stderr, "done.\n");
+    fprintf(stderr, "writing to file... ");
     fp = fopen(HOTCROSS, "w");
     if (fp == NULL) {
       fprintf(stderr, "couldn't write to file\n");
@@ -116,7 +115,7 @@ void init_hotcross(void)
         lT = lmint + j * dlT;
         fprintf(fp, "%d %d %g %g %15.10g\n", i, j, lw, lT, table[i][j]);
       }
-    fprintf(stderr, "done.\n\n");
+    fprintf(stderr, "done.\n");
   } else {
     fprintf(stderr,
       "reading hot cross section data from %s...\n",
@@ -132,7 +131,7 @@ void init_hotcross(void)
           exit(0);
         }
       }
-    fprintf(stderr, "done.\n\n");
+    fprintf(stderr, "done.\n");
   }
 
   fclose(fp);

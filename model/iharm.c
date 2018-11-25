@@ -30,6 +30,10 @@ double ***b;
 
 double TP_OVER_TE;
 
+// coordinate functions
+static inline __attribute__((always_inline)) void set_dxdX_metric(double X[NDIM], double dxdX[NDIM][NDIM], int metric);
+static inline __attribute__((always_inline)) void gcov_ks(double r, double th, double gcov[NDIM][NDIM]);
+
 // metric parameters
 //  note: if METRIC_eKS, then the code will use "exponentialKS" coordinates
 //        defined by x^a = { x^0, log(x^1), x^2, x^3 } where x^0, x^1, x^2,
@@ -37,8 +41,10 @@ double TP_OVER_TE;
 //        in order to specify how Xtoijk and gdet_zone should work.
 int METRIC_eKS;
 static int with_derefine_poles, METRIC_MKS3;
-static double poly_norm, poly_xt, poly_alpha, mks_smooth, game, gamp;
-static double MBH;
+static double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
+static double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
+
+static double MBH, game, gamp;
 
 static hdf5_blob fluid_header = { 0 };
   
@@ -56,35 +62,11 @@ void report_bad_input(int argc)
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
 
-#define RMAX  1000.
 #define ROULETTE  1.e4
 int stop_criterion(struct of_photon *ph)
 {
-  double wmin, X1min, X1max;
-
-  // Stop if weight below minimum weight
-  wmin = WEIGHT_MIN;
-
-  // Stop at event horizon
-  X1min = log(Rh);
-
-  // Stop at large distance
-  X1max = log(RMAX);
-
-  if (ph->X[1] < X1min)
-    return 1;
-
-  if (ph->X[1] > X1max) {
-    if (ph->w < wmin) {
-      if (monty_rand() <= 1. / ROULETTE) {
-        ph->w *= ROULETTE;
-      } else
-        ph->w = 0.;
-    }
-    return 1;
-  }
-
-  if (ph->w < wmin) {
+  // stop if weight below minimum weight
+  if (ph->w < WEIGHT_MIN) {
     if (monty_rand() <= 1. / ROULETTE) {
       ph->w *= ROULETTE;
     } else {
@@ -93,21 +75,27 @@ int stop_criterion(struct of_photon *ph)
     }
   }
 
-  return (0);
+  // right now, only support X->KS exponential coordinates
+  double X1min = log(Rh*1.05);
+  double X1max = log(Rmax*1.1);
+
+  if (ph->X[1] < X1min || ph->X[1] > X1max) {
+    return 1;
+  }
+
+  return 0;
 }
 
 int record_criterion(struct of_photon *ph)
 {
-  const double X1max = log(RMAX);
+  double X1max = log(Rmax*1.1);
 
-  if (ph->X[1] > X1max)
-    return (1);
+  if (ph->X[1] > X1max) {
+    return 1;
+  }
 
-  else
-    return (0);
-
+  return 0;
 }
-#undef RMAX
 #undef ROULETTE
 
 #define EPS 0.04
@@ -116,9 +104,19 @@ double stepsize(double X[NDIM], double K[NDIM])
   double dl, dlx1, dlx2, dlx3;
   double idlx1, idlx2, idlx3;
 
+  /*
   dlx1 = EPS * X[1] / (fabs(K[1]) + SMALL);
   dlx2 = EPS * GSL_MIN(X[2], stopx[2] - X[2]) / (fabs(K[2]) + SMALL);
   dlx3 = EPS / (fabs(K[3]) + SMALL);
+   */
+ 
+  #define MIN(A,B) (A<B?A:B)
+
+  dlx1 = EPS / (fabs(K[1]) + SMALL);
+  dlx2 = EPS * MIN(X[2], 1. - X[2]) / (fabs(K[2]) + SMALL);
+  dlx3 = EPS / (fabs(K[3]) + SMALL) ;
+
+  #undef MIN
 
   idlx1 = 1. / (fabs(dlx1) + SMALL);
   idlx2 = 1. / (fabs(dlx2) + SMALL);
@@ -146,12 +144,15 @@ void record_super_photon(struct of_photon *ph)
       max_tau_scatt = ph->tau_scatt;
   }
 
-  // Bin in X2 coord. Get theta bin, while folding around equator
-  dx2 = (stopx[2] - startx[2]) / (2. * N_THBINS);
-  if (ph->X[2] < 0.5 * (startx[2] + stopx[2]))
-    ix2 = (int) (ph->X[2] / dx2);
-  else
-    ix2 = (int) ((stopx[2] - ph->X[2]) / dx2);
+  // bin in X[2] BL coord while folding around the equator
+  double r, th;
+  bl_coord(ph->X, &r, &th);
+  dx2 = M_PI/2./N_THBINS;
+  if (th > M_PI/2.) {
+    ix2 = (int)( (M_PI - th) / dx2 );
+  } else {
+    ix2 = (int)( th / dx2 );
+  }
 
   // Check limits
   if (ix2 < 0 || ix2 >= N_THBINS)
@@ -367,12 +368,12 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
     *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
   }
 
-
-
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
-  if(sig > 1.) *Thetae = SMALL;//*Ne = 1.e-10*Ne_unit;
+  if(sig > 1. || i < 9) {
+    *Thetae = SMALL;
+  }
 }
 
 void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -386,11 +387,8 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double interp_scalar(double X[NDIM], double ***var);
   double sig ;
 
-  if (X[1] < startx[1] || X[1] > stopx[1] ||
-      X[2] < startx[2] || X[2] > stopx[2]) {
-
+  if ( X_in_domain(X) == 0 ) {
     *Ne = 0.;
-
     return;
   }
 
@@ -449,21 +447,211 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
-  if (sig > 1.) *Thetae = SMALL;//*Ne = 1.e-10*Ne_unit;
+  if (sig > 1.) *Thetae = SMALL;
 }
 
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
+int X_in_domain(double X[NDIM]) {
+  // returns 1 if X is within the computational grid.
+  // checks different sets of coordinates depending on
+  // specified grid coordinates
+
+  if (METRIC_eKS) {
+    double XG[4] = { 0 };
+    double Xks[4] = { X[0], exp(X[1]), M_PI*X[2], X[3] };
+
+    if (METRIC_MKS3) {
+      // if METRIC_MKS3, ignore theta boundaries
+      double H0 = mks3H0, MY1 = mks3MY1, MY2 = mks3MY2, MP0 = mks3MP0;
+      double KSx1 = Xks[1], KSx2 = Xks[2];
+      XG[0] = Xks[0];
+      XG[1] = log(Xks[1] - mks3R0);
+      XG[2] = (-(H0*pow(KSx1,MP0)*M_PI) - pow(2,1 + MP0)*H0*MY1*M_PI +
+        2*H0*pow(KSx1,MP0)*MY1*M_PI + pow(2,1 + MP0)*H0*MY2*M_PI +
+        2*pow(KSx1,MP0)*atan(((-2*KSx2 + M_PI)*tan((H0*M_PI)/2.))/M_PI))/(2.*
+        H0*(-pow(KSx1,MP0) - pow(2,1 + MP0)*MY1 + 2*pow(KSx1,MP0)*MY1 +
+          pow(2,1 + MP0)*MY2)*M_PI);
+      XG[3] = Xks[3];
+
+      if (XG[1] < startx[1] || XG[1] > stopx[1]) return 0;
+    }
+
+  } else {
+    if(X[1] < startx[1] ||
+       X[1] > stopx[1]  ||
+       X[2] < startx[2] ||
+       X[2] > stopx[2]) {
+      return 0;
+    }
+  }
+
+  return 1;
+}
+
+
+/*
+ *  translates geodesic coordinates to a grid zone and returns offset
+ *  for interpolation purposes. integer index corresponds to the zone
+ *  center "below" the desired point and del[i] \in [0,1) returns the
+ *  offset from that zone center. note that the indices and deltas at
+ *  the edges are different for x1,x2,x3 and compared to ipole.
+ *
+ *  0    0.5    1
+ *  [     |     ]
+ *  A  B  C DE  F
+ *
+ *  startx = 0.
+ *  dx = 0.5
+ *
+ *  A -> ( 0, 0.0)  [ x1, x2 ]
+ *  A -> ( 1, 0.5)  [ x3 ]
+ *  B -> ( 0, 0.0)
+ *  C -> ( 0, 0.5)
+ *  D -> ( 0, 0.9)
+ *  E -> ( 1, 0.0)
+ *  F -> ( 1, 0.0)  [ x1, x2 ]
+ *  F -> ( 1, 0.5)  [ x3 ]
+ *
+ */
+void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM])
+{
+  // unless we're reading from data, i,j,k are the normal expected thing
+  double phi;
+  double XG[4];
+
+  if (METRIC_eKS) {
+    // the geodesics are evolved in eKS so invert through KS -> zone coordinates
+    double Xks[4] = { X[0], exp(X[1]), M_PI*X[2], X[3] };
+    if (METRIC_MKS3) {
+      double H0 = mks3H0, MY1 = mks3MY1, MY2 = mks3MY2, MP0 = mks3MP0;
+      double KSx1 = Xks[1], KSx2 = Xks[2];
+      XG[0] = Xks[0];
+      XG[1] = log(Xks[1] - mks3R0);
+      XG[2] = (-(H0*pow(KSx1,MP0)*M_PI) - pow(2.,1. + MP0)*H0*MY1*M_PI + 
+        2.*H0*pow(KSx1,MP0)*MY1*M_PI + pow(2.,1. + MP0)*H0*MY2*M_PI + 
+        2.*pow(KSx1,MP0)*atan(((-2.*KSx2 + M_PI)*tan((H0*M_PI)/2.))/M_PI))/(2.*
+        H0*(-pow(KSx1,MP0) - pow(2.,1 + MP0)*MY1 + 2.*pow(KSx1,MP0)*MY1 + 
+          pow(2.,1. + MP0)*MY2)*M_PI);
+      XG[3] = Xks[3];
+    }
+  } else {
+    MULOOP XG[mu] = X[mu];
+  }
+
+  // the X[3] coordinate is allowed to vary so first map it to [0, stopx[3])
+  phi = fmod(XG[3], stopx[3]);
+  if (phi < 0.0) phi = stopx[3]+phi;
+
+  // get provisional zone index. see note above function for details. note we
+  // shift to zone centers because that's where variables are most exact.
+  *i = (int) ((XG[1] - startx[1]) / dx[1] - 0.5 + 1000) - 1000;
+  *j = (int) ((XG[2] - startx[2]) / dx[2] - 0.5 + 1000) - 1000;
+  *k = (int) ((phi  - startx[3]) / dx[3] - 0.5 + 1000) - 1000;  
+
+  // don't allow "center zone" to be outside of [0,N*-1]. this will often fire
+  // for exotic corodinate systems and occasionally for normal ones. wrap x3.
+  if (*i < 0) *i = 0;
+  if (*j < 0) *j = 0;
+  if (*k < 0) *k = 0;
+  if (*i > N1-2) *i = N1-2; 
+  if (*j > N2-2) *j = N2-2; 
+  if (*k > N3-1) *k = N3-1; 
+
+  // now construct del
+  del[1] = (XG[1] - ((*i + 0.5) * dx[1] + startx[1])) / dx[1];
+  del[2] = (XG[2] - ((*j + 0.5) * dx[2] + startx[2])) / dx[2];
+  del[3] = (phi - ((*k + 0.5) * dx[3] + startx[3])) / dx[3];
+
+  // finally enforce limits on del
+  if (del[1] > 1.) del[1] = 1.;
+  if (del[1] < 0.) del[1] = 0.;
+  if (del[2] > 1.) del[2] = 1.;
+  if (del[2] < 0.) del[2] = 0.;
+  if (del[3] > 1.) del[3] = 1.;
+  if (del[3] < 0.) {
+    int oldk = *k;
+    *k = N3-1;
+    del[3] += 1.;
+    if (del[3] < 0) {
+      fprintf(stderr, " ! unable to resolve X[3] coordinate to zone %d %d %g %g\n", oldk, *k, del[3], XG[3]);
+      exit(-7);
+    }
+  }
+}
+
+// return geodesic coordinates associated with center of zone i,j,k
+void ijktoX(int i, int j, int k, double *X)
+{
+  // first do the naive thing 
+  X[1] = startx[1] + (i+0.5)*dx[1];
+  X[2] = startx[2] + (j+0.5)*dx[2];
+  X[3] = startx[3] + (k+0.5)*dx[3];
+
+  // now transform to geodesic coordinates if necessary by first
+  // converting to KS and then to destination coordinates (eKS).
+  if (METRIC_eKS) {
+      double xKS[4] = { 0 };
+    if (METRIC_MKS3) {
+      double x0 = X[0];
+      double x1 = X[1];
+      double x2 = X[2];
+      double x3 = X[3];
+
+      double H0 = mks3H0;
+      double MY1 = mks3MY1;
+      double MY2 = mks3MY2;
+      double MP0 = mks3MP0;
+      
+      xKS[0] = x0;
+      xKS[1] = exp(x1) + mks3R0;
+      xKS[2] = (M_PI*(1+1./tan((H0*M_PI)/2.)*tan(H0*M_PI*(-0.5+(MY1+(pow(2,MP0)*(-MY1+MY2))/pow(exp(x1)+R0,MP0))*(1-2*x2)+x2))))/2.;
+      xKS[3] = x3;
+    }
+    
+    X[0] = xKS[0];
+    X[1] = log(xKS[1]);
+    X[2] = xKS[2] / M_PI;
+    X[3] = xKS[3];
+  }
+}
+
 void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
 {
+  set_dxdX_metric(X, dxdX, 0);
+}
+
+static inline __attribute__((always_inline)) void set_dxdX_metric(double X[NDIM], double dxdX[NDIM][NDIM], int metric)
+{
+  // Jacobian with respect to KS basis where X is given in
+  // non-KS basis
   MUNULOOP dxdX[mu][nu] = 0.;
 
-  if ( ! with_derefine_poles ) {
+  if ( METRIC_eKS && metric==0 ) {
+
+    MUNULOOP dxdX[mu][nu] = mu==nu ? 1 : 0;
+    dxdX[1][1] = exp(X[1]);
+    dxdX[2][2] = M_PI;
+
+  } else if ( METRIC_MKS3 ) {
+   
+    // mks3 ..
     dxdX[0][0] = 1.;
     dxdX[1][1] = exp(X[1]);
-    dxdX[2][2] = M_PI - (hslope - 1.)*M_PI*cos(2.*M_PI*X[2]);
+    dxdX[2][1] = -(pow(2.,-1. + mks3MP0)*exp(X[1])*mks3H0*mks3MP0*(mks3MY1 - 
+              mks3MY2)*pow(M_PI,2)*pow(exp(X[1]) + mks3R0,-1 - mks3MP0)*(-1 + 
+              2*X[2])*1./tan((mks3H0*M_PI)/2.)*pow(1./cos(mks3H0*M_PI*(-0.5 + (mks3MY1 + 
+              (pow(2,mks3MP0)*(-mks3MY1 + mks3MY2))/pow(exp(X[1]) + mks3R0,mks3MP0))*(1 - 
+              2*X[2]) + X[2])),2));
+    dxdX[2][2]= (mks3H0*pow(M_PI,2)*(1 - 2*(mks3MY1 + (pow(2,mks3MP0)*(-mks3MY1 +
+             mks3MY2))/pow(exp(X[1]) + mks3R0,mks3MP0)))*1./tan((mks3H0*M_PI)/2.)*
+             pow(1./cos(mks3H0*M_PI*(-0.5 + (mks3MY1 + (pow(2,mks3MP0)*(-mks3MY1 +
+             mks3MY2))/pow(exp(X[1]) + mks3R0,mks3MP0))*(1 - 2*X[2]) + X[2])),2))/2.;
     dxdX[3][3] = 1.;
-  } else {
+
+  } else if ( with_derefine_poles ) {
+
+    // mmks
     dxdX[0][0] = 1.;
     dxdX[1][1] = exp(X[1]);
     dxdX[2][1] = -exp(mks_smooth*(startx[1]-X[1]))*mks_smooth*(
@@ -480,37 +668,31 @@ void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
         (1.-hslope)*M_PI*cos(2.*M_PI*X[2])
         );
     dxdX[3][3] = 1.;
+
+  } else {
+
+    // mks
+    dxdX[0][0] = 1.;
+    dxdX[1][1] = exp(X[1]);
+    dxdX[2][2] = M_PI - (hslope - 1.)*M_PI*cos(2.*M_PI*X[2]);
+    dxdX[3][3] = 1.;
+
   }
+
 }
 
 void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
 {
   MUNULOOP gcov[mu][nu] = 0.;
 
-  double sth, cth, s2, rho2;
   double r, th;
 
+  // despite the name, get equivalent values for
+  // r, th for KS coordinates
   bl_coord(X, &r, &th);
 
-  cth = cos(th);
-  sth = sin(th);
-
-  s2 = sth*sth;
-  rho2 = r*r + a*a*cth*cth;
-
-  gcov[0][0] = -1. + 2.*r/rho2;
-  gcov[0][1] = 2.*r/rho2;
-  gcov[0][3] = -2.*a*r*s2/rho2;
-
-  gcov[1][0] = gcov[0][1];
-  gcov[1][1] = 1. + 2.*r/rho2;
-  gcov[1][3] = -a*s2*(1. + 2.*r/rho2);
-
-  gcov[2][2] = rho2;
-
-  gcov[3][0] = gcov[0][3];
-  gcov[3][1] = gcov[1][3];
-  gcov[3][3] = s2*(rho2 + a*a*s2*(1. + 2.*r/rho2));
+  // compute ks metric
+  gcov_ks(r, th, gcov);
 
   // Apply coordinate transformation to code coordinates X
   double dxdX[NDIM][NDIM];
@@ -531,11 +713,76 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
   }
 }
 
+// compute KS metric at point (r,th) in KS coordinates (cyclic in t, ph)
+static inline __attribute__((always_inline)) void gcov_ks(double r, double th, double gcov[NDIM][NDIM])
+{
+  double cth = cos(th);
+  double sth = sin(th);
+
+  double s2 = sth*sth;
+  double rho2 = r*r + a*a*cth*cth;
+
+  // compute ks metric for ks coordinates (cyclic in t,phi)
+  gcov[0][0] = -1. + 2.*r/rho2;
+  gcov[0][1] = 2.*r/rho2;
+  gcov[0][3] = -2.*a*r*s2/rho2;
+
+  gcov[1][0] = gcov[0][1];
+  gcov[1][1] = 1. + 2.*r/rho2;
+  gcov[1][3] = -a*s2*(1. + 2.*r/rho2);
+
+  gcov[2][2] = rho2;
+
+  gcov[3][0] = gcov[0][3];
+  gcov[3][1] = gcov[1][3];
+  gcov[3][3] = s2*(rho2 + a*a*s2*(1. + 2.*r/rho2));
+}
+
+// return the gdet associated with zone coordinates for the zone at
+// i,j,k
+double gdet_zone(int i, int j, int k) 
+{
+  // get the X for the zone (in geodesic coordinates for bl_coord) 
+  // and in zone coordinates (for set_dxdX_metric)
+  double X[NDIM], Xzone[NDIM];
+  ijktoX(i,j,k, X);
+  Xzone[0] = 0.;
+  Xzone[1] = startx[1] + (i+0.5)*dx[1];
+  Xzone[2] = startx[2] + (j+0.5)*dx[2];
+  Xzone[3] = startx[3] + (k+0.5)*dx[3];
+
+  // then get gcov for the zone (in zone coordinates)
+  double gcovKS[NDIM][NDIM], gcov[NDIM][NDIM];
+  double r, th;
+  double dxdX[NDIM][NDIM];
+  MUNULOOP gcovKS[mu][nu] = 0.;
+  MUNULOOP gcov[mu][nu] = 0.;
+  bl_coord(X, &r, &th);
+  gcov_ks(r, th, gcovKS);
+  set_dxdX_metric(Xzone, dxdX, 1);
+  MUNULOOP {
+    for (int lam=0; lam<NDIM; ++lam) {
+      for (int kap=0; kap<NDIM; ++kap) {
+        gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+      }
+    }
+  }
+
+  return gdet_func(gcov); 
+}
+
+// returns BL.{r,th} == KS.{r,th} of point with geodesic coordinates X
 void bl_coord(double *X, double *r, double *th)
 {
-  *r = exp(X[1]) + R0;
+  *r = exp(X[1]);
 
-  if (with_derefine_poles) {
+  if (METRIC_eKS) {
+    *r = exp(X[1]);
+    *th = M_PI * X[2];
+  } else if (METRIC_MKS3) {
+    *r = exp(X[1]) + mks3R0;
+    *th = (M_PI*(1. + 1./tan((mks3H0*M_PI)/2.)*tan(mks3H0*M_PI*(-0.5 + (mks3MY1 + (pow(2.,mks3MP0)*(-mks3MY1 + mks3MY2))/pow(exp(X[1])+mks3R0,mks3MP0))*(1. - 2.*X[2]) + X[2]))))/2.;
+  } else if (with_derefine_poles) {
     double thG = M_PI*X[2] + ((1. - hslope)/2.)*sin(2.*M_PI*X[2]);
     double y = 2*X[2] - 1.;
     double thJ = poly_norm*y*(1. + pow(y/poly_xt,poly_alpha)/(poly_alpha+1.)) + 0.5*M_PI;
@@ -545,12 +792,12 @@ void bl_coord(double *X, double *r, double *th)
   }
 }
 
-//double dOmega_func(double Xi[NDIM], double Xf[NDIM])
+// warning: this function assumes startx = 0 and stopx = 1
 double dOmega_func(int j)
 {
-  double dbin = (stopx[2]-startx[2])/(2.*N_THBINS);
-  double Xi[NDIM] = {0., stopx[1], j*dbin, 0.};
-  double Xf[NDIM] = {0., stopx[1], (j+1)*dbin, 0.};
+  double dbin = 1./(2.*N_THBINS);
+  double Xi[NDIM] = {0., log(Rmax*1.1), j*dbin, 0.};
+  double Xf[NDIM] = {0., log(Rmax*1.1), (j+1)*dbin, 0.};
 
   double ri, rf, thi, thf;
   bl_coord(Xi, &ri, &thi);
@@ -604,12 +851,18 @@ void init_data(int argc, char *argv[], Params *params)
     hdf5_read_single_val(&with_radiation, "has_radiation", H5T_STD_I32LE);
 
   // read geometry
-  #define HDF_STR_LEN (20)
-  char metric_name[HDF_STR_LEN];
-  hid_t string_type = hdf5_make_str_type(HDF_STR_LEN);
+  with_derefine_poles = 0;
+  METRIC_MKS3 = 0;
+  char metric_name[20];
+  hid_t string_type = hdf5_make_str_type(20);
   hdf5_read_single_val(&metric_name, "metric", string_type);
-  if ( strncmp(metric_name, "MMKS", HDF_STR_LEN-1) == 0 ) 
+  if ( strncmp(metric_name, "MMKS", 19) == 0 ) {
     with_derefine_poles = 1;
+  } else if ( strncmp(metric_name, "MKS3", 19) == 0 ) {
+    METRIC_eKS = 1;
+    METRIC_MKS3 = 1;
+    fprintf(stderr, "using eKS metric with exotic \"MKS3\" zones...\n");
+  }
 
   hdf5_read_single_val(&nprims, "n_prim", H5T_STD_I32LE);
   hdf5_read_single_val(&N1, "n1", H5T_STD_I32LE);
@@ -681,23 +934,30 @@ void init_data(int argc, char *argv[], Params *params)
 
   hdf5_set_directory("/header/geom/mks/");
   if (with_derefine_poles) hdf5_set_directory("/header/geom/mmks/");
-
-  hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&hslope, "hslope", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&Rin, "Rin", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&Rout, "Rout", H5T_IEEE_F64LE);
-
-  if (with_derefine_poles) {
-    fprintf(stderr, "custom refinement at poles loaded...\n");
-    hdf5_read_single_val(&poly_xt, "poly_xt", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&poly_alpha, "poly_alpha", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks_smooth, "mks_smooth", H5T_IEEE_F64LE);
+  if ( METRIC_MKS3 ) {
+    hdf5_set_directory("/header/geom/mks3/");
+    hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&mks3R0, "R0", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&mks3H0, "H0", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&mks3MY1, "MY1", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&mks3MY2, "MY2", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&mks3MP0, "MP0", H5T_IEEE_F64LE);
+    Rout = 100.; 
+  } else {
+    hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&hslope, "hslope", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&Rin, "Rin", H5T_IEEE_F64LE);
+    hdf5_read_single_val(&Rout, "Rout", H5T_IEEE_F64LE);
+    if (with_derefine_poles) {
+      fprintf(stderr, "custom refinement at poles loaded...\n");
+      hdf5_read_single_val(&poly_xt, "poly_xt", H5T_IEEE_F64LE);
+      hdf5_read_single_val(&poly_alpha, "poly_alpha", H5T_IEEE_F64LE);
+      hdf5_read_single_val(&mks_smooth, "mks_smooth", H5T_IEEE_F64LE);
+      poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
+    }
   }
 
-  fprintf(stderr, "HDR!\n");
-
-  // Set polylog grid and other geometry
-  poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
+  // Set other geometry
   stopx[0] = 1.;
   stopx[1] = startx[1]+N1*dx[1];
   stopx[2] = startx[2]+N2*dx[2];
@@ -708,22 +968,24 @@ void init_data(int argc, char *argv[], Params *params)
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
   Ne_unit = RHO_unit/(MP + ME);
-  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
-  Rh = 1. + sqrt(1. - a * a);
+  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ... 
+  max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value
 
-  fprintf(stderr, "M_unit = %e\n", M_unit);
-  fprintf(stderr, "Ne_unit = %e\n", Ne_unit);
-  fprintf(stderr, "RHO_unit = %e\n", RHO_unit);
-  fprintf(stderr, "L_unit = %e\n", L_unit);
-  fprintf(stderr, "T_unit = %e\n", T_unit);
-  fprintf(stderr, "B_unit = %e\n", B_unit);
-  fprintf(stderr, "Thetae_unit = %e\n", Thetae_unit);
+  // Horizon and "max R for geodesic tracking" in KS coordinates
+  Rh = 1. + sqrt(1. - a * a);
+  Rmax = 1000;
+
+  fprintf(stderr, "L_unit, T_unit, M_unit = %g %g %g\n", L_unit, T_unit, M_unit);
+  fprintf(stderr, "B_unit, Ne_unit, RHO_unit = %g %g %g\n", B_unit, Ne_unit, RHO_unit);
+  fprintf(stderr, "Thetae_unit = %g\n", Thetae_unit);
 
   // Allocate storage and set geometry
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
   p = malloc_rank4_double(NVAR, N1, N2, N3);
-  printf("NVAR N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
+  fprintf(stderr, "NVAR N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
+  n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
+  tetrads = (struct of_tetrads***)malloc_rank3(N1, N2, N3, sizeof(struct of_tetrads));
   init_geometry();
 
   // Read prims. 
@@ -768,29 +1030,33 @@ void init_data(int argc, char *argv[], Params *params)
   V = dMact = Ladv = 0.;
   dV = dx[1]*dx[2]*dx[3];
   ZLOOP {
-    V += dV*geom[i][j].g;
-    bias_norm += dV*geom[i][j].g*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
+    V += dV*geom[i][j].gzone;
+    bias_norm += dV*geom[i][j].gzone*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
 
-    if (i <= 20) {
+    if (10 <= i && i <= 20) {
       double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
       get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
       lower(Ucon, geom[i][j].gcov, Ucov);
-      dMact += geom[i][j].g*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
-      Ladv += geom[i][j].g*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
-
-      if ( i == 5 && j == 100 && k == 100 ) {
-        fprintf(stderr, "X %g %g %g %g\n", geom[i][j].gcov[0][0], geom[i][j].gcov[0][1], geom[i][j].gcov[0][2], geom[i][j].gcov[0][3]);
-      fprintf(stderr, "IJK %g %g %g %g %g\n", geom[i][j].g, dx[2], dx[3], p[KRHO][i][j][k], Ucon[1]);
-}
-
+      dMact += geom[i][j].gzone*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
+      Ladv += geom[i][j].gzone*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
     }
 
   }
 
-  dMact /= 21.;
-  Ladv /= 21.;
+  /*
+  for (int i=0; i<100; ++i) {
+    double Xp[NDIM];
+    ijktoX(i,64,64,Xp);
+    fprintf(stderr, "%d -> %g %g %g %g\n", i, Xp[0], exp(Xp[1]), Xp[2], Xp[3]);
+  }
+   */
+
+  dMact /= 11.;
+  Ladv /= 1.;
   bias_norm /= V;
   fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
+
+  init_tetrads();
 }
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
@@ -815,7 +1081,7 @@ void report_spectrum(int N_superph_made, Params *params)
 
   h5io_add_blob(fid, "/fluid_header", fluid_header);
   hdf5_close_blob(fluid_header);
-
+   
   h5io_add_group(fid, "/params");
 
   h5io_add_data_dbl(fid, "/params/NUCUT", NUCUT);
@@ -869,7 +1135,6 @@ void report_spectrum(int N_superph_made, Params *params)
   }
   h5io_add_data_int(fid, "/params/electrons/type", with_electrons);
 
-
   // temporary data buffers
   double lnu_buf[N_EBINS];
   double dOmega_buf[N_THBINS];
@@ -890,6 +1155,7 @@ void report_spectrum(int N_superph_made, Params *params)
   dL = 0.;
 
   for (int j=0; j<N_THBINS; ++j) {
+    // warning: this assumes geodesic X \in [0,1]
     dOmega_buf[j] = 2. * dOmega_func(j);
   }
 
@@ -899,7 +1165,7 @@ void report_spectrum(int N_superph_made, Params *params)
       lnu_buf[i] = (i * dlE + lE0) / M_LN10;
       for (int j=0; j<N_THBINS; ++j) {
 
-        dOmega = 2. * dOmega_func(j);
+        dOmega = dOmega_buf[j];
 
         nuLnu = (ME * CL * CL) * (4. * M_PI / dOmega) * (1. / dlE);
         nuLnu *= spect[k][j][i].dEdlE/LSUN;

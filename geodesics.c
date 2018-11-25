@@ -21,9 +21,6 @@ void push_photon(double X[NDIM], double Kcon[NDIM], double dKcon[NDIM],
 	double dl_2, err, errE;
 	int i, k, iter;
 
-	if (X[1] < startx[1])
-		return;
-
 	FAST_CPY(X, Xcpy);
 	FAST_CPY(Kcon, Kcpy);
 	FAST_CPY(dKcon, dKcpy);
@@ -36,6 +33,9 @@ void push_photon(double X[NDIM], double Kcon[NDIM], double dKcon[NDIM],
 		K[i] = Kcon[i] + dK;
 		X[i] += Kcon[i] * dl;
 	}
+
+	if (X[1] < log(Rh*1.05))
+		return;
 
 	get_connection(X, lconn);
 

@@ -30,6 +30,7 @@
 
 #define STRLEN (2048)
 
+#define P4VEC(S,X) fprintf(stderr, "%s: %g %g %g %g\n", S, X[0], X[1], X[2], X[3]);
 
 /** data structures **/
 struct of_photon {
@@ -59,6 +60,12 @@ struct of_geom {
   double gcon[NDIM][NDIM];
   double gcov[NDIM][NDIM];
   double g;
+  double gzone;
+};
+
+struct of_tetrads {
+  double Econ[NDIM][NDIM];
+  double Ecov[NDIM][NDIM];
 };
 
 struct of_spectrum {
@@ -111,13 +118,15 @@ extern int N_superph_recorded, N_scatt;
 
 /* HARM model globals */
 extern struct of_geom **geom;
+extern struct of_tetrads ***tetrads;
+double ***n2gens;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 
 /* some coordinate parameters */
 extern double t;
 extern double a;
-extern double R0, Rin, Rh, Rout, Rms;
+extern double R0, Rin, Rout, Rms, Rh, Rmax;
 extern double hslope;
 extern double startx[NDIM], stopx[NDIM], dx[NDIM];
 extern double dlE, lE0;
@@ -254,12 +263,17 @@ int record_criterion(struct of_photon *ph);
 void get_connection(double *X, double lconn[][NDIM][NDIM]);
 void gcov_func(double *X, double gcov[][NDIM]);
 void gcon_func(double gcov[NDIM][NDIM], double gcon[][NDIM]);
+double gdet_zone(int i, int j, int k);
+void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
+void ijktoX(int i, int j, int k, double X[NDIM]);
+int X_in_domain(double X[NDIM]);
 
 void init_weight_table(void);
 void bl_coord(double *X, double *r, double *th);
 void make_zone_centered_tetrads(void);
 void set_units(char *munitstr);
 void init_geometry(void);
+void init_tetrads(void);
 void init_data(int argc, char *argv[], Params *params);
 void init_nint_table(void);
 void init_storage(void);

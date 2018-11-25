@@ -44,6 +44,8 @@
 /* defining declarations for global variables */
 Params params = { 0 };
 struct of_geom **geom;
+struct of_tetrads ***tetrads;
+double ***n2gens;
 int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
@@ -52,7 +54,7 @@ struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 double t;
 double a;
-double R0, Rin, Rh, Rout, Rms;
+double R0, Rin, Rout, Rms, Rh, Rmax; // Rh, Rmax used to set stop/record geodesic criteria
 double hslope;
 double startx[NDIM], stopx[NDIM], dx[NDIM];
 
@@ -71,6 +73,7 @@ int main(int argc, char *argv[])
 
   double N_superph_made;
   time_t currtime, starttime;
+  double wtime = omp_get_wtime();
 
   // spectral bin parameters
   dlE = 0.25;         // bin width
@@ -96,22 +99,19 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "Entering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
- 
+
   int quit_flag = 0;
-  #pragma omp parallel
+  #pragma omp parallel firstprivate(quit_flag)
   {
     struct of_photon ph;
     while (1) {
 
       // get pseudo-quanta 
-#pragma omp critical (MAKE_SPHOT)
-      {
-        if (!quit_flag)
-          make_super_photon(&ph, &quit_flag);
-      }
+      if (!quit_flag)
+        make_super_photon(&ph, &quit_flag);
       if (quit_flag)
         break;
-
+      
       // push them around 
       track_super_photon(&ph);
 
@@ -135,10 +135,13 @@ int main(int argc, char *argv[])
   fprintf(stderr, "final time %g, rate %g ph/s\n",
     (double) (currtime - starttime),
     N_superph_made / (currtime - starttime));
-
+  
   omp_reduce_spect();
 
   report_spectrum((int) N_superph_made, &params);
+
+  wtime = omp_get_wtime() - wtime;
+  fprintf(stderr, "Total wallclock time: %g s\n\n", wtime);
 
   return 0;
 }

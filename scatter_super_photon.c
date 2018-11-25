@@ -55,10 +55,18 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
 
   /* quality control */
   if (K_tetrad[0] > 1.e5 || K_tetrad[0] < 0. || isnan(K_tetrad[1])) {
-    fprintf(stderr,
+    double del[4]; int ii,jj,kk;
+    Xtoijk(ph->X, &ii, &jj, &kk, del);
+
+    fprintf(stderr, "tetrad conversion problem\n");
+    P4VEC("phK", ph->K);
+    P4VEC("Ktetr", K_tetrad);
+    fprintf(stderr, "X at %g %g %g %g (%d %d %d)\n", ph->X[0],ph->X[1],ph->X[2],ph->X[3], ii,jj,kk);
+
+    /*fprintf(stderr,
         "conversion to tetrad frame problem: %g %g\n",
         ph->K[0], K_tetrad[0]);
-    /*		fprintf(stderr,"%g %g %g\n",ph->K[1], ph->K[2], ph->K[3]);
+      		fprintf(stderr,"%g %g %g\n",ph->K[1], ph->K[2], ph->K[3]);
           fprintf(stderr,"%g %g %g\n",K_tetrad[1], K_tetrad[2], K_tetrad[3]);
           fprintf(stderr,"%g %g %g %g\n",Ucon[0], Ucon[1], Ucon[2], Ucon[3]);
           fprintf(stderr,"%g %g %g %g\n",Bhatcon[0], Bhatcon[1], Bhatcon[2], Bhatcon[3]);
