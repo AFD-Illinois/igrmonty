@@ -1,7 +1,7 @@
 #include "decs.h"
 
 #define NVAR (10)
-#define USE_FIXED_TPTE (1)
+#define USE_FIXED_TPTE (0)
 #define USE_MIXED_TPTE (0)
 
 // electron model. these values will be overwritten by anything found in par.c 
@@ -357,7 +357,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   if (with_electrons == 1) {
     *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
   } else if (with_electrons == 2) {
-    double beta = p[UU][i][j][k]*(gam-1.)/0.5/(*B)/(*B);
+    double beta = p[UU][i][j][k]*(gam-1.)/0.5/(*B)/(*B)*B_unit*B_unit;
     double betasq = beta*beta / beta_crit / beta_crit;
     double trat = trat_large * betasq/(1. + betasq) + trat_small /(1. + betasq);
     //Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
@@ -792,16 +792,12 @@ void bl_coord(double *X, double *r, double *th)
   }
 }
 
-// warning: this function assumes startx = 0 and stopx = 1
+// warning: this function assumes startx = 0 and stopx = 1 (that we bin evenly in BL)
 double dOmega_func(int j)
 {
-  double dbin = 1./(2.*N_THBINS);
-  double Xi[NDIM] = {0., log(Rmax*1.1), j*dbin, 0.};
-  double Xf[NDIM] = {0., log(Rmax*1.1), (j+1)*dbin, 0.};
-
-  double ri, rf, thi, thf;
-  bl_coord(Xi, &ri, &thi);
-  bl_coord(Xf, &rf, &thf);
+  double dx2 = M_PI/2./N_THBINS;
+  double thi = j * dx2;
+  double thf = (j+1) * dx2;
 
   return 2.*M_PI*(-cos(thf) + cos(thi));
 }
@@ -1218,6 +1214,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/output/Mdot", Mdot);
   h5io_add_data_dbl(fid, "/output/LEdd", LEdd);
   h5io_add_data_dbl(fid, "/output/MdotEdd", MdotEdd);
+  h5io_add_data_dbl(fid, "/output/efficiency", L * LSUN / (dMact * M_unit * CL * CL / T_unit));
 
   h5io_add_attribute_str(fid, "/output/L", "units", "erg/s");
   h5io_add_attribute_str(fid, "/output/LEdd", "units", "erg/s");

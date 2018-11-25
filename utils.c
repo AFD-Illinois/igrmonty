@@ -164,9 +164,9 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
     dn = int_jnu(Ne, Thetae, Bmag, nu)/(HPL*exp(wgt[m]));
     if (*nz > 0) {
       if (dn == 0) {
-        zwgt[m] = log(WEIGHT_MIN);
+        zwgt[m] = 0.;
       } else {
-        zwgt[m] = log( exp(wgt[m]) * dn * DLNU / ninterp * N_ESAMP + WEIGHT_MIN );
+        zwgt[m] = log( exp(wgt[m]) * dn * DLNU / ninterp * N_ESAMP );
       }
     }
   }
