@@ -2,7 +2,7 @@
 
 #define NVAR (10)
 #define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (0)
+#define USE_MIXED_TPTE (1)
 
 // electron model. these values will be overwritten by anything found in par.c 
 // or in the runtime parameter file.
@@ -315,9 +315,31 @@ double bias_func(double Te, double w)
   return bias * biasTuning;
 }
 
+double thetae_func(double uu, double rho, double B, double kel)
+{
+  // assumes uu, rho, B, kel in code units
+  double thetae = 0.;
+
+  if (with_electrons == 0) {
+    // fixed tp/te ratio
+    thetae = uu / rho * Thetae_unit; 
+  } else if (with_electrons == 1) {
+    // howes/kawazura model from IHARM electron thermodynamics
+    thetae = kel * pow(rho, game-1.) * Thetae_unit;
+  } else if (with_electrons == 2 ) {
+    double beta = uu * (gam-1.) / 0.5 / B / B;
+    double b2 = beta*beta / beta_crit/beta_crit;
+    double trat = trat_large * b2/(1.+b2) + trat_small /(1.+b2);
+    thetae = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat ) * uu / rho;
+  }
+
+  return thetae;
+}
+
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM])
 {
+
   double Ucov[NDIM], Bcov[NDIM];
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double sig ;
@@ -354,19 +376,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
   *Ne = p[KRHO][i][j][k] * Ne_unit;
-  if (with_electrons == 1) {
-    *Thetae = p[KEL][i][j][k]*pow(p[KRHO][i][j][k],game-1.)*Thetae_unit;
-  } else if (with_electrons == 2) {
-    double beta = p[UU][i][j][k]*(gam-1.)/0.5/(*B)/(*B)*B_unit*B_unit;
-    double betasq = beta*beta / beta_crit / beta_crit;
-    double trat = trat_large * betasq/(1. + betasq) + trat_small /(1. + betasq);
-    //Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
-    // see, e.g., Eq. 8 of the EHT GRRT formula list
-    Thetae_unit = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat );
-    *Thetae = Thetae_unit * p[UU][i][j][k] / p[KRHO][i][j][k];
-  } else {
-    *Thetae = p[UU][i][j][k] / (*Ne) * Ne_unit * Thetae_unit;
-  }
+  *Thetae = thetae_func(p[UU][i][j][k], p[KRHO][i][j][k], (*B)/B_unit, p[KEL][i][j][k]);
 
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 
@@ -374,6 +384,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   if(sig > 1. || i < 9) {
     *Thetae = SMALL;
   }
+
 }
 
 void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -431,19 +442,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
   *Ne = rho*Ne_unit;
-  if (with_electrons == 1) {
-    *Thetae = kel*pow(rho,game-1.)*Thetae_unit;
-  } else if (with_electrons == 2) {
-    double beta2 = pow(uu * (gam-1.) / 0.5 / (*B)/(*B), 2.);
-    beta2 /= (beta_crit * beta_crit);
-    double trat = trat_large * beta2/(1.+beta2) + trat_small/(1.+beta2);
-    Thetae_unit = (gam - 1.) * (MP / ME) / (1. + trat);
-    *Thetae = Thetae_unit * uu / rho;
-  } else {
-    double uu = interp_scalar(X, p[UU]);
-    *Thetae = uu/rho*Thetae_unit;
-  }
-
+  *Thetae = thetae_func(uu, rho, (*B)/B_unit, kel);
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
@@ -867,6 +866,8 @@ void init_data(int argc, char *argv[], Params *params)
   hdf5_read_single_val(&gam, "gam", H5T_IEEE_F64LE);
 
   // conditional reads
+  game = 4./3;
+  gamp = 5./3;
   if (with_electrons) {
     fprintf(stderr, "custom electron model loaded...\n");
     hdf5_read_single_val(&game, "gam_e", H5T_IEEE_F64LE);
@@ -886,6 +887,7 @@ void init_data(int argc, char *argv[], Params *params)
     Thetae_unit = MP/ME * (gam-1.) / (1. + tp_over_te);
     Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
   } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE) {
+    Thetae_unit = 2./3. * MP/ME / 5.; 
     with_electrons = 2;
     fprintf(stderr, "using mixed tp_over_te with trat_small = %g and trat_large = %g\n", trat_small, trat_large);
   } else {
