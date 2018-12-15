@@ -173,13 +173,24 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
 }
 
 int zone_flag;
+static int zi = 0;
+static int zj = 0;
+static int zk = -1;
+
+void reset_zones() 
+{
+  zi = 0;
+  zj = 0;
+  zk = -1;
+  zone_i = 0;
+  zone_j = 0;
+  zone_k = -1;
+}
+
 int get_zone(int *i, int *j, int *k, double *dnmax)
 {
   int in2gen;
   double n2gen;
-  static int zi = 0;
-  static int zj = 0;
-  static int zk = -1;
 
   zone_flag = 1;
   zk++;
@@ -197,7 +208,7 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
     }
   }
 
-  n2gen = n2gens[zi][zj][zk];
+  n2gen = n2gens[zi][zj][zk] * Ns_scale;
   if (fmod(n2gen, 1.) > monty_rand()) {
     in2gen = (int) n2gen + 1;
   } else {
@@ -207,15 +218,6 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   if (in2gen > 0) {
     init_zone(zi, zj, zk, &n2gen, dnmax);
   }
-
-  /*
-  if (fmod(n2gen, 1.) > monty_rand()) {
-    in2gen = (int) n2gen + 1;
-  } else {
-    in2gen = (int) n2gen;
-  }
-   */
- 
 
   *i = zi;
   *j = zj;
@@ -227,7 +229,7 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   if (zj > 1 && zj < N2-2) return 0;
 #endif
 
-  return in2gen;
+  return in2gen * Ns_scale;
 }
 
 #ifdef EMIT_ORIGIN

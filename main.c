@@ -50,6 +50,8 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
+int record_photons;
+double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 double t;
@@ -71,7 +73,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
-  double N_superph_made;
   time_t currtime, starttime;
   double wtime = omp_get_wtime();
 
@@ -88,19 +89,105 @@ int main(int argc, char *argv[])
 
   init_model(argc, argv, &params);
 
+  reset_zones();
   N_superph_made = 0;
   N_superph_recorded = 0;
   N_scatt = 0;
-  starttime = time(NULL);
 
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
 
+  int quit_flag = 0;
+
+  if ( COMPTON && (params.fitBias!=0) ) {
+    // find a good value for the bias tuning to make 
+    // Nscatt / Nmade >~ 1
+    fprintf(stderr, "Finding bias...\n");
+
+    double lastscale = 0.;
+    int global_quit_flag = 0;
+
+    while (1 == 1) {
+
+      global_quit_flag = 0;
+      quit_flag = 0;
+      record_photons = 0;
+      Ns_scale = 1. * params.fitBiasNs / Ns;
+      if (Ns_scale > 1.) Ns_scale = 1.;
+
+      fprintf(stderr, "bias %g ", biasTuning);
+
+      // compute values
+      quit_flag = 0;
+      #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
+      {
+        struct of_photon ph;
+        while(1) {
+          make_super_photon(&ph, &quit_flag);
+          if (global_quit_flag || quit_flag) break;
+
+          track_super_photon(&ph);
+          #pragma omp atomic
+          N_superph_made += 1;
+
+          if (((int) (N_superph_made)) % 1000 == 0 && N_superph_made > 0) {
+            if (((int) (N_superph_made)) % 100000 == 0) fprintf(stderr, ".");
+            if (1. * N_scatt / N_superph_made > 10.) {
+              #pragma omp critical
+              {
+                global_quit_flag = 1;
+              }
+            }
+          }
+        }
+      }
+     
+      // get effectiveness
+      double ratio = 1. * N_scatt / N_superph_made;
+      fprintf(stderr, " ratio = %g\n", ratio);
+
+      // reset state
+      reset_zones();
+      N_superph_made = 0;
+      N_superph_recorded = 0;
+      N_scatt = 0;
+
+      // continue if good
+      if ( ratio >= 1 ) {
+        if (global_quit_flag) {
+          if (lastscale <= 3) {
+            break;
+          } else {
+            biasTuning /= 3.;
+            lastscale /= 3.;
+          }
+        } else {
+          break;
+        }
+      } else {
+        if (ratio < 0.01) {
+          biasTuning *= sqrt(1./ratio);
+          lastscale = sqrt(1./ratio);
+        } else if (ratio < 0.1) {
+          biasTuning *= 3.;
+          lastscale = 3.;
+        } else {
+          biasTuning *= 1.5;
+          lastscale = 1.5;
+        }
+      }
+    }
+    fprintf(stderr, "\n");
+  }
+
   fprintf(stderr, "Entering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
+  starttime = time(NULL);
 
-  int quit_flag = 0;
+  quit_flag = 0;
+  record_photons = 1;
+  Ns_scale = 1.;
   #pragma omp parallel firstprivate(quit_flag)
   {
     struct of_photon ph;
@@ -116,7 +203,7 @@ int main(int argc, char *argv[])
       track_super_photon(&ph);
 
       // step
-#pragma omp atomic
+      #pragma omp atomic
       N_superph_made += 1;
 
       // give interim reports on rates
@@ -125,8 +212,7 @@ int main(int argc, char *argv[])
         currtime = time(NULL);
         fprintf(stderr, "time %g, rate %g ph/s\n",
           (double) (currtime - starttime),
-          N_superph_made / (currtime -
-                starttime));
+          N_superph_made / (currtime - starttime));
       }
     }
   }

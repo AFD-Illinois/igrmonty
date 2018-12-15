@@ -17,9 +17,13 @@ typedef struct params_t {
   double Ns;
   double MBH;
   double M_unit;
-  double biasTuning;
   const char dump[256];
   const char spectrum[256];
+
+  // bias
+  double biasTuning;
+  double fitBiasNs;
+  int fitBias;
 
   // two point model
   double lnumin, lnumax, alpha_spec;
@@ -29,6 +33,7 @@ typedef struct params_t {
   double beta_crit;
   double trat_small;
   double trat_large;
+  double Thetae_max;
 
   char loaded;
 } Params;

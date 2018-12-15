@@ -115,6 +115,8 @@ extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 
 extern int Ns;
 extern int N_superph_recorded, N_scatt;
+extern int record_photons;
+extern double Ns_scale, N_superph_made;
 
 /* HARM model globals */
 extern struct of_geom **geom;
@@ -250,6 +252,7 @@ void sample_scattered_photon(double k[NDIM], double p[NDIM],
 
 /* physics related */
 void init_model(int argc, char *argv[], Params *params);
+void reset_zones();
 void make_super_photon(struct of_photon *ph, int *quit_flag);
 double bias_func(double Te, double w);
 void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,

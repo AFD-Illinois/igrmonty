@@ -18,7 +18,10 @@ void load_par (const char *fname, Params *params) {
   params->trat_small = 1.;
   params->trat_large = 10.;
   params->biasTuning = 1.;
+  params->fitBias = 0.;
   params->beta_crit = 1.;
+  params->fitBiasNs = 10000.;
+  params->Thetae_max = 1.e100;
 
   // modify parameters/types below
   while (fgets(line, 255, fp) != NULL) {
@@ -29,8 +32,11 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
     read_param(line, "bias", &(params->biasTuning), TYPE_DBL);
-    read_param(line, "TP_OVER_TE", &(params->TP_OVER_TE), TYPE_DBL);
+    read_param(line, "fit_bias", &(params->fitBias), TYPE_INT);
+    read_param(line, "fit_bias_ns", &(params->fitBiasNs), TYPE_DBL);
+    read_param(line, "Thetae_max", &(params->Thetae_max), TYPE_DBL);
 
+    read_param(line, "TP_OVER_TE", &(params->TP_OVER_TE), TYPE_DBL);
     read_param(line, "beta_crit", &(params->beta_crit), TYPE_DBL);
     read_param(line, "trat_small", &(params->trat_small), TYPE_DBL);
     read_param(line, "trat_large", &(params->trat_large), TYPE_DBL);

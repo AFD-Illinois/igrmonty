@@ -14,6 +14,7 @@ static double tp_over_te = 3.;
 static double trat_small = 2.;
 static double trat_large = 70.;
 static double beta_crit = 1.;
+static double Thetae_max = 1.e100;
 static int with_electrons;
 
 double biasTuning = 1.;
@@ -138,12 +139,6 @@ void record_super_photon(struct of_photon *ph)
     return;
   }
 
-  #pragma omp critical (MAXTAU)
-  {
-    if (ph->tau_scatt > max_tau_scatt)
-      max_tau_scatt = ph->tau_scatt;
-  }
-
   // bin in X[2] BL coord while folding around the equator
   double r, th;
   bl_coord(ph->X, &r, &th);
@@ -172,8 +167,6 @@ void record_super_photon(struct of_photon *ph)
 
   #pragma omp atomic
   N_superph_recorded++;
-  #pragma omp atomic
-  N_scatt += ph->nscatt;
 
   double ratio_synch = 1. - ph->ratio_brems;
   
@@ -333,7 +326,7 @@ double thetae_func(double uu, double rho, double B, double kel)
     thetae = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat ) * uu / rho;
   }
 
-  return thetae;
+  return 1./(1./thetae + 1./Thetae_max);
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
@@ -820,6 +813,7 @@ void init_data(int argc, char *argv[], Params *params)
     trat_large = params->trat_large;
     beta_crit = params->beta_crit;
     biasTuning = params->biasTuning;
+    Thetae_max = params->Thetae_max;
   } else {
     fname = argv[2];
     strncpy((char *)params->dump, argv[2], 255);
@@ -1028,26 +1022,21 @@ void init_data(int argc, char *argv[], Params *params)
   V = dMact = Ladv = 0.;
   dV = dx[1]*dx[2]*dx[3];
   ZLOOP {
+
     V += dV*geom[i][j].gzone;
-    bias_norm += dV*geom[i][j].gzone*pow(p[UU][i][j][k]/p[KRHO][i][j][k]*Thetae_unit,2.);
+
+    double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
+    get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+
+    bias_norm += dV*geom[i][j].gzone * Thetae*Thetae;
 
     if (10 <= i && i <= 20) {
-      double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
-      get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
       lower(Ucon, geom[i][j].gcov, Ucov);
       dMact += geom[i][j].gzone*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
       Ladv += geom[i][j].gzone*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
     }
 
   }
-
-  /*
-  for (int i=0; i<100; ++i) {
-    double Xp[NDIM];
-    ijktoX(i,64,64,Xp);
-    fprintf(stderr, "%d -> %g %g %g %g\n", i, Xp[0], exp(Xp[1]), Xp[2], Xp[3]);
-  }
-   */
 
   dMact /= 11.;
   Ladv /= 1.;
@@ -1108,6 +1097,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/Rout", Rout);
   h5io_add_data_dbl(fid, "/params/hslope", hslope);
   h5io_add_data_dbl(fid, "/params/t", t);
+  h5io_add_data_dbl(fid, "/params/bias", biasTuning);
 
   h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
   h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);

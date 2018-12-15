@@ -17,6 +17,11 @@ void track_super_photon(struct of_photon *ph)
   double Gcov[NDIM][NDIM], Ucon[NDIM], Ucov[NDIM], Bcon[NDIM], Bcov[NDIM];
   int nstep = 0;
 
+  // Avoid too much scattering
+  if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.) {
+    return;
+  }
+
   // Quality control
   if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || 
       isnan(ph->X[3]) || isnan(ph->K[0]) || isnan(ph->K[1]) ||
@@ -115,7 +120,7 @@ void track_super_photon(struct of_photon *ph)
 
       x1 = -log(monty_rand());
       php.w = ph->w/bias;
-      if (bias*dtau_scatt > x1 && php.w > WEIGHT_MIN) {
+      if (ph->ratio_brems < 0.9 && bias*dtau_scatt > x1 && php.w > WEIGHT_MIN) {
         if (isnan(php.w) || isinf(php.w)) {
           fprintf(stderr, "w isnan in track_super_photon: Ne, bias, ph->w, php.w  %g, %g, %g, %g\n",
             Ne, bias, ph->w, php.w);
@@ -206,8 +211,18 @@ void track_super_photon(struct of_photon *ph)
   }
 
   // Accumulate result in spectrum on escape
-  if (record_criterion(ph) && nstep < MAXNSTEP)
-    record_super_photon(ph);
+  if (record_criterion(ph) && nstep < MAXNSTEP) {
+    #pragma omp atomic
+    N_scatt += ph->nscatt;
+
+    #pragma omp critical (MAXTAU)
+    {
+      if (ph->tau_scatt > max_tau_scatt)
+        max_tau_scatt = ph->tau_scatt;
+    }
+
+    if (record_photons) record_super_photon(ph);
+  }
 }
 #undef MAXNSTEP
 
