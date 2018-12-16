@@ -1194,6 +1194,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_int(fid, "/output/Nrecorded", N_superph_recorded);
   h5io_add_data_int(fid, "/output/Nmade", N_superph_made);
   h5io_add_data_int(fid, "/output/Nscattered", N_scatt);
+  h5io_add_data_int(fid, "/output/bad_bias", bad_bias);
 
   double LEdd = 4. * M_PI * GNEWT * MBH * MP * CL / SIGMA_THOMSON;
   double MdotEdd = 4. * M_PI * GNEWT * MBH * MP / ( SIGMA_THOMSON * CL * 0.1 );

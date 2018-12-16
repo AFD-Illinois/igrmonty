@@ -309,7 +309,13 @@ double zone_linear_interp_weight(double nu) {
   i = (int)di;
   di = di - i;
 
-  return exp((1. - di)*zwgt[i] + di*zwgt[i + 1]);
+  // intel compiler has issues if zwgt[i] = -inf 
+  // and returns exp( EXPRESSION ) = -nan, so we
+  // manually check here.
+  double wgt = exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] );
+
+  if ( isnan(wgt) ) return 0.;
+  return wgt;
 }
 
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
@@ -409,6 +415,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 #ifdef TRACK_PH_CREATION
   ph->isrecorded = 0;
 #endif // TRACK_PH_CREATION
+
 }
 
 void init_geometry()

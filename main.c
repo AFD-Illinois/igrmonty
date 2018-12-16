@@ -50,7 +50,7 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-int record_photons;
+int record_photons, bad_bias;
 double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
@@ -93,6 +93,7 @@ int main(int argc, char *argv[])
   N_superph_made = 0;
   N_superph_recorded = 0;
   N_scatt = 0;
+  bad_bias = 0;
 
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
@@ -152,6 +153,7 @@ int main(int argc, char *argv[])
       N_superph_made = 0;
       N_superph_recorded = 0;
       N_scatt = 0;
+      bad_bias = 0;
 
       // continue if good
       if ( ratio >= 1 ) {

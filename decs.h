@@ -115,7 +115,7 @@ extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 
 extern int Ns;
 extern int N_superph_recorded, N_scatt;
-extern int record_photons;
+extern int record_photons, bad_bias;
 extern double Ns_scale, N_superph_made;
 
 /* HARM model globals */
