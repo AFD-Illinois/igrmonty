@@ -226,10 +226,13 @@ int main(int argc, char *argv[])
   fprintf(stderr, "final time %g, rate %g ph/s\n",
     (double) (currtime - starttime),
     N_superph_made / (currtime - starttime));
-  
-  omp_reduce_spect();
 
-  report_spectrum((int) N_superph_made, &params);
+  if (! bad_bias) {
+    omp_reduce_spect();
+    report_spectrum((int) N_superph_made, &params);
+  } else {
+    fprintf(stderr, "\nit seems the bias was too high -- aborting.\n");
+  }
 
   wtime = omp_get_wtime() - wtime;
   fprintf(stderr, "Total wallclock time: %g s\n\n", wtime);
