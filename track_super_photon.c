@@ -23,6 +23,11 @@ void track_super_photon(struct of_photon *ph)
     return;
   }
 
+  // Don't track zero-weight photons
+  if (ph->w < 1) {
+    return;
+  }
+
   // Quality control
   if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || 
       isnan(ph->X[3]) || isnan(ph->K[0]) || isnan(ph->K[1]) ||
