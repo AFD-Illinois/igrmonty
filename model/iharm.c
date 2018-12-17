@@ -938,8 +938,13 @@ void init_data(int argc, char *argv[], Params *params)
   } else {
     hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
     hdf5_read_single_val(&hslope, "hslope", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&Rin, "Rin", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&Rout, "Rout", H5T_IEEE_F64LE);
+    if (hdf5_exists("Rin")) {
+      hdf5_read_single_val(&Rin, "Rin", H5T_IEEE_F64LE);
+      hdf5_read_single_val(&Rout, "Rout", H5T_IEEE_F64LE);
+    } else {
+      hdf5_read_single_val(&Rin, "r_in", H5T_IEEE_F64LE);
+      hdf5_read_single_val(&Rout, "r_out", H5T_IEEE_F64LE);
+    }
     if (with_derefine_poles) {
       fprintf(stderr, "custom refinement at poles loaded...\n");
       hdf5_read_single_val(&poly_xt, "poly_xt", H5T_IEEE_F64LE);
