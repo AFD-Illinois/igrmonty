@@ -168,6 +168,8 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
       } else {
         zwgt[m] = log( exp(wgt[m]) * dn * DLNU / ninterp * N_ESAMP );
       }
+    } else {
+      zwgt[m] = 0.;
     }
   }
 }
@@ -312,6 +314,10 @@ double zone_linear_interp_weight(double nu) {
   // intel compiler has issues if zwgt[i] = -inf 
   // and returns exp( EXPRESSION ) = -nan, so we
   // manually check here.
+  if ( isinf(zwgt[i]) || isinf(zwgt[i+1]) ) return 0.;
+
+  return exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] ); 
+
   double wgt = exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] );
 
   if ( isnan(wgt) ) return 0.;

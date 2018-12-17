@@ -59,7 +59,8 @@ add_machine(name='fortran90',
 
 add_machine(name='stampede2',
             compiler='h5pcc',
-            c_flags='-qopenmp -xCORE-AVX2 -axCORE-AVX512,MIC-AVX512 -O3 -std=c99 -Wall -g',
+            #c_flags='-qopenmp -xCORE-AVX2 -axCORE-AVX512,MIC-AVX512 -O3 -std=c99 -Wall -g',
+            c_flags='-qopenmp -O3 -std=c99 -Wall -g',
             l_flags='-lm -lgsl -lgslcblas',
             gsl_dir='/opt/apps/intel17/gsl/2.3')
 
