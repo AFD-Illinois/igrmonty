@@ -51,6 +51,7 @@ struct of_photon {
   double E0s;
   int nscatt;
   double ratio_brems; // ratio_synch = 1 - ratio_brems
+  double QTY0;
 #ifdef TRACK_PH_CREATION
   int isrecorded;
 #endif // TRACK_PH_CREATION

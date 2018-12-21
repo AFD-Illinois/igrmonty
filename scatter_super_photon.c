@@ -140,6 +140,7 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   php->E0 = ph->E;
   php->nscatt = ph->nscatt + 1;
   php->ratio_brems = ph->ratio_brems;
+  php->QTY0 = ph->QTY0;
 
   return;
 }

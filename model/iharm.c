@@ -139,7 +139,7 @@ void record_super_photon(struct of_photon *ph)
     return;
   }
 
-  // bin in X[2] BL coord while folding around the equator
+  // bin in X[2] BL coord while folding around the equator and check limit
   double r, th;
   bl_coord(ph->X, &r, &th);
   dx2 = M_PI/2./N_THBINS;
@@ -148,18 +148,22 @@ void record_super_photon(struct of_photon *ph)
   } else {
     ix2 = (int)( th / dx2 );
   }
+  if (ix2 < 0 || ix2 >= N_THBINS) return;
 
-  // Check limits
-  if (ix2 < 0 || ix2 >= N_THBINS)
-    return;
-
+  #if CUSTOM_AVG==1
+  double nu = ph->E * ME*CL*CL / HPL;
+  if (nu < CA_MIN_FREQ || CA_MAX_FREQ < nu) return;
+  // Get custom average bin
+  dlE = (log(CA_MAX_QTY) - log(CA_MIN_QTY)) / CA_NBINS;
+  lE = log(ph->QTY0);
+  iE = (int) ((lE - log(CA_MIN_QTY)) / dlE + 2.5) - 2;
+  if (iE < 0 || iE >= CA_NBINS) return;
+  #else
   // Get energy bin (centered on iE*dlE + lE0)
   lE = log(ph->E);
   iE = (int) ((lE - lE0) / dlE + 2.5) - 2;
-
-  // Check limits
-  if (iE < 0 || iE >= N_EBINS)
-    return;
+  if (iE < 0 || iE >= N_EBINS) return;
+  #endif // CUSTOM_AVG
 
   // Get compton bin
   ic = ph->nscatt;
@@ -1075,6 +1079,14 @@ void report_spectrum(int N_superph_made, Params *params)
   hdf5_close_blob(fluid_header);
    
   h5io_add_group(fid, "/params");
+
+  #if CUSTOM_AVG==1
+  h5io_add_data_dbl(fid, "/params/CA_MIN_FREQ", CA_MIN_FREQ);
+  h5io_add_data_dbl(fid, "/params/CA_MAX_FREQ", CA_MAX_FREQ);
+  h5io_add_data_dbl(fid, "/params/CA_MIN_QTY", CA_MIN_QTY);
+  h5io_add_data_dbl(fid, "/params/CA_MAX_QTY", CA_MAX_QTY);
+  h5io_add_data_dbl(fid, "/params/CA_NBINS", CA_NBINS);
+  #endif // CUSTOM_AVG
 
   h5io_add_data_dbl(fid, "/params/NUCUT", NUCUT);
   h5io_add_data_dbl(fid, "/params/GAMMACUT", GAMMACUT);

@@ -381,26 +381,11 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   K_tetrad[2] = E * cphi * sth;
   K_tetrad[3] = E * sphi * sth;
 
-  /*
-  if(E > 1.e-4) fprintf(stdout,"HOT: %d %d %g %g %g %g %g\n",
-    i,j,E/(0.22*(EE*Bmag/(2.*M_PI*ME*CL))*(HPL/(ME*CL*CL))*Thetae*Thetae),
-    ph->X[1],ph->X[2], Thetae,Bmag) ; 
-  */
-
-  /* 
-  if (zone_flag) { // First photon created in this zone, so make the tetrad
-    if (Bmag > 0.) {
-      for (int l = 0; l < NDIM; l++)
-        bhat[l] = Bcon[l] * B_unit / Bmag;
-    } else {
-      for (int l = 1; l < NDIM; l++)
-        bhat[l] = 0.;
-      bhat[1] = 1.;
-    }
-    make_tetrad(Ucon, bhat, geom[i][j].gcov, Econ, Ecov);
-    zone_flag = 0;
-  }
-   */
+  // This section only used if CUSTOM_AVG == 1 in custom.h. See that
+  // file for more details.
+  double blr, blh;
+  bl_coord(ph->X, &blr, &blh);
+  ph->QTY0 = blr;
 
   tetrad_to_coordinate(tetrads[i][j][k].Econ, K_tetrad, ph->K);
 
