@@ -327,6 +327,7 @@ double thetae_func(double uu, double rho, double B, double kel)
     double beta = uu * (gam-1.) / 0.5 / B / B;
     double b2 = beta*beta / beta_crit/beta_crit;
     double trat = trat_large * b2/(1.+b2) + trat_small /(1.+b2);
+    if (B == 0) trat = trat_large;
     thetae = (MP/ME) * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1.)*trat ) * uu / rho;
   }
 
