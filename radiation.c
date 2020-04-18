@@ -8,6 +8,7 @@ model-independent radiation-related utilities.
 
 #include "decs.h"
 
+/* planck function */
 double Bnu_inv(double nu, double Thetae)
 {
 
@@ -22,6 +23,7 @@ double Bnu_inv(double nu, double Thetae)
 		return ((2. * HPL / (CL * CL)) / (exp(x) - 1.));
 }
 
+/* return j_\nu/\nu^2, the invariant emissivity */
 double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
 {
 	double j;
@@ -31,7 +33,7 @@ double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
 	return (j / (nu * nu));
 }
 
-/* return Lorentz invariant scattering opacity */
+/* return invariant scattering opacity */
 double alpha_inv_scatt(double nu, double Thetae, double Ne)
 {
   #if COMPTON
@@ -45,7 +47,7 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne)
   #endif
 }
 
-/* return Lorentz invariant absorption opacity */
+/* return invariant absorption opacity */
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {

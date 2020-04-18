@@ -25,7 +25,8 @@ double interp_scalar(double X[NDIM], double ***var)
 
   // Interpolate in x3
   interp = (1.-del[3])*interp +
-           del[3]*(var[i  ][j  ][kp1]*b1*b2 +
+           del[3]*(
+           var[i  ][j  ][kp1]*b1*b2 +
            var[i  ][jp1][kp1]*del[2]*b1 +
            var[ip1][j  ][kp1]*del[1]*b2 +
            var[ip1][jp1][kp1]*del[1]*del[2]);

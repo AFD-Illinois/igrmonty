@@ -4,8 +4,8 @@
    grmonty Nph
 
    Using monte carlo method, estimate spectrum of an appropriately
-   scaled axisymmetric GRMHD simulation as a function of 
-   latitudinal viewing angle.
+   scaled GRMHD simulation as a function of latitudinal viewing angle,
+   averaged over azimuth.
 
    Input simulation data is assumed to be in dump format provided by 
    HARM code.  Location of input file is, at present, hard coded

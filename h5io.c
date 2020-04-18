@@ -1,6 +1,12 @@
 
 #include "h5io.h"
 
+/*
+
+hdf5 input/output nonsense
+
+*/
+
 void h5io_add_group(hid_t fid, const char *path) 
 {
   hid_t group_id = H5Gcreate2(fid, path, H5P_DEFAULT, H5P_DEFAULT, H5P_DEFAULT);

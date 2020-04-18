@@ -1,6 +1,13 @@
+#
+# makes a simple nuLnu plot from text file version
+# of spectrum.  
+#
+# to get text file from hdf5, run translate-txt.py
+#
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+
 
 ME   = 9.1093897e-28
 CL   = 2.99792458e10

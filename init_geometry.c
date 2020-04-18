@@ -11,7 +11,7 @@
    In principle the geometry could be sampled on a finer or
    coarser grid than the simulation grid. 
 
-   These routines are taken directly out of HARM.
+   These routines were taken directly out of HARM.
 
    They require the code be compiled against the 
    Gnu scientific library (GSL).

@@ -24,7 +24,7 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	double n0x, n0y, n0z, n0dotv0, v0x, v0y, v0z, v1x, v1y, v1z, v2x,
 	    v2y, v2z, v1, dir1, dir2, dir3;
 	double cth, sth, phi, cphi, sphi;
-	void sincos(double x, double *sin, double *cos);
+	//void sincos(double x, double *sin, double *cos);
 
 	/* boost into the electron frame
 	   ke == photon momentum in elecron frame */
@@ -79,7 +79,11 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 
 	/* find phi for new photon */
 	phi = 2. * M_PI * monty_rand();
+    /* this won't work on some machines, but it's faster 
 	sincos(phi, &sphi, &cphi);
+    */
+    sphi = sin(phi);
+    cphi = cos(phi);
 
 	p[1] *= -1.;
 	p[2] *= -1.;
@@ -178,7 +182,7 @@ double sample_thomson()
 
 sample Klein-Nishina differential cross section.
 
-This routine is inefficient; it needs improvement.
+This routine is inefficient; needs improvement.
 
 */
 
@@ -242,7 +246,7 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	double v1x, v1y, v1z;
 	double v2x, v2y, v2z;
 	int sample_cnt = 0;
-	void sincos(double x, double *sin, double *cos);
+	//void sincos(double x, double *sin, double *cos);
 
 	do {
 		sample_beta_distr(Thetae, &gamma_e, &beta_e);
@@ -323,7 +327,11 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	/* now resolve new momentum vector along unit vectors 
 	   and create a four-vector $p$ */
 	phi = monty_rand() * 2. * M_PI;	/* orient uniformly */
+    /* this won't work on many machines, but it's faster 
 	sincos(phi, &sphi, &cphi);
+    */
+    sphi = sin(phi);
+    cphi = cos(phi);
 	cth = mu;
 	sth = sqrt(1. - mu * mu);
 
@@ -388,6 +396,7 @@ double fdist(double ge, double Thetae)
 #include <gsl/gsl_roots.h>
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
+
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
   if (Thetae < 0.01) {
     *gamma_e = 1.000001;
@@ -402,9 +411,11 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
   double ge_max = 1. + Thetae;
   double ge_lo = GSL_MAX(1., 0.01*Thetae);
   double ge_hi = GSL_MAX(100., 1000.*Thetae);
+
   //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
   gsl_function F;
   struct df_params params = {Thetae};
+
   //printf("%e %e\n", dfdgam(ge_lo, &params), dfdgam(ge_hi, &params));
   F.function = &dfdgam;
   F.params = &params;
@@ -419,6 +430,7 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
     ge_hi = gsl_root_fsolver_x_upper(s);
     status = gsl_root_test_interval(ge_lo, ge_hi, 0, 0.001);
   } while (status == GSL_CONTINUE && iter < max_iter);
+
   //printf("ge_max = %e\n", ge_max);
   double f_max = fdist(ge_max, Thetae);
   //printf("fmax = %e\n", f_max);

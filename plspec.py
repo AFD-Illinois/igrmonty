@@ -2,6 +2,8 @@
   
 $ python plspec.py path/to/spectrum/files
 
+makes a nice plot from hdf5 file.
+
 """
 
 import sys

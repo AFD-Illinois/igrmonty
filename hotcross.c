@@ -14,7 +14,7 @@
    using Monte Carlo integration (!).
 
    A better way to do this would be to make a table in w*thetae and w/thetae; most
-    of the variation is accounted for by w*thetae.
+   of the variation is accounted for by w*thetae.
    
 */
 
@@ -25,6 +25,8 @@
 #define NW  220
 #define NT  80
 
+/* store hot cross section table here so you don't
+   have to recalculate when you run it again */
 #define HOTCROSS  "hotcross.dat"
 
 double table[NW + 1][NT + 1];

@@ -1,9 +1,10 @@
 
 
 #include "decs.h"
+
 /*
 
-this is the main photon orbit integrator
+main photon orbit integrator
 
 */
 
@@ -242,6 +243,12 @@ void init_dKdlam(double X[], double Kcon[], double dK[])
 	}
 }
 
+/* 
+
+calculate connection from line element by finite differencing
+
+*/
+
 #define DEL (1.e-7)
 void get_connection(double X[NDIM], double conn[NDIM][NDIM][NDIM])
 {
@@ -255,6 +262,7 @@ void get_connection(double X[NDIM], double conn[NDIM][NDIM][NDIM])
   gcov_func(X, gcov);
   gcon_func(gcov, gcon);
 
+  // take partial derivatives of metric
   for (int k = 0; k < NDIM; k++) {
     for (int l = 0; l < NDIM; l++)   Xh[l] = X[l];
     for (int l = 0; l < NDIM; l++)   Xl[l] = X[l];

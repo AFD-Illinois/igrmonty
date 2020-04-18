@@ -1,7 +1,22 @@
 
-repaired, functioning version of grmonty.
+igrmonty: A monte carlo code for relativistic radiative transport, 
+including synchrotron emission and absorption, bremsstrahlung
+emission (absorption is negligible), and compton scattering.
 
-agrees with bothros.
+This version includes thermal electrons only.
 
-cfg 6 july 2015
+Please cite this journal article:
+Dolence, J.C., Gammie, C.F., Moscibrodzka, M., and Leung, P.K.: 2009, ApJS 184, 387.
+https://ui.adsabs.harvard.edu/abs/2009ApJS..184..387D/abstract
+
+And this repository:
+https://github.com/AFD-Illinois/igrmonty
+
+Usage: 
+
+
+prepped for public release
+cfg 18 Apr 2020
+
+- 
 
