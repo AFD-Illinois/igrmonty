@@ -1,52 +1,48 @@
-#
-# makes a simple nuLnu plot from text file version
-# of spectrum.  
-#
-# to get text file from hdf5, run translate-txt.py
-#
+"""
+  
+  plot.py
+
+  Plots grmonty ".dat" spectrum files passed as arguments to script.
+  See parameters below initial imports for
+    (int) THBIN : which bin in elevation to plot. usually in {0,1,2,3,4,5}
+    (dbl) nuMin : minimum frequency (cgs) to show 
+    (dbl) nuMax : maximum frequency (cgs) to show
+    (dbl) nuLnuMinThres : minimum value for nuLnu (cgs) to show when multiplied by max data value
+    (dbl) nuLnuMaxThres : maximum value for nuLnu (cgs) to show when multiplied by max data value
+
+$ python plot.py path/to/grmonty/data/*.dat  
+
+"""
+
+import sys
 import numpy as np
 import matplotlib.pyplot as plt
-import sys
 
+THBIN = -1 # nb: -1 == "last bin"; THBIN = 1 bin ~ 15 -> 30 degrees.
+nuMin = 1.e7
+nuMax = 1.e25
+nuLnuMaxThres = 1.e1
+nuLnuMinThres = 1.e-5
 
-ME   = 9.1093897e-28
-CL   = 2.99792458e10
-HPL  = 6.6260755e-27
-LSUN = 3.827e33
+if __name__ == "__main__":
 
-fnam = 'spectrum.dat'
-if len(sys.argv) == 2:
-  fnam = sys.argv[1]
+  fnames = [ x for x in sys.argv[1:] if x[-4:] == ".dat" ]
 
-data = np.loadtxt(fnam)
-#nu = 10.**(data[:,0])*ME*CL**2/HPL
-nu = data[:,0]
+  for fname in fnames:
 
-NVAR = 1
-nbin = (len(data[0])-1)//NVAR
-print(nbin)
+    print("plotting {0:s}".format(fname))
 
-nuLnu = np.zeros([nbin, len(nu)])
-for n in range(nbin):
-  nuLnu[n,:] = data[:,NVAR*n+1]
+    dat = np.loadtxt(fname,skiprows=1).T
+    lnu = dat[0]
+    nuLnu = dat[1:]
+    nuLnu = nuLnu[THBIN]
 
-ax = plt.subplot(1,1,1)
-
-#for n in range(nbin):
-#  ax.step(nu, nuLnu[n], where='mid')
-#nuLnu_max = nuLnu.max()
-
-mybin = 4
-ax.step(nu, nuLnu[mybin], where='mid')
-nuLnu_max = nuLnu[mybin].max()
-
-
-#ax.step(nu, nuLnu.mean(axis=0), where='mid', color='k')
-#ax.step(nu, nuLnu[-1], where='mid', color='k', linewidth=2)
-ax.set_xscale('log'); ax.set_yscale('log')
-#ax.axvline(1000.*ME*CL**2/HPL, color='k', linestyle='--')
-#ax.set_ylim([1.e28, 1.e37])
-ax.set_ylim([1.e-10*nuLnu_max, 1.e1*nuLnu_max])
-ax.set_xlim([1.e10, 1.e22])
-plt.show()
-
+    plt.close('all')
+    plt.step(lnu,nuLnu)
+    plt.xlim(nuMin,nuMax)
+    plt.ylim(nuLnu.max()/1.e5,nuLnu.max()*1.e1)
+    plt.xscale('log')
+    plt.yscale('log')
+    plt.xlabel('nu [cgs]')
+    plt.ylabel('nuLnu [cgs]')
+    plt.savefig(fname.replace(".dat",".png"))
