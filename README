@@ -5,17 +5,16 @@ emission (absorption is negligible), and compton scattering.
 
 This version includes thermal electrons only.
 
-Please cite this journal article:
+For publications, please cite this journal article:
 Dolence, J.C., Gammie, C.F., Moscibrodzka, M., and Leung, P.K.: 2009, ApJS 184, 387.
 https://ui.adsabs.harvard.edu/abs/2009ApJS..184..387D/abstract
+And this repository:
+https://github.com/AFD-Illinois/igrmonty
 
-with substantial contributions from 
+Substantial contributions made by
 Ben Ryan
 George Wong
 Ricardo Castro-Yarza
-
-And this repository:
-https://github.com/AFD-Illinois/igrmonty
 
 usage: 
   HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te
