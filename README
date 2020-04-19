@@ -17,8 +17,9 @@ Ricardo Castro-Yarza
 And this repository:
 https://github.com/AFD-Illinois/igrmonty
 
-Usage: 
-
+usage: 
+  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te
+  bhlight: grmonty Ns fname
 
 prepped for public release
 cfg 18 Apr 2020
