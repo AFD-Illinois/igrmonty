@@ -15,6 +15,8 @@ double **A;
 
 double TP_OVER_TE;
 
+int  NPRIM = 8;
+
 #define TAUS  (1.e-4)
 //#define KBTE  (250)
 //#define KBTBB (0.0025)
@@ -28,6 +30,8 @@ double TP_OVER_TE;
 #define TBB (KBTBB*KEV/KBOL)
 #define TE (KBTE*KEV/KBOL)
 //#define RSPHERE (1.)
+
+struct of_spectrum shared_spect[N_THBINS][N_EBINS] = { };
 
 void report_bad_input(int argc) 
 {
@@ -177,21 +181,19 @@ void record_super_photon(struct of_photon *ph)
   N_scatt += ph->nscatt;
 
   // Add superphoton to spectrum
-  spect[ix2][iE].dNdlE += ph->w;
-  spect[ix2][iE].dEdlE += ph->w * ph->E;
-  spect[ix2][iE].tau_abs += ph->w * ph->tau_abs;
-  spect[ix2][iE].tau_scatt += ph->w * ph->tau_scatt;
-  spect[ix2][iE].X1iav += ph->w * ph->X1i;
-  spect[ix2][iE].X2isq += ph->w * (ph->X2i * ph->X2i);
-  spect[ix2][iE].X3fsq += ph->w * (ph->X[3] * ph->X[3]);
-  spect[ix2][iE].ne0 += ph->w * (ph->ne0);
-  spect[ix2][iE].b0 += ph->w * (ph->b0);
-  spect[ix2][iE].thetae0 += ph->w * (ph->thetae0);
-  spect[ix2][iE].nscatt += ph->w * ph->nscatt;
-  spect[ix2][iE].nph += 1.;
+  spect[0][ix2][iE].dNdlE += ph->w;
+  spect[0][ix2][iE].dEdlE += ph->w * ph->E;
+  spect[0][ix2][iE].tau_abs += ph->w * ph->tau_abs;
+  spect[0][ix2][iE].tau_scatt += ph->w * ph->tau_scatt;
+  spect[0][ix2][iE].X1iav += ph->w * ph->X1i;
+  spect[0][ix2][iE].X2isq += ph->w * (ph->X2i * ph->X2i);
+  spect[0][ix2][iE].X3fsq += ph->w * (ph->X[3] * ph->X[3]);
+  spect[0][ix2][iE].ne0 += ph->w * (ph->ne0);
+  spect[0][ix2][iE].b0 += ph->w * (ph->b0);
+  spect[0][ix2][iE].thetae0 += ph->w * (ph->thetae0);
+  spect[0][ix2][iE].nscatt += ph->w * ph->nscatt;
+  spect[0][ix2][iE].nph += 1.;
 }
-
-struct of_spectrum shared_spect[N_THBINS][N_EBINS] = { };
 
 void omp_reduce_spect()
 {
@@ -202,26 +204,26 @@ void omp_reduce_spect()
       for (int i = 0; i < N_THBINS; i++) {
         for (int j = 0; j < N_EBINS; j++) {
           shared_spect[i][j].dNdlE +=
-              spect[i][j].dNdlE;
+              spect[0][i][j].dNdlE;
           shared_spect[i][j].dEdlE +=
-              spect[i][j].dEdlE;
+              spect[0][i][j].dEdlE;
           shared_spect[i][j].tau_abs +=
-              spect[i][j].tau_abs;
+              spect[0][i][j].tau_abs;
           shared_spect[i][j].tau_scatt +=
-              spect[i][j].tau_scatt;
+              spect[0][i][j].tau_scatt;
           shared_spect[i][j].X1iav +=
-              spect[i][j].X1iav;
+              spect[0][i][j].X1iav;
           shared_spect[i][j].X2isq +=
-              spect[i][j].X2isq;
+              spect[0][i][j].X2isq;
           shared_spect[i][j].X3fsq +=
-              spect[i][j].X3fsq;
-          shared_spect[i][j].ne0 += spect[i][j].ne0;
-          shared_spect[i][j].b0 += spect[i][j].b0;
+              spect[0][i][j].X3fsq;
+          shared_spect[i][j].ne0 += spect[0][i][j].ne0;
+          shared_spect[i][j].b0 += spect[0][i][j].b0;
           shared_spect[i][j].thetae0 +=
-              spect[i][j].thetae0;
+              spect[0][i][j].thetae0;
           shared_spect[i][j].nscatt +=
-              spect[i][j].nscatt;
-          shared_spect[i][j].nph += spect[i][j].nph;
+              spect[0][i][j].nscatt;
+          shared_spect[i][j].nph += spect[0][i][j].nph;
         }
       }
     } // omp critical
@@ -232,27 +234,27 @@ void omp_reduce_spect()
     {
       for (int i = 0; i < N_THBINS; i++) {
         for (int j = 0; j < N_EBINS; j++) {
-          spect[i][j].dNdlE =
+          spect[0][i][j].dNdlE =
               shared_spect[i][j].dNdlE;
-          spect[i][j].dEdlE =
+          spect[0][i][j].dEdlE =
               shared_spect[i][j].dEdlE;
-          spect[i][j].tau_abs =
+          spect[0][i][j].tau_abs =
               shared_spect[i][j].tau_abs;
-          spect[i][j].tau_scatt =
+          spect[0][i][j].tau_scatt =
               shared_spect[i][j].tau_scatt;
-          spect[i][j].X1iav =
+          spect[0][i][j].X1iav =
               shared_spect[i][j].X1iav;
-          spect[i][j].X2isq =
+          spect[0][i][j].X2isq =
               shared_spect[i][j].X2isq;
-          spect[i][j].X3fsq =
+          spect[0][i][j].X3fsq =
               shared_spect[i][j].X3fsq;
-          spect[i][j].ne0 = shared_spect[i][j].ne0;
-          spect[i][j].b0 = shared_spect[i][j].b0;
-          spect[i][j].thetae0 =
+          spect[0][i][j].ne0 = shared_spect[i][j].ne0;
+          spect[0][i][j].b0 = shared_spect[i][j].b0;
+          spect[0][i][j].thetae0 =
               shared_spect[i][j].thetae0;
-          spect[i][j].nscatt =
+          spect[0][i][j].nscatt =
               shared_spect[i][j].nscatt;
-          spect[i][j].nph = shared_spect[i][j].nph;
+          spect[0][i][j].nph = shared_spect[i][j].nph;
         }
       }
     } // omp master
@@ -435,7 +437,6 @@ void init_data(int argc, char *argv[], Params *params)
 {
   double dV, V;
 
-  NPRIM = 8;
   N1 = 128;
   N2 = 128;
   N3 = 1;
@@ -608,21 +609,21 @@ void report_spectrum(int N_superph_made, Params *params)
       dOmega = 2. * dOmega_func(j);
 
       nuLnu = (ME * CL * CL) * (4. * M_PI / dOmega) * (1. / dlE);
-      nuLnu *= spect[j][i].dEdlE/LSUN;
+      nuLnu *= spect[0][j][i].dEdlE/LSUN;
 
-      tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
+      tau_scatt = spect[0][j][i].tau_scatt/(spect[0][j][i].dNdlE + SMALL);
 
       nuLnu_buf[i][j] = nuLnu;
-      tau_abs_buf[i][j] = spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL);
+      tau_abs_buf[i][j] = spect[0][j][i].tau_abs/(spect[0][j][i].dNdlE + SMALL);
       tau_scatt_buf[i][j] = tau_scatt;
-      x1av_buf[i][j] = spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL);
-      x2av_buf[i][j] = sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL)));
-      x3av_buf[i][j] = sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL)));
-      nscatt_buf[i][j] = spect[j][i].nscatt / (spect[j][i].dNdlE + SMALL);
+      x1av_buf[i][j] = spect[0][j][i].X1iav/(spect[0][j][i].dNdlE + SMALL);
+      x2av_buf[i][j] = sqrt(fabs(spect[0][j][i].X2isq/(spect[0][j][i].dNdlE + SMALL)));
+      x3av_buf[i][j] = sqrt(fabs(spect[0][j][i].X3fsq/(spect[0][j][i].dNdlE + SMALL)));
+      nscatt_buf[i][j] = spect[0][j][i].nscatt / (spect[0][j][i].dNdlE + SMALL);
 
       if (tau_scatt > max_tau_scatt) max_tau_scatt = tau_scatt;
 
-      dL += ME * CL * CL * spect[j][i].dEdlE;
+      dL += ME * CL * CL * spect[0][j][i].dEdlE;
       L += nuLnu * dOmega * dlE / (4. * M_PI);
 
       nu0 = ME * CL * CL * exp((i-0.5) * dlE + lE0) / HPL;
@@ -736,21 +737,21 @@ void report_spectrum(int N_superph_made, Params *params)
 
       nuLnu = (ME*CL*CL)*(4.*M_PI/dOmega)*(1./dlE);
 
-      nuLnu *= spect[j][i].dEdlE;///LSUN;
-      dL += ME*CL*CL*spect[j][i].dEdlE;
+      nuLnu *= spect[0][j][i].dEdlE;///LSUN;
+      dL += ME*CL*CL*spect[0][j][i].dEdlE;
 
-      tau_scatt = spect[j][i].tau_scatt/(spect[j][i].dNdlE + SMALL);
+      tau_scatt = spect[0][j][i].tau_scatt/(spect[0][j][i].dNdlE + SMALL);
 
       fprintf(fp, "%10.5g ", nuLnu);
 
       /*fprintf(fp, "%10.5g %10.5g %10.5g %10.5g %10.5g %10.5g %10.5g ",
         nuLnu,
         dOmega,
-        spect[j][i].tau_abs/(spect[j][i].dNdlE + SMALL),
+        spect[0][j][i].tau_abs/(spect[0][j][i].dNdlE + SMALL),
         tau_scatt,
-        spect[j][i].X1iav/(spect[j][i].dNdlE + SMALL),
-        sqrt(fabs(spect[j][i].X2isq/(spect[j][i].dNdlE + SMALL))),
-        sqrt(fabs(spect[j][i].X3fsq/(spect[j][i].dNdlE + SMALL))));*/
+        spect[0][j][i].X1iav/(spect[0][j][i].dNdlE + SMALL),
+        sqrt(fabs(spect[0][j][i].X2isq/(spect[0][j][i].dNdlE + SMALL))),
+        sqrt(fabs(spect[0][j][i].X3fsq/(spect[0][j][i].dNdlE + SMALL))));*/
 
 
       nu0 = ME * CL * CL * exp((i - 0.5) * dlE + lE0) / HPL ;
@@ -763,7 +764,7 @@ void report_spectrum(int N_superph_made, Params *params)
       }
 
       // Average # scatterings
-      //fprintf(fp,"%10.5g ",spect[j][i].nscatt/(spect[j][i].dNdlE + SMALL));
+      //fprintf(fp,"%10.5g ",spect[0][j][i].nscatt/(spect[0][j][i].dNdlE + SMALL));
 
       if (tau_scatt > max_tau_scatt)
         max_tau_scatt = tau_scatt;

@@ -146,7 +146,7 @@ extern double Ne_unit;
 extern double Thetae_unit;
 extern double TP_OVER_TE;
 
-extern double max_tau_scatt, Ladv, dMact, bias_norm;
+extern double max_tau_scatt, Ladv, dMact, bias_norm, biasTuning;
 
 // Macros
 #define NULL_CHECK(val,msg,fail) if (val == NULL) { fprintf(stderr, "%s\n", msg); exit(fail); }

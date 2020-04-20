@@ -35,5 +35,3 @@
 #include "hdf5_utils.h"
 #include "h5io.h"
 
-extern double biasTuning;
-

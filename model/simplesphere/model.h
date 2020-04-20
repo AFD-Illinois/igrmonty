@@ -22,7 +22,6 @@
 #define B1       5
 #define B2       6
 #define B3       7
-#define NPRIM    8
 
 #define SMALL (1.e-40)
 #define MMW   (0.5)
@@ -31,6 +30,6 @@
 #define N_EBINS 200
 #define N_THBINS 3
 
-#define HDF5_OUTPUT (0)
+#define HDF5_OUTPUT (1)
 #include "h5io.h"
 

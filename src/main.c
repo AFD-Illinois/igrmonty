@@ -67,6 +67,9 @@ double M_unit, L_unit, T_unit;
 double RHO_unit, U_unit, B_unit, Ne_unit, Thetae_unit;
 double max_tau_scatt, Ladv, dMact, bias_norm;
 
+// Define default, should be set by problem
+double biasTuning = 1.;
+
 int main(int argc, char *argv[])
 {
   // motd

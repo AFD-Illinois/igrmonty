@@ -1,7 +1,6 @@
 
 #include "decs.h"
 
-void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM]);
 
@@ -402,7 +401,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->ne0 = Ne;
   ph->b0 = Bmag;
   ph->thetae0 = Thetae;
-  ph->ratio_brems = jnu_ratio_brems(nu, Ne, Thetae, Bmag, th);
+  ph->ratio_brems = jnu_ratio_brems(nu, Ne, Thetae, Bmag, th); // TODO uninitialized in transparent models
 #ifdef TRACK_PH_CREATION
   ph->isrecorded = 0;
 #endif // TRACK_PH_CREATION
