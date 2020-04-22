@@ -451,16 +451,16 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
   double dxdX[NDIM][NDIM];
   set_dxdX(X, dxdX);
 
-  double gcov_ks[NDIM][NDIM];
+  double gcov_ks_tmp[NDIM][NDIM];
   MUNULOOP {
-    gcov_ks[mu][nu] = gcov[mu][nu];
+    gcov_ks_tmp[mu][nu] = gcov[mu][nu];
     gcov[mu][nu] = 0.;
   }
 
   MUNULOOP {
     for (int lam = 0; lam < NDIM; lam++) {
       for (int kap = 0; kap < NDIM; kap++) {
-        gcov[mu][nu] += gcov_ks[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+        gcov[mu][nu] += gcov_ks_tmp[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
       }
     }
   }
