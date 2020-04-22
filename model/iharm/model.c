@@ -5,7 +5,7 @@
 #define USE_FIXED_TPTE (0)
 #define USE_MIXED_TPTE (1)
 
-// electron model. these values will be overwritten by anything found in par.c 
+// electron model. these values will be overwritten by anything found in par.c
 // or in the runtime parameter file.
 // with_electrons ->
 //     0 : constant TP_OVER_TE
@@ -33,10 +33,10 @@ double TP_OVER_TE;
 static double MBH, game, gamp;
 
 static hdf5_blob fluid_header = { 0 };
-  
+
 static int with_radiation;
 
-void report_bad_input(int argc) 
+void report_bad_input(int argc)
 {
   if (argc < 6) {
     fprintf(stderr, "usage: \n");
@@ -95,7 +95,7 @@ double stepsize(double X[NDIM], double K[NDIM])
   dlx2 = EPS * GSL_MIN(X[2], stopx[2] - X[2]) / (fabs(K[2]) + SMALL);
   dlx3 = EPS / (fabs(K[3]) + SMALL);
    */
- 
+
   #define MIN(A,B) (A<B?A:B)
 
   dlx1 = EPS / (fabs(K[1]) + SMALL);
@@ -158,7 +158,7 @@ void record_super_photon(struct of_photon *ph)
   N_superph_recorded++;
 
   double ratio_synch = 1. - ph->ratio_brems;
-  
+
   // Add superphoton to synch spectrum
   spect[ic][ix2][iE].dNdlE += ph->w * ratio_synch;
   spect[ic][ix2][iE].dEdlE += ph->w * ph->E * ratio_synch;
@@ -212,15 +212,15 @@ void omp_reduce_spect()
                 spect[k][i][j].X2isq;
             shared_spect[k][i][j].X3fsq +=
                 spect[k][i][j].X3fsq;
-            shared_spect[k][i][j].ne0 += 
+            shared_spect[k][i][j].ne0 +=
                 spect[k][i][j].ne0;
-            shared_spect[k][i][j].b0 += 
+            shared_spect[k][i][j].b0 +=
                 spect[k][i][j].b0;
             shared_spect[k][i][j].thetae0 +=
                 spect[k][i][j].thetae0;
             shared_spect[k][i][j].nscatt +=
                 spect[k][i][j].nscatt;
-            shared_spect[k][i][j].nph += 
+            shared_spect[k][i][j].nph +=
                 spect[k][i][j].nph;
           }
         }
@@ -248,15 +248,15 @@ void omp_reduce_spect()
                 shared_spect[k][i][j].X2isq;
             spect[k][i][j].X3fsq =
                 shared_spect[k][i][j].X3fsq;
-            spect[k][i][j].ne0 = 
+            spect[k][i][j].ne0 =
                 shared_spect[k][i][j].ne0;
-            spect[k][i][j].b0 = 
+            spect[k][i][j].b0 =
                 shared_spect[k][i][j].b0;
             spect[k][i][j].thetae0 =
                 shared_spect[k][i][j].thetae0;
             spect[k][i][j].nscatt =
                 shared_spect[k][i][j].nscatt;
-            spect[k][i][j].nph = 
+            spect[k][i][j].nph =
                 shared_spect[k][i][j].nph;
           }
         }
@@ -304,7 +304,7 @@ double thetae_func(double uu, double rho, double B, double kel)
 
   if (with_electrons == 0) {
     // fixed tp/te ratio
-    thetae = uu / rho * Thetae_unit; 
+    thetae = uu / rho * Thetae_unit;
   } else if (with_electrons == 1) {
     // howes/kawazura model from IHARM electron thermodynamics
     thetae = kel * pow(rho, game-1.) * Thetae_unit;
@@ -458,11 +458,11 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
   }
 
   MUNULOOP {
-		for (int lam = 0; lam < NDIM; lam++) {
-			for (int kap = 0; kap < NDIM; kap++) {
-				gcov[mu][nu] += gcov_ks[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
-			}
-		}
+    for (int lam = 0; lam < NDIM; lam++) {
+      for (int kap = 0; kap < NDIM; kap++) {
+        gcov[mu][nu] += gcov_ks[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+      }
+    }
   }
 }
 
@@ -516,9 +516,9 @@ void init_data(int argc, char *argv[], Params *params)
   with_electrons = 0;
   with_radiation = 0;
   with_derefine_poles = 0;
-  if ( hdf5_exists("has_electrons") ) 
+  if ( hdf5_exists("has_electrons") )
     hdf5_read_single_val(&with_electrons, "has_electrons", H5T_STD_I32LE);
-  if ( hdf5_exists("has_radiation") ) 
+  if ( hdf5_exists("has_radiation") )
     hdf5_read_single_val(&with_radiation, "has_radiation", H5T_STD_I32LE);
 
   // read geometry
@@ -563,7 +563,7 @@ void init_data(int argc, char *argv[], Params *params)
     Thetae_unit = MP/ME * (gam-1.) / (1. + tp_over_te);
     Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
   } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE) {
-    Thetae_unit = 2./3. * MP/ME / 5.; 
+    Thetae_unit = 2./3. * MP/ME / 5.;
     with_electrons = 2;
     fprintf(stderr, "using mixed tp_over_te with trat_small = %g and trat_large = %g\n", trat_small, trat_large);
   } else {
@@ -583,7 +583,7 @@ void init_data(int argc, char *argv[], Params *params)
     hdf5_read_single_val(&MBH, "Mbh", H5T_IEEE_F64LE);
     hdf5_read_single_val(&TP_OVER_TE, "tp_over_te", H5T_IEEE_F64LE);
   } else {
-    if (! params->loaded) { 
+    if (! params->loaded) {
       report_bad_input(argc);
       sscanf(argv[3], "%lf", &M_unit);
       sscanf(argv[4], "%lf", &MBH);
@@ -616,7 +616,7 @@ void init_data(int argc, char *argv[], Params *params)
     hdf5_read_single_val(&mks3MY1, "MY1", H5T_IEEE_F64LE);
     hdf5_read_single_val(&mks3MY2, "MY2", H5T_IEEE_F64LE);
     hdf5_read_single_val(&mks3MP0, "MP0", H5T_IEEE_F64LE);
-    Rout = 100.; 
+    Rout = 100.;
   } else {
     hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
     hdf5_read_single_val(&hslope, "hslope", H5T_IEEE_F64LE);
@@ -647,7 +647,7 @@ void init_data(int argc, char *argv[], Params *params)
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
   Ne_unit = RHO_unit/(MP + ME);
-  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ... 
+  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value
 
   // Horizon and "max R for geodesic tracking" in KS coordinates
@@ -667,7 +667,7 @@ void init_data(int argc, char *argv[], Params *params)
   tetrads = (struct of_tetrads***)malloc_rank3(N1, N2, N3, sizeof(struct of_tetrads));
   init_geometry();
 
-  // Read prims. 
+  // Read prims.
   // Assume standard ordering in iharm dump file, especially for
   // electron variables...
   hdf5_set_directory("/");
@@ -755,7 +755,7 @@ void report_spectrum(int N_superph_made, Params *params)
 
   h5io_add_blob(fid, "/fluid_header", fluid_header);
   hdf5_close_blob(fluid_header);
-   
+
   h5io_add_group(fid, "/params");
 
   #if CUSTOM_AVG==1
@@ -931,4 +931,3 @@ void report_spectrum(int N_superph_made, Params *params)
   H5Fclose(fid);
 
 }
-
