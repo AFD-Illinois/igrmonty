@@ -436,28 +436,21 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
 {
-  MUNULOOP gcov[mu][nu] = 0.;
-
-  double r, th;
-
   // despite the name, get equivalent values for
   // r, th for KS coordinates
+  double r, th;
   bl_coord(X, &r, &th);
 
   // compute ks metric
-  gcov_ks(r, th, gcov);
+  double gcov_ks_tmp[NDIM][NDIM];
+  gcov_ks(r, th, gcov_ks_tmp);
 
   // Apply coordinate transformation to code coordinates X
   double dxdX[NDIM][NDIM];
   set_dxdX(X, dxdX);
 
-  double gcov_ks_tmp[NDIM][NDIM];
   MUNULOOP {
-    gcov_ks_tmp[mu][nu] = gcov[mu][nu];
     gcov[mu][nu] = 0.;
-  }
-
-  MUNULOOP {
     for (int lam = 0; lam < NDIM; lam++) {
       for (int kap = 0; kap < NDIM; kap++) {
         gcov[mu][nu] += gcov_ks_tmp[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
