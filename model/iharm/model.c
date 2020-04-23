@@ -442,8 +442,8 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
   bl_coord(X, &r, &th);
 
   // compute ks metric
-  double gcov_ks_tmp[NDIM][NDIM];
-  gcov_ks(r, th, gcov_ks_tmp);
+  double gcovKS[NDIM][NDIM];
+  gcov_ks(r, th, gcovKS);
 
   // Apply coordinate transformation to code coordinates X
   double dxdX[NDIM][NDIM];
@@ -453,7 +453,7 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
     gcov[mu][nu] = 0.;
     for (int lam = 0; lam < NDIM; lam++) {
       for (int kap = 0; kap < NDIM; kap++) {
-        gcov[mu][nu] += gcov_ks_tmp[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+        gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
       }
     }
   }
