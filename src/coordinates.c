@@ -72,12 +72,11 @@ double gdet_zone(int i, int j, int k)
   double gcovKS[NDIM][NDIM], gcov[NDIM][NDIM];
   double r, th;
   double dxdX[NDIM][NDIM];
-  MUNULOOP gcovKS[mu][nu] = 0.;
-  MUNULOOP gcov[mu][nu] = 0.;
   bl_coord(X, &r, &th);
   gcov_ks(r, th, gcovKS);
   set_dxdX_metric(Xzone, dxdX, 1);
   MUNULOOP {
+    gcov[mu][nu] = 0.;
     for (int lam=0; lam<NDIM; ++lam) {
       for (int kap=0; kap<NDIM; ++kap) {
         gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
