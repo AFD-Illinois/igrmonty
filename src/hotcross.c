@@ -2,12 +2,12 @@
 
 #include "decs.h"
 
-/* 
+/*
 
    given energy of photon in fluid rest frame w, in units of electron rest mass
    energy, and temperature of plasma, again in electron rest-mass units, return hot
    cross section in cgs.
-   
+
    This has been checked against Wienke's Table 1, with some disagreement at
    the one part in 10^{-3} level, see wienke_table_1 in the subdirectory hotcross.
    It is not clear what this is due to, but Table 1 does appear to have been evaluated
@@ -15,7 +15,7 @@
 
    A better way to do this would be to make a table in w*thetae and w/thetae; most
    of the variation is accounted for by w*thetae.
-   
+
 */
 
 #define MINW  1.e-12
@@ -39,7 +39,7 @@ void init_hotcross(void)
   #if !COMPTON
   return;
   #endif
-  
+
   int i, j, idum, jdum, nread;
   double lw, lT;
   double total_compton_cross_num(double w, double thetae, double norm);
@@ -55,8 +55,8 @@ void init_hotcross(void)
     //fprintf(stderr, "file %s not found.\n", HOTCROSS);
     fprintf(stderr, "making lookup table for compton cross section... ");
 #pragma omp parallel for private(i,j,lw,lT)
-   
-   /* 
+
+   /*
     for (i = 0; i <= NW; i++) {
       for (j = 0; j <= NT; j++) {
         lw = lminw + i * dlw;
@@ -80,7 +80,7 @@ void init_hotcross(void)
       lT = lmint + j * dlT;
       double norm = getnorm_dNdg(pow(10., lT));
       for (i = 0; i <= NW; i++) {
-     
+
     //    if (i == 0) {
     //    printf("%g ,", norm);
     //      //printf("T = %e norm = %e\n", pow(10., lT), norm);
@@ -89,8 +89,8 @@ void init_hotcross(void)
     //  double normhigh = (KAPPA-2.)*(KAPPA-1.)/(2.*KAPPA*KAPPA*pow(Thetae,3.));
     //  //printf("normlow = %e normhigh = %e\n", normlow, normhigh);
     //    }
-        
-      
+
+
       lw = lminw + i * dlw;
 
         table[i][j] =
@@ -102,8 +102,8 @@ void init_hotcross(void)
         }
       }
     }
-    
-    
+
+
     fprintf(stderr, "done.\n");
     fprintf(stderr, "writing to file... ");
     fp = fopen(HOTCROSS, "w");
@@ -124,7 +124,7 @@ void init_hotcross(void)
       HOTCROSS);
     for (i = 0; i <= NW; i++)
       for (j = 0; j <= NT; j++) {
-        nread = fscanf(fp, "%d %d %lf %lf %lf\n", 
+        nread = fscanf(fp, "%d %d %lf %lf %lf\n",
           &idum, &jdum, &lw, &lT, &table[i][j]);
         if (isnan(table[i][j]) || nread != 5) {
           fprintf(stderr,
@@ -271,6 +271,7 @@ double getnorm_dNdg(double thetae)
   return 1./result;
   #else
   return 1.;
+  (void)thetae; /* silence unused parameter warning */
   #endif
 }
 

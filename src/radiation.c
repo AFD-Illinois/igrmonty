@@ -1,6 +1,6 @@
 
 
-/* 
+/*
 
 model-independent radiation-related utilities.
 
@@ -55,7 +55,7 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   printf("ERROR absorptivities not set up for bremss and kappa!\n");
   exit(-1);
   #endif
-  
+
   #if DIST_KAPPA
   // Pandya+ 2016 absorptivity
   double Aslo, Ashi, As;
@@ -69,7 +69,7 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   Aslo  = pow(Xk,-2./3.)*pow(3.,1./6.)*10./41.;
   Aslo *= 2.*M_PI/(pow(w*kap,10./3.-kap));
   Aslo *= (kap - 2.)*(kap - 1.)*kap/(3.*kap - 1.);
-  Aslo *= gsl_sf_gamma(5./3.); 
+  Aslo *= gsl_sf_gamma(5./3.);
   // Evaluate 2F1(a,b;c,z), using analytic continuation if |z| > 1
   double a = kap - 1./3.;
   double b = kap + 1.;
@@ -117,7 +117,7 @@ double kappa_es(double nu, double Thetae)
 {
 	double Eg;
 
-	/* assume pure hydrogen gas to 
+	/* assume pure hydrogen gas to
 	   convert cross section to opacity */
 	Eg = HPL * nu / (ME * CL * CL);
 	return (total_compton_cross_lkup(Eg, Thetae) / MP);
@@ -151,7 +151,6 @@ double get_fluid_nu(double X[4], double K[4], double Ucov[NDIM])
 double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
 		    double Bcov[NDIM], double B)
 {
-
 	double k, mu;
 
 	if (B == 0.)
@@ -168,4 +167,6 @@ double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
 		mu /= fabs(mu);
 
 	return (acos(mu));
+
+	(void)X; /* silence unused parameter warning */
 }

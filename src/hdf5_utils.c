@@ -391,4 +391,6 @@ int hdf5_read_array(void *data, const char *name, size_t rank,
   H5Sclose(memspace);
 
   return 0;
+
+  (void)rank; /* silence unused parameter warning */
 }

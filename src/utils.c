@@ -51,7 +51,7 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
   if (n2gen < 0) {
     *quit_flag = 1;
   }
-  
+
   sample_origin_photon(ph);
   #else
 
@@ -77,7 +77,7 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
 void init_weight_table(void)
 {
   double sum[N_ESAMP+1], nu[N_ESAMP+1];
- 
+
   fprintf(stderr, "Building table for superphoton weights\n");
 
   #pragma omp parallel for
@@ -105,7 +105,7 @@ void init_weight_table(void)
   for (int i = 0; i <= N_ESAMP; i++)
     wgt[i] = log(sum[i]/(HPL*Ns) + WEIGHT_MIN);
 
-  #pragma omp parallel for collapse(3) 
+  #pragma omp parallel for collapse(3)
   ZLOOP {
     double Ne, Thetae, Bmag;
     double Ucon[NDIM], Bcon[NDIM];
@@ -178,7 +178,7 @@ static int zi = 0;
 static int zj = 0;
 static int zk = -1;
 
-void reset_zones() 
+void reset_zones()
 {
   zi = 0;
   zj = 0;
@@ -215,7 +215,7 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
   } else {
     in2gen = (int) n2gen;
   }
- 
+
   if (in2gen > 0) {
     init_zone(zi, zj, zk, &n2gen, dnmax);
   }
@@ -255,7 +255,7 @@ void sample_origin_photon(struct of_photon *ph)
   weight = get_Inu(nu)/get_Imax();
 
   ph->w = weight;
-  
+
   cth = 2.*monty_rand() - 1.;
   //th = acos(cth);
   sth = sqrt(1. - cth*cth);
@@ -281,7 +281,7 @@ void sample_origin_photon(struct of_photon *ph)
   double gcov[NDIM][NDIM];
   gcov_func(ph->X, gcov);
   make_tetrad(Ucon, ehat, gcov, Econ, Ecov);
- 
+
   tetrad_to_coordinate(Econ, K_tetrad, ph->K);
 
   K_tetrad[0] *= -1.;
@@ -310,12 +310,12 @@ double zone_linear_interp_weight(double nu) {
   i = (int)di;
   di = di - i;
 
-  // intel compiler has issues if zwgt[i] = -inf 
+  // intel compiler has issues if zwgt[i] = -inf
   // and returns exp( EXPRESSION ) = -nan, so we
   // manually check here.
   if ( isinf(zwgt[i]) || isinf(zwgt[i+1]) ) return 0.;
 
-  return exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] ); 
+  return exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] );
 
   double wgt = exp( (1. - di)*zwgt[i] + di*zwgt[i + 1] );
 
@@ -346,7 +346,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
     double lnu = monty_rand() * (lnumax - lnumin) + lnumin;
     nu = pow(10., lnu);
     double numin = pow(10., lnumin);
-    ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec); 
+    ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec);
   }
 
   // isotropic emission
@@ -406,6 +406,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->isrecorded = 0;
 #endif // TRACK_PH_CREATION
 
+  (void)dnmax; /* silence unused parameter warning */
 }
 
 void init_geometry()
@@ -455,7 +456,3 @@ void init_tetrads()
     }
   }
 }
-
-
-
-
