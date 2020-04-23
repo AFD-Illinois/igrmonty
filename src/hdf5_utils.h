@@ -1,6 +1,8 @@
 /*
  * hdf5_utils.h
  */
+#ifndef HDF5_UTILS_H
+#define HDF5_UTILS_H
 
 #pragma once
 
@@ -13,7 +15,10 @@
 #define USE_MPI 0
 
 // Blob "copy" utility
+#ifndef HDF5_BLOB
+#define HDF5_BLOB
 typedef hid_t hdf5_blob;
+#endif
 hdf5_blob hdf5_get_blob(const char *name);
 int hdf5_write_blob(hdf5_blob blob, const char *name);
 int hdf5_close_blob(hdf5_blob blob);
@@ -44,3 +49,4 @@ int hdf5_write_str_list(const void *data, const char *name, size_t strlen, size_
 int hdf5_add_attr(const void *att, const char *att_name, const char *data_name, hsize_t hdf5_type);
 int hdf5_add_units(const char *name, const char *unit);
 
+#endif // HDF5_UTILS_H
