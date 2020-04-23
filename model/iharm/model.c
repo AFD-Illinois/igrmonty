@@ -442,7 +442,7 @@ void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
   bl_coord(X, &r, &th);
 
   // compute ks metric
-  double gcov_ks_tmp[NDIM][NDIM];
+  double gcov_ks_tmp[NDIM][NDIM] = {0};
   gcov_ks(r, th, gcov_ks_tmp);
 
   // Apply coordinate transformation to code coordinates X
