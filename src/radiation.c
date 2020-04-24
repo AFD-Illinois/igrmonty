@@ -51,7 +51,7 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne)
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {
-  #if DIST_KAPPA && BREMSSTRAHLUNG
+  #if DIST_KAPPA && ( BREMSSTRAHLUNG != 0)
   printf("ERROR absorptivities not set up for bremss and kappa!\n");
   exit(-1);
   #endif

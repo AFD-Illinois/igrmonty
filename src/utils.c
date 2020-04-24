@@ -36,6 +36,12 @@ void init_model(int argc, char *argv[], Params *params)
 
   // Initialize random number generators
   init_monty_rand();
+
+  // If using van Hoof 2015, initialize the electron-ion Gaunt factor spline
+  #if  BREMSSTRAHLUNG == 3
+  init_bremss_spline();
+  #endif
+
 }
 
 int n2gen = -1;

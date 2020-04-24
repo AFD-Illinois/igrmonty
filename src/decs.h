@@ -15,6 +15,9 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_hyperg.h>
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
+#include <gsl/gsl_sf_expint.h>
 #include <omp.h>
 #include <time.h>
 #include "constants.h"
@@ -147,6 +150,17 @@ extern double Thetae_unit;
 extern double TP_OVER_TE;
 
 extern double max_tau_scatt, Ladv, dMact, bias_norm, biasTuning;
+
+/* bremss */
+#if BREMSSTRAHLUNG == 3
+double gffee(double Te, double nu);
+double gffei(double Te, double nu);
+
+void init_bremss_spline();
+extern gsl_spline2d *bremss_spline;
+extern gsl_interp_accel *bremss_xacc;
+extern gsl_interp_accel *bremss_yacc;
+#endif
 
 // Macros
 #define NULL_CHECK(val,msg,fail) if (val == NULL) { fprintf(stderr, "%s\n", msg); exit(fail); }
