@@ -18,11 +18,8 @@ void track_super_photon(struct of_photon *ph)
   int nstep = 0;
   
   // Avoid too much scattering
-  #pragma omp critical
-  {
-    if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)
-      bad_bias = 1;
-  }
+  if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)
+    bad_bias = 1;
   if (bad_bias)
     return;
 
