@@ -164,21 +164,25 @@ int main(int argc, char *argv[])
 
       // continue if good
       if (1 <= ratio && ratio < 3 /* a good ratio range */
-          && !global_quit_flag)   /* all other threads are good; UNNECESSARY */
+          && !global_quit_flag)   /* all other threads should be good for this
+                                     ratio range; it's probably fine to skip
+                                     this check */
         break;
 
       if (ratio < 0.1) {
+	/* CASE: ratio in [0, 0.1) */
         biasTuning *= sqrt(1./ratio);
         lastscale   = sqrt(1./ratio);
       } else if (ratio < 1.0) {
+	/* CASE: ratio in [0.1, 1) */
         biasTuning *= 1.5;
         lastscale   = 1.5;
       } else if (ratio < 3.0) {
 	/* CASE: ratio in [1, 3) */
         if (lastscale > 3.0) {
           /* If the ratio falls into this range because of a previous
-             tuning step, "redo" the scaling in the previous step with
-             a smaller scaling so ratio will become near 1 */
+             aggressive tuning step, "redo" the scaling in the previous step
+             with a smaller scaling so ratio will become near 1 */
           biasTuning /= 3.0;
           lastscale  /= 3.0;
         } else
