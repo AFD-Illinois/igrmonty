@@ -149,7 +149,7 @@ int main(int argc, char *argv[])
      
       // get effectiveness
       double ratio = 1. * N_scatt / N_superph_made;
-      fprintf(stderr, " ratio = %g\n", ratio);
+      fprintf(stderr, "ratio = %g\n", ratio);
 
       // reset state
       reset_zones();
@@ -192,8 +192,10 @@ int main(int argc, char *argv[])
           lastscale = 1.5;
         }
       }
+      
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, "biasTuning = %g lastscale = %g\n\n",
+            biasTuning, lastscale);
   }
 
   fprintf(stderr, "Entering main loop...\n");
