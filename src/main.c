@@ -159,6 +159,9 @@ int main(int argc, char *argv[])
       bad_bias = 0;
 
       // continue if good
+      if (1 <= ratio && ratio < 3 && !global_quit_flag)
+        break;
+
       if ( ratio >= 3 ) {
         if (lastscale <= 1.5) {
           break;
@@ -167,15 +170,11 @@ int main(int argc, char *argv[])
           lastscale /= 1.5;
         }
       } else if ( ratio >= 1 ) {
-        if (global_quit_flag) {
-          if (lastscale <= 3) {
-            break;
-          } else {
-            biasTuning /= 3.;
-            lastscale /= 3.;
-          }
-        } else {
+        if (lastscale <= 3) {
           break;
+        } else {
+          biasTuning /= 3.;
+          lastscale /= 3.;
         }
       } else {
         if (ratio < 1.e-10) {
