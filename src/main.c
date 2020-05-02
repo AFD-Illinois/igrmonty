@@ -163,19 +163,17 @@ int main(int argc, char *argv[])
         break;
 
       if ( ratio >= 3 ) {
-        if (lastscale <= 1.5) {
-          break;
-        } else {
+        if (lastscale > 1.5) {
           biasTuning /= 1.5;
-          lastscale /= 1.5;
-        }
-      } else if ( ratio >= 1 ) {
-        if (lastscale <= 3) {
+          lastscale  /= 1.5;
+        } else
           break;
-        } else {
-          biasTuning /= 3.;
-          lastscale /= 3.;
-        }
+      } else if ( ratio >= 1 ) {
+        if (lastscale > 3.0) {
+          biasTuning /= 3.0;
+          lastscale  /= 3.0;
+        } else
+          break;
       } else {
         if (ratio < 1.e-10) {
           biasTuning *= 10.;
