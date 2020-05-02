@@ -135,9 +135,13 @@ int main(int argc, char *argv[])
           #pragma omp atomic
           N_superph_made += 1;
 
-          if (((int) (N_superph_made)) % 1000 == 0 && N_superph_made > 0) {
-            if (((int) (N_superph_made)) % 100000 == 0) fprintf(stderr, ".");
+          if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
+            if ((int)N_superph_made % 100000 == 0)
+	      fprintf(stderr, ".");
             if (1. * N_scatt / N_superph_made > 10.) {
+              /* if effectiveness ratio (see below after the omp
+                 block) becomes too big, ends the bias tuning
+                 algorithm */
               #pragma omp critical
               {
                 global_quit_flag = 1;
