@@ -214,7 +214,7 @@ void make_tetrad(double Ucon[NDIM], double Bhatcon[NDIM],
 
 /* functions related to basic radiation functions & physics */
   /* physics-independent */
-double get_fluid_nu(double X[4], double K[4], double Ucov[NDIM]);
+double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM]);
 double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
         double Bcov[NDIM], double B);
 double alpha_inv_scatt(double nu, double thetae, double Ne);

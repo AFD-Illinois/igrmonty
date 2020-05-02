@@ -124,7 +124,7 @@ double kappa_es(double nu, double Thetae)
 }
 
 /* get frequency in fluid frame, in Hz */
-double get_fluid_nu(double X[4], double K[4], double Ucov[NDIM])
+double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM])
 {
 	double ener, nu;
 
