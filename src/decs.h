@@ -296,7 +296,6 @@ void sample_origin_photon(struct of_photon *ph);
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph);
 double interp_scalar(double X[NDIM], double ***var);
 int get_zone(int *i, int *j, int *k, double *dnamx);
-void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
 void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Ucon[NDIM], double Bcon[NDIM]);
