@@ -370,7 +370,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 
 }
 
-void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
+void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
@@ -378,7 +378,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double rho, kel, uu;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
-  double interp_scalar(double X[NDIM], double ***var);
+  double interp_scalar(const double X[NDIM], double ***var);
   double sig ;
 
   if ( X_in_domain(X) == 0 ) {
@@ -434,7 +434,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
-void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
+void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 {
   // despite the name, get equivalent values for
   // r, th for KS coordinates

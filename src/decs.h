@@ -256,7 +256,7 @@ void init_model(int argc, char *argv[], Params *params);
 void reset_zones();
 void make_super_photon(struct of_photon *ph, int *quit_flag);
 double bias_func(double Te, double w);
-void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
+void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM]);
@@ -265,15 +265,15 @@ int record_criterion(struct of_photon *ph);
 
 /* coordinate related */
 void get_connection(double *X, double lconn[][NDIM][NDIM]);
-void gcov_func(double *X, double gcov[][NDIM]);
+void gcov_func(const double *X, double gcov[][NDIM]);
 void gcon_func(double gcov[NDIM][NDIM], double gcon[][NDIM]);
 double gdet_zone(int i, int j, int k);
-void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
+void Xtoijk(const double X[NDIM], int *i, int *j, int *k, double del[NDIM]);
 void ijktoX(int i, int j, int k, double X[NDIM]);
-int X_in_domain(double X[NDIM]);
+int X_in_domain(const double X[NDIM]);
 
 void init_weight_table(void);
-void bl_coord(double *X, double *r, double *th);
+void bl_coord(const double *X, double *r, double *th);
 void make_zone_centered_tetrads(void);
 void set_units(char *munitstr);
 void init_geometry(void);
@@ -294,7 +294,7 @@ void *****malloc_rank5(int n1, int n2, int n3, int n4, int n5, int size);
 
 void sample_origin_photon(struct of_photon *ph);
 void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph);
-double interp_scalar(double X[NDIM], double ***var);
+double interp_scalar(const double X[NDIM], double ***var);
 int get_zone(int *i, int *j, int *k, double *dnamx);
 void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,

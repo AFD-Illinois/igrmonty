@@ -1,6 +1,6 @@
 #include "decs.h"
 
-double interp_scalar(double X[NDIM], double ***var)
+double interp_scalar(const double X[NDIM], double ***var)
 {
   double interp, del[NDIM], b1, b2;
   int i, j, k, ip1, jp1, kp1;
