@@ -162,25 +162,31 @@ int main(int argc, char *argv[])
       if (1 <= ratio && ratio < 3 && !global_quit_flag)
         break;
 
-      if (ratio < 1.e-10) {
+      if (ratio < 1.0e-10) {
+	/* ratio < 1.0e-10 */
         biasTuning *= 10.;
         lastscale   = 10.;
       } else if (ratio < 0.01) {
+	/* 1.0e-10 <= ratio < 0.01 */
         biasTuning *= sqrt(1./ratio);
         lastscale   = sqrt(1./ratio);
       } else if (ratio < 0.1) {
+	/* 0.01 <= ratio < 0.1 */
         biasTuning *= 3.0;
         lastscale   = 3.0;
       } else if (ratio < 1.0) {
+	/* 0.1 <= ratio < 1.0 */
         biasTuning *= 1.5;
         lastscale   = 1.5;
       } else if (ratio < 3.0) {
+	/* 1.0 <= ratio < 3.0 */
         if (lastscale > 3.0) {
           biasTuning /= 3.0;
           lastscale  /= 3.0;
         } else
           break;
       } else {
+	/* 3.0 <= ratio */
         if (lastscale > 1.5) {
           biasTuning /= 1.5;
           lastscale  /= 1.5;
