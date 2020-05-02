@@ -170,15 +170,23 @@ int main(int argc, char *argv[])
         biasTuning *= 1.5;
         lastscale   = 1.5;
       } else if (ratio < 3.0) {
+	/* CASE: ratio in [1, 3) */
         if (lastscale > 3.0) {
-          /* "Undo" the scaling in the previous step */
-	  biasTuning /= 3.0;
+          /* If the ratio falls into this range because of a previous
+             tuning step, "redo" the scaling in the previous step with
+             a smaller scaling so ratio will become near 1 */
+          biasTuning /= 3.0;
           lastscale  /= 3.0;
         } else
           break;
       } else {
+        /* CASE: ratio in [3, inf) */
         if (lastscale > 1.5) {
-          /* Easy the scaling in the previous step */
+          /* If the ratio falls into this range because of a previous
+             tuning step, soften the previous step so `biasTuning`
+             becomes slightly smaller; note that by repeating this
+             step, biasTuning may converge to a constant value larger
+             than 3 */
           biasTuning /= 1.5;
           lastscale  /= 1.5;
         } else
