@@ -43,7 +43,7 @@ double dnmax;
 int zone_i, zone_j, zone_k;
 void make_super_photon(struct of_photon *ph, int *quit_flag)
 {
-	#ifdef EMIT_ORIGIN
+#ifdef EMIT_ORIGIN
   if (n2gen < 0) {
     n2gen = Ns;
   }
@@ -53,25 +53,25 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
   }
 
   sample_origin_photon(ph);
-  #else
+#else
 
   #pragma omp critical
   {
-  if (zone_i != N1) {
-    while (n2gen <= 0) {
-      n2gen = get_zone(&zone_i, &zone_j, &zone_k, &dnmax);
+    if (zone_i != N1) {
+      while (n2gen <= 0) {
+        n2gen = get_zone(&zone_i, &zone_j, &zone_k, &dnmax);
+      }
+      n2gen--;
     }
-    n2gen--;
-  }
   }
 
-	if (zone_i == N1) {
-		*quit_flag = 1;
+  if (zone_i == N1) {
+    *quit_flag = 1;
   } else {
     sample_zone_photon(zone_i, zone_j, zone_k, dnmax, ph);
   }
 
-  #endif // EMIT_ORIGIN
+#endif // EMIT_ORIGIN
 }
 
 void init_weight_table(void)
