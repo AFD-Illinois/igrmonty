@@ -29,9 +29,8 @@ void track_super_photon(struct of_photon *ph)
   }
 
   // Quality control
-  if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || 
-      isnan(ph->X[3]) || isnan(ph->K[0]) || isnan(ph->K[1]) ||
-      isnan(ph->K[2]) || isnan(ph->K[3]) ) {
+  if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || isnan(ph->X[3]) ||
+      isnan(ph->K[0]) || isnan(ph->K[1]) || isnan(ph->K[2]) || isnan(ph->K[3]) ) {
     fprintf(stderr, "track_super_photon: bad input photon.\n");
     fprintf(stderr,
       "X0,X1,X2,X3,K0,K1,K2,K3,w,nscatt: %g %g %g %g %g %g %g %g %g %d\n",
