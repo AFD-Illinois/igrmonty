@@ -122,7 +122,7 @@ extern double Ns_scale, N_superph_made;
 /* HARM model globals */
 extern struct of_geom **geom;
 extern struct of_tetrads ***tetrads;
-double ***n2gens;
+extern double ***n2gens;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 
