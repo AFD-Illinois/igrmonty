@@ -162,19 +162,7 @@ int main(int argc, char *argv[])
       if (1 <= ratio && ratio < 3 && !global_quit_flag)
         break;
 
-      if ( ratio >= 3 ) {
-        if (lastscale > 1.5) {
-          biasTuning /= 1.5;
-          lastscale  /= 1.5;
-        } else
-          break;
-      } else if ( ratio >= 1 ) {
-        if (lastscale > 3.0) {
-          biasTuning /= 3.0;
-          lastscale  /= 3.0;
-        } else
-          break;
-      } else if (ratio < 1.e-10) {
+      if (ratio < 1.e-10) {
         biasTuning *= 10.;
         lastscale   = 10.;
       } else if (ratio < 0.01) {
@@ -183,9 +171,21 @@ int main(int argc, char *argv[])
       } else if (ratio < 0.1) {
         biasTuning *= 3.0;
         lastscale   = 3.0;
-      } else {
+      } else if (ratio < 1.0) {
         biasTuning *= 1.5;
         lastscale   = 1.5;
+      } else if (ratio < 3.0) {
+        if (lastscale > 3.0) {
+          biasTuning /= 3.0;
+          lastscale  /= 3.0;
+        } else
+          break;
+      } else {
+        if (lastscale > 1.5) {
+          biasTuning /= 1.5;
+          lastscale  /= 1.5;
+        } else
+          break;
       }
     }
     fprintf(stderr, "biasTuning = %g lastscale = %g\n\n",
