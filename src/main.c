@@ -174,22 +174,19 @@ int main(int argc, char *argv[])
           lastscale  /= 3.0;
         } else
           break;
+      } else if (ratio < 1.e-10) {
+        biasTuning *= 10.;
+        lastscale   = 10.;
+      } else if (ratio < 0.01) {
+        biasTuning *= sqrt(1./ratio);
+        lastscale   = sqrt(1./ratio);
+      } else if (ratio < 0.1) {
+        biasTuning *= 3.0;
+        lastscale   = 3.0;
       } else {
-        if (ratio < 1.e-10) {
-          biasTuning *= 10.;
-          lastscale = 10.;
-        } else if (ratio < 0.01) {
-          biasTuning *= sqrt(1./ratio);
-          lastscale = sqrt(1./ratio);
-        } else if (ratio < 0.1) {
-          biasTuning *= 3.;
-          lastscale = 3.;
-        } else {
-          biasTuning *= 1.5;
-          lastscale = 1.5;
-        }
+        biasTuning *= 1.5;
+        lastscale   = 1.5;
       }
-      
     }
     fprintf(stderr, "biasTuning = %g lastscale = %g\n\n",
             biasTuning, lastscale);
