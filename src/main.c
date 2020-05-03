@@ -234,17 +234,29 @@ int main(int argc, char *argv[])
       if (((int) (N_superph_made)) % 100000 == 0
           && N_superph_made > 0) {
         currtime = time(NULL);
-        fprintf(stderr, "time %g, rate %g ph/s\n",
-          (double) (currtime - starttime),
-          N_superph_made / (currtime - starttime));
+        fprintf(stderr,
+                "time %gs, "
+                "ph made %.3gk, rate %.3gk/s, "
+                "scatter %.3gk, ratio %.3g\n",
+                (double)(currtime - starttime),
+                N_superph_made * 1e-3,
+                N_superph_made * 1e-3 / (currtime - starttime),
+                N_scatt * 1e-3,
+                N_scatt / N_superph_made);
       }
     }
   }
 
   currtime = time(NULL);
-  fprintf(stderr, "final time %g, rate %g ph/s\n",
-    (double) (currtime - starttime),
-    N_superph_made / (currtime - starttime));
+  fprintf(stderr,
+          "final time %gs, "
+          "ph made %.3gk, rate %.3gk/s, "
+          "scatter %.3gk, ratio %.3g\n",
+          (double)(currtime - starttime),
+          N_superph_made * 1e-3,
+          N_superph_made * 1e-3 / (currtime - starttime),
+          N_scatt * 1e-3,
+          N_scatt / N_superph_made);
 
   if (! bad_bias) {
     omp_reduce_spect();
