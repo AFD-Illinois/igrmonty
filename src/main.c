@@ -257,6 +257,6 @@ int main(int argc, char *argv[])
   wtime = omp_get_wtime() - wtime;
   fprintf(stderr, "Total wallclock time: %g s\n\n", wtime);
 
-  return 0;
+  return bad_bias;
 }
 
