@@ -76,7 +76,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
-  time_t currtime, starttime;
   double wtime = omp_get_wtime();
 
   // spectral bin parameters
@@ -207,8 +206,8 @@ int main(int argc, char *argv[])
 
   fprintf(stderr, "Entering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
-  starttime = time(NULL);
-
+  summary(NULL, NULL); /* initialize main loop timer */
+  
   quit_flag = 0;
   record_photons = 1;
   Ns_scale = 1.;
@@ -231,33 +230,13 @@ int main(int argc, char *argv[])
       N_superph_made += 1;
 
       // give interim reports on rates
-      if (((int) (N_superph_made)) % 100000 == 0
-          && N_superph_made > 0) {
-        currtime = time(NULL);
-        fprintf(stderr,
-                "time %gs, "
-                "ph made %.3gk, rate %.3gk/s, "
-                "scatter %.3gk, ratio %.3g\n",
-                (double)(currtime - starttime),
-                N_superph_made * 1e-3,
-                N_superph_made * 1e-3 / (currtime - starttime),
-                N_scatt * 1e-3,
-                N_scatt / N_superph_made);
-      }
+      if ((int)N_superph_made % 100000 == 0 && N_superph_made > 0)
+        summary(stderr, NULL);
     }
   }
 
-  currtime = time(NULL);
-  fprintf(stderr,
-          "final time %gs, "
-          "ph made %.3gk, rate %.3gk/s, "
-          "scatter %.3gk, ratio %.3g\n",
-          (double)(currtime - starttime),
-          N_superph_made * 1e-3,
-          N_superph_made * 1e-3 / (currtime - starttime),
-          N_scatt * 1e-3,
-          N_scatt / N_superph_made);
-
+  summary(stderr, "final ");
+  
   if (! bad_bias) {
     omp_reduce_spect();
     report_spectrum((int) N_superph_made, &params);

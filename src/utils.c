@@ -456,3 +456,23 @@ void init_tetrads()
     }
   }
 }
+
+void summary(FILE *file, const char *prefix)
+{
+  static time_t starttime;
+  if(!file)
+    starttime = time(NULL); /* initilize */
+  else {
+    time_t currtime = time(NULL);
+    fprintf(stderr,
+            "%stime %gs, "
+            "ph made %.3gk, rate %.3gk/s, "
+            "scatter %.3gk, ratio %.3g\n",
+            prefix ? prefix : "",
+            (double)(currtime - starttime),
+            N_superph_made * 1e-3,
+            N_superph_made * 1e-3 / (currtime - starttime),
+            N_scatt * 1e-3,
+            N_scatt / N_superph_made);
+  }  
+}

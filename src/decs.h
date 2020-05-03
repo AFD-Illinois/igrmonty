@@ -300,3 +300,4 @@ void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Ucon[NDIM], double Bcon[NDIM]);
 
+void summary(FILE *, const char *);
