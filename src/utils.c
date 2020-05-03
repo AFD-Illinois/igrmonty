@@ -463,16 +463,33 @@ void summary(FILE *file, const char *prefix)
   if(!file)
     starttime = time(NULL); /* initilize */
   else {
-    time_t currtime = time(NULL);
+    double deltatime = time(NULL) - starttime;
+    
+    double      nmade,  nscatt;
+    const char *umade, *uscatt;
+
+    if (N_superph_made > 0.999e6) {
+      nmade = N_superph_made / 1e6;
+      umade = "M";
+    } else {
+      nmade = N_superph_made / 1e3;
+      umade = "k";
+    }
+
+    if (nscatt > 0.999e6) {
+      nscatt = N_scatt / 1e6;
+      uscatt = "M";
+    } else {
+      nscatt = N_scatt / 1e3;
+      uscatt = "k";
+    }
+    
     fprintf(stderr,
             "%stime %gs, "
-            "ph made %.3gk, rate %.3gk/s, "
-            "scatter %.3gk, ratio %.3g\n",
-            prefix ? prefix : "",
-            (double)(currtime - starttime),
-            N_superph_made * 1e-3,
-            N_superph_made * 1e-3 / (currtime - starttime),
-            N_scatt * 1e-3,
-            N_scatt / N_superph_made);
+            "ph made %.3g%s, rate %.3gk/s, "
+            "scatter %.3g%s, ratio %.3g\n",
+            prefix ? prefix : "", deltatime,
+            nmade,  umade,  N_superph_made / deltatime / 1e3,
+            nscatt, uscatt, N_scatt / N_superph_made);
   }  
 }
