@@ -50,7 +50,7 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-int record_photons, bad_bias;
+int record_photons, bad_bias, invalid_bias;
 double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
@@ -96,6 +96,7 @@ int main(int argc, char *argv[])
   N_superph_recorded = 0;
   N_scatt = 0;
   bad_bias = 0;
+  invalid_bias = 0;
 
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
@@ -236,6 +237,9 @@ int main(int argc, char *argv[])
   }
 
   summary(stderr, "final ");
+
+  if (invalid_bias)
+    fprintf(stderr, "\n%d invalid bias (bias < 1) skipped\n", invalid_bias);
   
   if (! bad_bias) {
     omp_reduce_spect();
