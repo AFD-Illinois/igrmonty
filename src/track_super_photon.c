@@ -17,12 +17,6 @@ void track_super_photon(struct of_photon *ph)
   double Gcov[NDIM][NDIM], Ucon[NDIM], Ucov[NDIM], Bcon[NDIM], Bcov[NDIM];
   int nstep = 0;
   
-  // Avoid too much scattering
-  if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)
-    bad_bias = 1;
-  if (bad_bias)
-    return;
-
   // Don't track zero-weight photons
   if (ph->w < 1) {
     return;
