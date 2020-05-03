@@ -109,7 +109,6 @@ int main(int argc, char *argv[])
     // Nscatt / Nmade >~ 1
     fprintf(stderr, "Finding bias...\n");
 
-    double lastscale = 0.;
     time_t starttime = time(NULL);
     int global_quit_flag = 0;
 
@@ -141,8 +140,7 @@ int main(int argc, char *argv[])
 	      fprintf(stderr, ".");
             if (1. * N_scatt / N_superph_made > 10.) {
               /* if effectiveness ratio (see below after the omp
-                 block) becomes too big, ends the bias tuning
-                 algorithm */
+                 block) becomes too big, jump to bias tuning */
               #pragma omp critical
               {
                 global_quit_flag = 1;
@@ -164,47 +162,16 @@ int main(int argc, char *argv[])
       bad_bias = 0;
 
       // continue if good
-      if (1 <= ratio && ratio < 3 /* a good ratio range */
-          && !global_quit_flag)   /* all other threads should be good for this
-                                     ratio range; it's probably fine to skip
-                                     this check */
+      if (1 <= ratio && ratio < 2 /* a good ratio range */
+          && !global_quit_flag)   /* all other threads should be good for 
+                                     this ratio range; it's probably fine to
+                                     skip this check */
         break;
 
-      if (ratio < 0.1) {
-	/* CASE: ratio in [0, 0.1) */
-        biasTuning *= sqrt(1./ratio);
-        lastscale   = sqrt(1./ratio);
-      } else if (ratio < 1.0) {
-	/* CASE: ratio in [0.1, 1) */
-        biasTuning *= 1.5;
-        lastscale   = 1.5;
-      } else if (ratio < 3.0) {
-	/* CASE: ratio in [1, 3) */
-        if (lastscale > 3.0) {
-          /* If the ratio falls into this range because of a previous
-             aggressive tuning step, "redo" the scaling in the previous step
-             with a smaller scaling so ratio will become near 1 */
-          biasTuning /= 3.0;
-          lastscale  /= 3.0;
-        } else
-          break;
-      } else {
-        /* CASE: ratio in [3, inf) */
-        if (lastscale > 1.5) {
-          /* If the ratio falls into this range because of a previous
-             tuning step, soften the previous step so `biasTuning`
-             becomes slightly smaller; note that by repeating this
-             step, biasTuning may converge to a constant value larger
-             than 3 */
-          biasTuning /= 1.5;
-          lastscale  /= 1.5;
-        } else
-          break;
-      }
+      biasTuning *= sqrt(M_SQRT2/ratio);
     }
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
-    fprintf(stderr, "biasTuning = %g lastscale = %g\n\n",
-            biasTuning, lastscale);
+    fprintf(stderr, "biasTuning = %g\n", biasTuning);
   }
 
   fprintf(stderr, "\nEntering main loop...\n");
