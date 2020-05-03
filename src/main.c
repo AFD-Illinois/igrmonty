@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Finding bias...\n");
 
     double lastscale = 0.;
+    time_t starttime = time(NULL);
     int global_quit_flag = 0;
 
     while (1 == 1) {
@@ -201,11 +202,12 @@ int main(int argc, char *argv[])
           break;
       }
     }
+    fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g lastscale = %g\n\n",
             biasTuning, lastscale);
   }
 
-  fprintf(stderr, "Entering main loop...\n");
+  fprintf(stderr, "\nEntering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
   summary(NULL, NULL); /* initialize main loop timer */
   
@@ -244,7 +246,7 @@ int main(int argc, char *argv[])
     }
   }
 
-  summary(stderr, "final ");
+  summary(stderr, "compute ");
 
   if (invalid_bias)
     fprintf(stderr, "\n%d invalid bias (bias < 1) skipped\n", invalid_bias);
