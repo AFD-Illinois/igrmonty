@@ -212,6 +212,8 @@ int main(int argc, char *argv[])
   quit_flag = 0;
   record_photons = 1;
   Ns_scale = 1.;
+  invalid_bias = 0;
+  
   #pragma omp parallel firstprivate(quit_flag)
   {
     struct of_photon ph;
