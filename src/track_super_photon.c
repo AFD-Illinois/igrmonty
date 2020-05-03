@@ -165,7 +165,12 @@ void track_super_photon(struct of_photon *ph)
         gcov_func(ph->X, Gcov);
         get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
 
-        if (Ne > 0.) {
+        // Actually about to scatter photon
+        if (Ne > 0.) { 
+          if (bias < 1.0) { // Ensure bias >= 1
+            fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
+            return;
+          }
           scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov);
 
           if (ph->w < 1.e-100) {  // Possible problem while enforcing k.k = 0
