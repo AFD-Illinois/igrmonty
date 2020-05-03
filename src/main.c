@@ -233,6 +233,12 @@ int main(int argc, char *argv[])
       // give interim reports on rates
       if ((int)N_superph_made % 100000 == 0 && N_superph_made > 0)
         summary(stderr, NULL);
+
+      // avoid too much scattering; break for all threads immediately
+      if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)
+	bad_bias = 1;
+      if (bad_bias)
+        break;
     }
   }
 
