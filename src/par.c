@@ -1,4 +1,5 @@
 
+#include <math.h>
 #include "par.h"
 
 // sets default values for elements of params (if desired) and loads
@@ -14,9 +15,10 @@ void load_par (const char *fname, Params *params) {
   }
 
   // set default values here
-  params->biasTuning = 1.;
-  params->fitBiasNs = 10000.;
-  params->fitBias = 0.;
+  params->biasTuning  = 1.;
+  params->fitBias     = 0.;
+  params->fitBiasNs   = 10000.;
+  params->targetRatio = M_SQRT2;
 
   params->TP_OVER_TE = 3.;
   params->beta_crit = 1.;
@@ -36,9 +38,10 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
 
     // bias
-    read_param(line, "bias", &(params->biasTuning), TYPE_DBL);
-    read_param(line, "fit_bias_ns", &(params->fitBiasNs), TYPE_DBL);
-    read_param(line, "fit_bias", &(params->fitBias), TYPE_INT);
+    read_param(line, "bias",        &(params->biasTuning),  TYPE_DBL);
+    read_param(line, "fit_bias",    &(params->fitBias),     TYPE_INT);
+    read_param(line, "fit_bias_ns", &(params->fitBiasNs),   TYPE_DBL);
+    read_param(line, "ratio",       &(params->targetRatio), TYPE_DBL);
 
     // two point model
     read_param(line, "lnumin", &(params->lnumin), TYPE_DBL);
