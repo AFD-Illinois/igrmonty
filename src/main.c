@@ -107,10 +107,16 @@ int main(int argc, char *argv[])
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 
     // Nscatt / Nmade >~ 1
-    fprintf(stderr, "Finding bias...\n");
+    fprintf(stderr, "Finding bias ");
 
     time_t starttime = time(NULL);
     int global_quit_flag = 0;
+    
+    double lowerRatio  = params.targetRatio / M_SQRT2;
+    double targetRatio = params.targetRatio;
+    double upperRatio  = params.targetRatio * M_SQRT2;
+    
+    fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
 
     while (1 == 1) {
 
@@ -162,13 +168,12 @@ int main(int argc, char *argv[])
       bad_bias = 0;
 
       // continue if good
-      if (1 <= ratio && ratio < 2 /* a good ratio range */
-          && !global_quit_flag)   /* all other threads should be good for 
-                                     this ratio range; it's probably fine to
-                                     skip this check */
+      if (lowerRatio <= ratio && ratio < upperRatio &&
+          !global_quit_flag) /* all other threads should be good for this ratio
+                                range; it's probably fine to skip this check */
         break;
 
-      biasTuning *= sqrt(M_SQRT2/ratio);
+      biasTuning *= sqrt(targetRatio/ratio);
     }
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g\n", biasTuning);

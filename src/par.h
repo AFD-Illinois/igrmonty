@@ -22,8 +22,9 @@ typedef struct params_t {
 
   // bias
   double biasTuning;
+  int    fitBias;
   double fitBiasNs;
-  int fitBias;
+  double targetRatio;
 
   // two point model
   double lnumin, lnumax, alpha_spec;
