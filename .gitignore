@@ -1,5 +1,6 @@
 model.c
 model.h
+*.o
 *.p
 *.png
 *.dat
