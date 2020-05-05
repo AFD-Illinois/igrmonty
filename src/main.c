@@ -126,13 +126,13 @@ int main(int argc, char *argv[])
         while(1) {
           make_super_photon(&ph, &quit_flag);
           if (global_quit_flag || quit_flag) break;
-
+          
           track_super_photon(&ph);
           #pragma omp atomic
           N_superph_made += 1;
 
           if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
-            if ((int)N_superph_made % 100000 == 0)
+            if ((int)N_superph_made % 10000 == 0)
 	      fprintf(stderr, ".");
             if (N_scatt / N_superph_made > 10.) {
               /* if effectiveness ratio (see below after the omp
@@ -145,7 +145,13 @@ int main(int argc, char *argv[])
           }
         }
       }
-     
+
+      // Check if bias tuning was actually run
+      if (N_superph_made < 1) {
+        fprintf(stderr, "fit_bias_ns too small; SKIP\n");
+        break;
+      }
+      
       // get effectiveness
       double ratio = N_scatt / N_superph_made;
       fprintf(stderr, "ratio = %g\n", ratio);
