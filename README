@@ -1,7 +1,7 @@
 
 igrmonty: A monte carlo code for relativistic radiative transport, 
 including synchrotron emission and absorption, bremsstrahlung
-emission (absorption is negligible), and compton scattering.
+emission and absorption, and compton scattering.
 
 This version includes thermal electrons only.
 
@@ -14,7 +14,7 @@ https://github.com/AFD-Illinois/igrmonty
 Substantial contributions made by
 Ben Ryan
 George Wong
-Ricardo Castro-Yarza
+Ricardo Yarza
 
 usage: 
   HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te

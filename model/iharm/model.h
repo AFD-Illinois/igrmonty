@@ -9,8 +9,16 @@
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
-#define BREMSSTRAHLUNG (1)
 #define COMPTON (1)
+
+// Bremss options
+// 0 No bremsstrahlung
+// 1 Rybicki and Lightman eq. 5.14a with eq. 5.25 corrective factor
+// 2 Piecewise formula
+// 3 van Hoof 2015 + Nozawa 2009
+// Bremss is only supported for thermal electrons
+#define BREMSSTRAHLUNG (3)
+
 #define KAPPA (5.)
 #define DIST_KAPPA (0)
 
