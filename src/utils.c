@@ -492,7 +492,7 @@ void summary(FILE *file, const char *prefix)
       umade = "k";
     }
 
-    if (nscatt > 0.999e6) {
+    if (N_scatt > 0.999e6) {
       nscatt = N_scatt / 1e6;
       uscatt = "M";
     } else {
