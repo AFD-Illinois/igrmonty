@@ -50,9 +50,8 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-int record_photons, bad_bias, invalid_bias;
+int record_photons, bad_bias, invalid_bias, quit_flag;
 double Ns_scale, N_superph_made;
-int quit_flag;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 double t;
@@ -109,21 +108,14 @@ int main(int argc, char *argv[])
     
     fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
 
-    while (1 == 1) {
+    while (1) {
 
       int global_quit_flag = 0;
 
       // reset state
-      reset_zones();
-      record_photons     = 0;
-      N_superph_made     = 0;
-      N_superph_recorded = 0;
-      N_scatt            = 0;
-      bad_bias           = 0;
-      invalid_bias       = 0;
-      quit_flag          = 0;
-      Ns_scale           = 1. * params.fitBiasNs / Ns;
-      if (Ns_scale > 1.) Ns_scale = 1.;
+      reset_state(0);
+      if (params.fitBiasNs < Ns)
+        Ns_scale *= params.fitBiasNs / Ns;
 
       fprintf(stderr, "bias %g ", biasTuning);
 
@@ -174,16 +166,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
   summary(NULL, NULL); /* initialize main loop timer */
   
-  // reset state
-  reset_zones();
-  record_photons     = 1;
-  N_superph_made     = 0;
-  N_superph_recorded = 0;
-  N_scatt            = 0;
-  bad_bias           = 0;
-  invalid_bias       = 0;
-  quit_flag          = 0;
-  Ns_scale           = 1;
+  reset_state(1);
   
   #pragma omp parallel firstprivate(quit_flag)
   {

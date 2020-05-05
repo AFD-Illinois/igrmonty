@@ -116,7 +116,7 @@ extern double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 
 extern int Ns;
 extern int N_superph_recorded, N_scatt;
-extern int record_photons, bad_bias, invalid_bias;
+extern int record_photons, bad_bias, invalid_bias, quit_flag;
 extern double Ns_scale, N_superph_made;
 
 /* HARM model globals */
@@ -300,4 +300,5 @@ void coord(int i, int j, int k, double *X);
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Ucon[NDIM], double Bcon[NDIM]);
 
+void reset_state(int);
 void summary(FILE *, const char *);

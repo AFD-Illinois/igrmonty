@@ -1,6 +1,22 @@
 
 #include "decs.h"
 
+void reset_state(int recph)
+{
+  reset_zones();
+  
+  N_superph_recorded = 0;
+  N_scatt            = 0;
+  
+  record_photons     = recph;
+  bad_bias           = 0;
+  invalid_bias       = 0;
+  quit_flag          = 0;
+  
+  Ns_scale           = 1.0;	
+  N_superph_made     = 0.0;  
+}      
+
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM]);
 
