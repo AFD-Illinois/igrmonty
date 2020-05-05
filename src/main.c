@@ -52,6 +52,7 @@ double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
 int record_photons, bad_bias, invalid_bias;
 double Ns_scale, N_superph_made;
+int quit_flag;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 double t;
@@ -91,18 +92,9 @@ int main(int argc, char *argv[])
 
   init_model(argc, argv, &params);
 
-  reset_zones();
-  N_superph_made = 0;
-  N_superph_recorded = 0;
-  N_scatt = 0;
-  bad_bias = 0;
-  invalid_bias = 0;
-
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
-
-  int quit_flag = 0;
 
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 
@@ -110,8 +102,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Finding bias ");
 
     time_t starttime = time(NULL);
-    int global_quit_flag = 0;
-    
+
     double lowerRatio  = params.targetRatio / M_SQRT2;
     double targetRatio = params.targetRatio;
     double upperRatio  = params.targetRatio * M_SQRT2;
@@ -120,16 +111,23 @@ int main(int argc, char *argv[])
 
     while (1 == 1) {
 
-      global_quit_flag = 0;
-      quit_flag = 0;
-      record_photons = 0;
-      Ns_scale = 1. * params.fitBiasNs / Ns;
+      int global_quit_flag = 0;
+
+      // reset state
+      reset_zones();
+      record_photons     = 0;
+      N_superph_made     = 0;
+      N_superph_recorded = 0;
+      N_scatt            = 0;
+      bad_bias           = 0;
+      invalid_bias       = 0;
+      quit_flag          = 0;
+      Ns_scale           = 1. * params.fitBiasNs / Ns;
       if (Ns_scale > 1.) Ns_scale = 1.;
 
       fprintf(stderr, "bias %g ", biasTuning);
 
       // compute values
-      quit_flag = 0;
       #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
       {
         struct of_photon ph;
@@ -160,13 +158,6 @@ int main(int argc, char *argv[])
       double ratio = 1. * N_scatt / N_superph_made;
       fprintf(stderr, "ratio = %g\n", ratio);
 
-      // reset state
-      reset_zones();
-      N_superph_made = 0;
-      N_superph_recorded = 0;
-      N_scatt = 0;
-      bad_bias = 0;
-
       // continue if good
       if (lowerRatio <= ratio && ratio < upperRatio &&
           !global_quit_flag) /* all other threads should be good for this ratio
@@ -183,10 +174,16 @@ int main(int argc, char *argv[])
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
   summary(NULL, NULL); /* initialize main loop timer */
   
-  quit_flag = 0;
-  record_photons = 1;
-  Ns_scale = 1.;
-  invalid_bias = 0;
+  // reset state
+  reset_zones();
+  record_photons     = 1;
+  N_superph_made     = 0;
+  N_superph_recorded = 0;
+  N_scatt            = 0;
+  bad_bias           = 0;
+  invalid_bias       = 0;
+  quit_flag          = 0;
+  Ns_scale           = 1;
   
   #pragma omp parallel firstprivate(quit_flag)
   {
