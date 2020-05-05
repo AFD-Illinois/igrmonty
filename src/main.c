@@ -134,7 +134,7 @@ int main(int argc, char *argv[])
           if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
             if ((int)N_superph_made % 100000 == 0)
 	      fprintf(stderr, ".");
-            if (1. * N_scatt / N_superph_made > 10.) {
+            if (N_scatt / N_superph_made > 10.) {
               /* if effectiveness ratio (see below after the omp
                  block) becomes too big, jump to bias tuning */
               #pragma omp critical
@@ -147,7 +147,7 @@ int main(int argc, char *argv[])
       }
      
       // get effectiveness
-      double ratio = 1. * N_scatt / N_superph_made;
+      double ratio = N_scatt / N_superph_made;
       fprintf(stderr, "ratio = %g\n", ratio);
 
       // continue if good
@@ -191,7 +191,7 @@ int main(int argc, char *argv[])
         summary(stderr, NULL);
 
       // avoid too much scattering; break for all threads immediately
-      if (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)
+      if (N_scatt > 10000 && N_scatt / N_superph_made > 10.)
 	bad_bias = 1;
       if (bad_bias)
         break;
