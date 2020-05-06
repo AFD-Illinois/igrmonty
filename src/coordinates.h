@@ -10,6 +10,7 @@ extern int with_derefine_poles, METRIC_MKS3;
 extern double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 extern double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
+// coordinate functions
 void set_dxdX(const double [NDIM], double [NDIM][NDIM]);
 
 static inline __attribute__((always_inline)) void set_dxdX_metric(const double X[NDIM], double dxdX[NDIM][NDIM], int metric)
