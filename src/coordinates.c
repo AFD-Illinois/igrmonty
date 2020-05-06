@@ -1,6 +1,8 @@
 #include "decs.h"
 #include "coordinates.h"
 
+#include "coordinates.h"
+
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
 // metric parameters
