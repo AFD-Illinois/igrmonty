@@ -18,14 +18,14 @@ good for Thetae > 1
 //#define GAM2 (2.)
 //#define GAM3 (1.0555465648134663)
 //#define GAM4 (1.411932800087401)
-double GAM1, GAM2, GAM3, GAM4;
+static double GAM1, GAM2, GAM3, GAM4;
 
-double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
-double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
-double jnu_bremss(double nu, double Ne, double Thetae);
-double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu);
-double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
-double int_jnu_bremss(double Ne, double Thetae, double nu);
+static double jnu_synch(double nu, double Ne, double Thetae, double B, double theta);
+static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
+static double jnu_bremss(double nu, double Ne, double Thetae);
+static double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu);
+static double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
+static double int_jnu_bremss(double Ne, double Thetae, double nu);
 
 double jnu(double nu, double Ne, double Thetae, double B, double theta)
 {
@@ -87,7 +87,7 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
   return intj;
 }
 
-double jnu_bremss(double nu, double Ne, double Thetae)
+static double jnu_bremss(double nu, double Ne, double Thetae)
 {
   if (Thetae < THETAE_MIN) 
     return 0.;
@@ -147,8 +147,8 @@ double jnu_bremss(double nu, double Ne, double Thetae)
 }
 
 #define CST 1.88774862536	/* 2^{11/12} */
-double jnu_synch(double nu, double Ne, double Thetae, double B,
-		 double theta)
+static double jnu_synch(double nu, double Ne, double Thetae, double B,
+			double theta)
 {
 	double K2, nuc, nus, x, f, j, sth, xp1, xx;
 	double K2_eval(double Thetae);
@@ -174,7 +174,7 @@ double jnu_synch(double nu, double Ne, double Thetae, double B,
 }
 
 #include <gsl/gsl_sf_gamma.h>
-double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
+static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
 {
 	if (Thetae < THETAE_MIN)
 		return 0.;
@@ -214,7 +214,7 @@ double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
 #undef CST
 
 #define JCST	(M_SQRT2*EE*EE*EE/(27*ME*CL*CL))
-double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
+static double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 {
 /* Returns energy per unit time at							*
  * frequency nu in cgs										*/
@@ -238,7 +238,7 @@ double int_jnu_synch(double Ne, double Thetae, double Bmag, double nu)
 	return rval;
 }
 
-double jnu_kappa_integrand(double th, void *params)
+static double jnu_kappa_integrand(double th, void *params)
 {
 	double K = *(double *) params;
 	double sth = sin(th);
@@ -257,9 +257,10 @@ double jnu_kappa_integrand(double th, void *params)
   Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
   return Js;
 }
+
 //#define EPSABS (0.)
 //#define EPSREL (1.e-6)
-double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
+static double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
 {
   /* Returns energy per unit time at							*
    * frequency nu in cgs										*/
@@ -291,18 +292,19 @@ double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
 
   return 4.*M_PI*result;*/
 }
+
 //#undef EPSABS
 //#undef EPSREL
 
 #undef JCST
 
-double int_jnu_bremss(double Ne, double Thetae, double nu)
+static double int_jnu_bremss(double Ne, double Thetae, double nu)
 {
   return 4.*M_PI*jnu_bremss(nu, Ne, Thetae);
 }
 
 #define CST 1.88774862536	/* 2^{11/12} */
-double jnu_integrand(double th, void *params)
+static double jnu_integrand(double th, void *params)
 {
 
 	double K = *(double *) params;
@@ -319,10 +321,10 @@ double jnu_integrand(double th, void *params)
 #undef CST
 
 /* Tables */
-double F[N_ESAMP + 1], G[N_ESAMP + 1], K2[N_ESAMP + 1];
-double lK_min, dlK;
-double lL_min, dlL;
-double lT_min, dlT;
+static double _F[N_ESAMP + 1], _G[N_ESAMP + 1], _K2[N_ESAMP + 1];
+static double lK_min, dlK;
+static double lL_min, dlL;
+static double lT_min, dlT;
 
 #define EPSABS 0.
 #define EPSREL 1.e-6
@@ -359,7 +361,7 @@ void init_emiss_tables(void)
       gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL,
               1000, GSL_INTEG_GAUSS61, w, &result,
               &err);
-      F[k] = log(4 * M_PI * result);
+      _F[k] = log(4 * M_PI * result);
     }
     gsl_integration_workspace_free(w);
   }
@@ -391,7 +393,7 @@ void init_emiss_tables(void)
       L = exp(k * dlL + lL_min);
       gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000, 
         GSL_INTEG_GAUSS61, w, &result, &err);
-      G[k] = log(4*M_PI*result);
+      _G[k] = log(4*M_PI*result);
     }
     gsl_integration_workspace_free(w);
   }
@@ -402,7 +404,7 @@ void init_emiss_tables(void)
     dlT = log(TMAX / TMIN) / (N_ESAMP);
     for (k = 0; k <= N_ESAMP; k++) {
 		  T = exp(k * dlT + lT_min);
-		  K2[k] = log(gsl_sf_bessel_Kn(2, 1. / T));
+		  _K2[k] = log(gsl_sf_bessel_Kn(2, 1. / T));
 	  }
   }
 
@@ -417,7 +419,6 @@ void init_emiss_tables(void)
 
 double K2_eval(double Thetae)
 {
-
 	double linear_interp_K2(double);
 
 	if (Thetae < THETAE_MIN)
@@ -431,7 +432,6 @@ double K2_eval(double Thetae)
 #define KFAC (9*M_PI*ME*CL/EE)
 double F_eval(double Thetae, double Bmag, double nu)
 {
-
 	double K, x;
 	double linear_interp_F(double);
 
@@ -451,7 +451,6 @@ double F_eval(double Thetae, double Bmag, double nu)
 #define GFAC (2.*M_PI*ME*CL/EE)
 double G_eval(double Thetae, double Bmag, double nu)
 {
-
 	double L;
 	double linear_interp_G(double);
 
@@ -481,7 +480,6 @@ double G_eval(double Thetae, double Bmag, double nu)
 
 double linear_interp_K2(double Thetae)
 {
-
 	int i;
 	double di, lT;
 
@@ -491,12 +489,11 @@ double linear_interp_K2(double Thetae)
 	i = (int) di;
 	di = di - i;
 
-	return exp((1. - di) * K2[i] + di * K2[i + 1]);
+	return exp((1. - di) * _K2[i] + di * _K2[i + 1]);
 }
 
 double linear_interp_F(double K)
 {
-
 	int i;
 	double di, lK;
 
@@ -506,12 +503,11 @@ double linear_interp_F(double K)
 	i = (int) di;
 	di = di - i;
 
-	return exp((1. - di) * F[i] + di * F[i + 1]);
+	return exp((1. - di) * _F[i] + di * _F[i + 1]);
 }
 
 double linear_interp_G(double L)
 {
-
 	int i;
 	double di, lL;
 
@@ -521,6 +517,6 @@ double linear_interp_G(double L)
 	i = (int) di;
 	di = di - i;
 
-	return exp((1. - di) * G[i] + di * G[i + 1]);
+	return exp((1. - di) * _G[i] + di * _G[i + 1]);
 }
 
