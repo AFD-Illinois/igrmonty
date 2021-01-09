@@ -15,6 +15,8 @@ void load_par (const char *fname, Params *params) {
   }
 
   // set default values here
+  params->seed        = -1; // will use time() to randomize seed if set to -1
+
   params->biasTuning  = 1.;
   params->fitBias     = 0.;
   params->fitBiasNs   = 10000.;
@@ -30,6 +32,8 @@ void load_par (const char *fname, Params *params) {
   while (fgets(line, 255, fp) != NULL) {
 
     if (line[0] == '#') continue; 
+
+    read_param(line, "seed", &(params->seed), TYPE_DBL);
 
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
