@@ -51,7 +51,7 @@ void init_model(int argc, char *argv[], Params *params)
   init_weight_table();
 
   // Initialize random number generators
-  init_monty_rand();
+  init_monty_rand(params->seed);
 }
 
 int n2gen = -1;

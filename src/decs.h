@@ -177,7 +177,7 @@ void report_bad_input(int argc);
 void omp_reduce_spect(void);
 
 /* MC/RT utilities */
-void init_monty_rand();
+void init_monty_rand(int seed);
 double monty_rand(void);
 void monty_ran_dir_3d(double *n0x, double *n0y, double *n0z);
 double monty_ran_chisq(int n);
