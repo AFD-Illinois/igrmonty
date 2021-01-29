@@ -122,8 +122,8 @@ int main(int argc, char *argv[])
       // compute values
       #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
       {
-        struct of_photon ph;
-        while(1) {
+        struct of_photon ph = {0};
+	while(1) {
           make_super_photon(&ph, &quit_flag);
           if (global_quit_flag || quit_flag) break;
           
@@ -176,7 +176,7 @@ int main(int argc, char *argv[])
   
   #pragma omp parallel firstprivate(quit_flag)
   {
-    struct of_photon ph;
+    struct of_photon ph = {0};
     while (1) {
 
       // get pseudo-quanta 
