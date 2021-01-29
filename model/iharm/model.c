@@ -370,7 +370,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 
 }
 
-void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
+void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
@@ -378,7 +378,7 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double rho, kel, uu;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
-  double interp_scalar(double X[NDIM], double ***var);
+  double interp_scalar(const double X[NDIM], double ***var);
   double sig ;
 
   if ( X_in_domain(X) == 0 ) {
@@ -434,35 +434,28 @@ void get_fluid_params(double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
-void gcov_func(double X[NDIM], double gcov[NDIM][NDIM])
+void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 {
-  MUNULOOP gcov[mu][nu] = 0.;
-
-  double r, th;
-
   // despite the name, get equivalent values for
   // r, th for KS coordinates
+  double r, th;
   bl_coord(X, &r, &th);
 
   // compute ks metric
-  gcov_ks(r, th, gcov);
+  double gcovKS[NDIM][NDIM];
+  gcov_ks(r, th, gcovKS);
 
   // Apply coordinate transformation to code coordinates X
   double dxdX[NDIM][NDIM];
   set_dxdX(X, dxdX);
 
-  double Gcov_ks[NDIM][NDIM];
   MUNULOOP {
-    Gcov_ks[mu][nu] = gcov[mu][nu];
     gcov[mu][nu] = 0.;
-  }
-
-  MUNULOOP {
-		for (int lam = 0; lam < NDIM; lam++) {
-			for (int kap = 0; kap < NDIM; kap++) {
-				gcov[mu][nu] += Gcov_ks[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
-			}
-		}
+    for (int lam = 0; lam < NDIM; lam++) {
+      for (int kap = 0; kap < NDIM; kap++) {
+        gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+      }
+    }
   }
 }
 
@@ -931,4 +924,3 @@ void report_spectrum(int N_superph_made, Params *params)
   H5Fclose(fid);
 
 }
-

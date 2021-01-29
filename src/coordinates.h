@@ -11,9 +11,9 @@ extern double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 extern double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
 // coordinate functions
-void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM]);
+void set_dxdX(const double [NDIM], double [NDIM][NDIM]);
 
-static inline __attribute__((always_inline)) void set_dxdX_metric(double X[NDIM], double dxdX[NDIM][NDIM], int metric)
+static inline __attribute__((always_inline)) void set_dxdX_metric(const double X[NDIM], double dxdX[NDIM][NDIM], int metric)
 {
   // Jacobian with respect to KS basis where X is given in
   // non-KS basis
@@ -82,18 +82,28 @@ static inline __attribute__((always_inline)) void gcov_ks(double r, double th, d
   double s2 = sth*sth;
   double rho2 = r*r + a*a*cth*cth;
 
+  double gcov01 = 2.*r/rho2;
+  double gcov03 = -a*s2*(   gcov01);
+  double gcov13 = -a*s2*(1.+gcov01);
+
   // compute ks metric for ks coordinates (cyclic in t,phi)
   gcov[0][0] = -1. + 2.*r/rho2;
-  gcov[0][1] = 2.*r/rho2;
-  gcov[0][3] = -2.*a*r*s2/rho2;
+  gcov[0][1] = gcov01;
+  gcov[0][2] = 0;
+  gcov[0][3] = gcov03;
 
-  gcov[1][0] = gcov[0][1];
+  gcov[1][0] = gcov01;
   gcov[1][1] = 1. + 2.*r/rho2;
-  gcov[1][3] = -a*s2*(1. + 2.*r/rho2);
+  gcov[1][2] = 0;
+  gcov[1][3] = gcov13;
 
+  gcov[2][0] = 0;
+  gcov[2][1] = 0;
   gcov[2][2] = rho2;
+  gcov[2][3] = 0;
 
-  gcov[3][0] = gcov[0][3];
-  gcov[3][1] = gcov[1][3];
+  gcov[3][0] = gcov03;
+  gcov[3][1] = gcov13;
+  gcov[3][2] = 0;
   gcov[3][3] = s2*(rho2 + a*a*s2*(1. + 2.*r/rho2));
 }

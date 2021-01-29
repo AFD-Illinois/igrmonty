@@ -17,21 +17,14 @@ void track_super_photon(struct of_photon *ph)
   double Gcov[NDIM][NDIM], Ucon[NDIM], Ucov[NDIM], Bcon[NDIM], Bcov[NDIM];
   int nstep = 0;
   
-  // Avoid too much scattering
-  if (bad_bias || (N_scatt > 10000 && 1. * N_scatt / N_superph_made > 10.)) {
-    bad_bias = 1;
-    return;
-  }
-
   // Don't track zero-weight photons
   if (ph->w < 1) {
     return;
   }
 
   // Quality control
-  if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || 
-      isnan(ph->X[3]) || isnan(ph->K[0]) || isnan(ph->K[1]) ||
-      isnan(ph->K[2]) || isnan(ph->K[3]) ) {
+  if (isnan(ph->X[0]) || isnan(ph->X[1]) || isnan(ph->X[2]) || isnan(ph->X[3]) ||
+      isnan(ph->K[0]) || isnan(ph->K[1]) || isnan(ph->K[2]) || isnan(ph->K[3]) ) {
     fprintf(stderr, "track_super_photon: bad input photon.\n");
     fprintf(stderr,
       "X0,X1,X2,X3,K0,K1,K2,K3,w,nscatt: %g %g %g %g %g %g %g %g %g %d\n",
@@ -166,7 +159,14 @@ void track_super_photon(struct of_photon *ph)
         gcov_func(ph->X, Gcov);
         get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
 
-        if (Ne > 0.) {
+        // Actually about to scatter photon
+        if (Ne > 0.) { 
+          if (bias < 1.0) { // Ensure bias >= 1
+	    #pragma omp atomic
+            ++invalid_bias; // count invalid_bias
+            fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
+            return;
+          }
           scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov);
 
           if (ph->w < 1.e-100) {  // Possible problem while enforcing k.k = 0

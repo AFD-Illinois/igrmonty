@@ -3,12 +3,14 @@
 gsl_rng *r;
 #pragma omp threadprivate(r)
 
-void init_monty_rand()
+void init_monty_rand(int seed)
 {
+  if(seed < 0)
+    seed = time(NULL);
   //gsl_rng = (gsl_rng*)malloc_rank1(nthreads, sizeof(gsl_rng*));
   #pragma omp parallel
   {
-    int seed = 139*omp_get_thread_num() + time(NULL);
+    int seed = 139*omp_get_thread_num() + seed;
     r = gsl_rng_alloc(gsl_rng_mt19937);
     gsl_rng_set(r, seed);
   }

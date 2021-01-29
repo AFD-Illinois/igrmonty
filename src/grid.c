@@ -25,7 +25,7 @@
  *  F -> ( 1, 0.5)  [ x3 ]
  *
  */
-void Xtoijk(double X[NDIM], int *i, int *j, int *k, double del[NDIM])
+void Xtoijk(const double X[NDIM], int *i, int *j, int *k, double del[NDIM])
 {
   // unless we're reading from data, i,j,k are the normal expected thing
   double phi;

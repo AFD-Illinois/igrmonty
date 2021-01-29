@@ -50,7 +50,7 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-int record_photons, bad_bias;
+int record_photons, bad_bias, invalid_bias, quit_flag;
 double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
@@ -76,7 +76,6 @@ int main(int argc, char *argv[])
   fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
-  time_t currtime, starttime;
   double wtime = omp_get_wtime();
 
   // spectral bin parameters
@@ -92,52 +91,52 @@ int main(int argc, char *argv[])
 
   init_model(argc, argv, &params);
 
-  reset_zones();
-  N_superph_made = 0;
-  N_superph_recorded = 0;
-  N_scatt = 0;
-  bad_bias = 0;
-
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
 
-  int quit_flag = 0;
-
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 
     // Nscatt / Nmade >~ 1
-    fprintf(stderr, "Finding bias...\n");
+    fprintf(stderr, "Finding bias ");
 
-    double lastscale = 0.;
-    int global_quit_flag = 0;
+    time_t starttime = time(NULL);
 
-    while (1 == 1) {
+    double lowerRatio  = params.targetRatio / M_SQRT2;
+    double targetRatio = params.targetRatio;
+    double upperRatio  = params.targetRatio * M_SQRT2;
+    
+    fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
 
-      global_quit_flag = 0;
-      quit_flag = 0;
-      record_photons = 0;
-      Ns_scale = 1. * params.fitBiasNs / Ns;
-      if (Ns_scale > 1.) Ns_scale = 1.;
+    while (1) {
+
+      int global_quit_flag = 0;
+
+      // reset state
+      reset_state(0);
+      if (params.fitBiasNs < Ns)
+        Ns_scale *= params.fitBiasNs / Ns;
 
       fprintf(stderr, "bias %g ", biasTuning);
 
       // compute values
-      quit_flag = 0;
       #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
       {
-        struct of_photon ph;
-        while(1) {
+        struct of_photon ph = {0};
+	while(1) {
           make_super_photon(&ph, &quit_flag);
           if (global_quit_flag || quit_flag) break;
-
+          
           track_super_photon(&ph);
           #pragma omp atomic
           N_superph_made += 1;
 
-          if (((int) (N_superph_made)) % 1000 == 0 && N_superph_made > 0) {
-            if (((int) (N_superph_made)) % 100000 == 0) fprintf(stderr, ".");
-            if (1. * N_scatt / N_superph_made > 10.) {
+          if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
+            if ((int)N_superph_made % 10000 == 0)
+	      fprintf(stderr, ".");
+            if (N_scatt / N_superph_made > 10.) {
+              /* if effectiveness ratio (see below after the omp
+                 block) becomes too big, jump to bias tuning */
               #pragma omp critical
               {
                 global_quit_flag = 1;
@@ -146,66 +145,38 @@ int main(int argc, char *argv[])
           }
         }
       }
-     
-      // get effectiveness
-      double ratio = 1. * N_scatt / N_superph_made;
-      fprintf(stderr, " ratio = %g\n", ratio);
 
-      // reset state
-      reset_zones();
-      N_superph_made = 0;
-      N_superph_recorded = 0;
-      N_scatt = 0;
-      bad_bias = 0;
+      // Check if bias tuning was actually run
+      if (N_superph_made < 1) {
+        fprintf(stderr, "fit_bias_ns too small; SKIP\n");
+        break;
+      }
+      
+      // get effectiveness
+      double ratio = N_scatt / N_superph_made;
+      fprintf(stderr, "ratio = %g\n", ratio);
 
       // continue if good
-      if ( ratio >= 3 ) {
-        if (lastscale <= 1.5) {
-          break;
-        } else {
-          biasTuning /= 1.5;
-          lastscale /= 1.5;
-        }
-      } else if ( ratio >= 1 ) {
-        if (global_quit_flag) {
-          if (lastscale <= 3) {
-            break;
-          } else {
-            biasTuning /= 3.;
-            lastscale /= 3.;
-          }
-        } else {
-          break;
-        }
-      } else {
-        if (ratio < 1.e-10) {
-          biasTuning *= 10.;
-          lastscale = 10.;
-        } else if (ratio < 0.01) {
-          biasTuning *= sqrt(1./ratio);
-          lastscale = sqrt(1./ratio);
-        } else if (ratio < 0.1) {
-          biasTuning *= 3.;
-          lastscale = 3.;
-        } else {
-          biasTuning *= 1.5;
-          lastscale = 1.5;
-        }
-      }
+      if (lowerRatio <= ratio && ratio < upperRatio &&
+          !global_quit_flag) /* all other threads should be good for this ratio
+                                range; it's probably fine to skip this check */
+        break;
+
+      biasTuning *= sqrt(targetRatio/ratio);
     }
-    fprintf(stderr, "\n");
+    fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
+    fprintf(stderr, "biasTuning = %g\n", biasTuning);
   }
 
-  fprintf(stderr, "Entering main loop...\n");
+  fprintf(stderr, "\nEntering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
-  starttime = time(NULL);
-
-  quit_flag = 0;
-  record_photons = 1;
-  Ns_scale = 1.;
+  summary(NULL, NULL); /* initialize main loop timer */
+  
+  reset_state(1);
+  
   #pragma omp parallel firstprivate(quit_flag)
   {
-    struct of_photon ph;
+    struct of_photon ph = {0};
     while (1) {
 
       // get pseudo-quanta 
@@ -222,21 +193,22 @@ int main(int argc, char *argv[])
       N_superph_made += 1;
 
       // give interim reports on rates
-      if (((int) (N_superph_made)) % 100000 == 0
-          && N_superph_made > 0) {
-        currtime = time(NULL);
-        fprintf(stderr, "time %g, rate %g ph/s\n",
-          (double) (currtime - starttime),
-          N_superph_made / (currtime - starttime));
-      }
+      if ((int)N_superph_made % 100000 == 0 && N_superph_made > 0)
+        summary(stderr, NULL);
+
+      // avoid too much scattering; break for all threads immediately
+      if (N_scatt > 10000 && N_scatt / N_superph_made > 10.)
+	bad_bias = 1;
+      if (bad_bias)
+        break;
     }
   }
 
-  currtime = time(NULL);
-  fprintf(stderr, "final time %g, rate %g ph/s\n",
-    (double) (currtime - starttime),
-    N_superph_made / (currtime - starttime));
+  summary(stderr, "compute ");
 
+  if (invalid_bias)
+    fprintf(stderr, "\n%d invalid bias (bias < 1) skipped\n", invalid_bias);
+  
   if (! bad_bias) {
     omp_reduce_spect();
     report_spectrum((int) N_superph_made, &params);
@@ -247,6 +219,6 @@ int main(int argc, char *argv[])
   wtime = omp_get_wtime() - wtime;
   fprintf(stderr, "Total wallclock time: %g s\n\n", wtime);
 
-  return 0;
+  return bad_bias;
 }
 

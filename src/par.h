@@ -14,6 +14,8 @@
 
 // feel free to change any part of this structure
 typedef struct params_t {
+  int seed;
+
   double Ns;
   double MBH;
   double M_unit;
@@ -22,8 +24,9 @@ typedef struct params_t {
 
   // bias
   double biasTuning;
+  int    fitBias;
   double fitBiasNs;
-  int fitBias;
+  double targetRatio;
 
   // two point model
   double lnumin, lnumax, alpha_spec;

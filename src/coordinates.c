@@ -1,4 +1,5 @@
 #include "decs.h"
+#include "coordinates.h"
 
 #include "coordinates.h"
 
@@ -14,7 +15,7 @@ int with_derefine_poles, METRIC_MKS3;
 double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
-int X_in_domain(double X[NDIM]) {
+int X_in_domain(const double X[NDIM]) {
   // returns 1 if X is within the computational grid.
   // checks different sets of coordinates depending on
   // specified grid coordinates
@@ -51,7 +52,7 @@ int X_in_domain(double X[NDIM]) {
   return 1;
 }
 
-void set_dxdX(double X[NDIM], double dxdX[NDIM][NDIM])
+void set_dxdX(const double X[NDIM], double dxdX[NDIM][NDIM])
 {
   set_dxdX_metric(X, dxdX, 0);
 }
@@ -73,12 +74,11 @@ double gdet_zone(int i, int j, int k)
   double gcovKS[NDIM][NDIM], gcov[NDIM][NDIM];
   double r, th;
   double dxdX[NDIM][NDIM];
-  MUNULOOP gcovKS[mu][nu] = 0.;
-  MUNULOOP gcov[mu][nu] = 0.;
   bl_coord(X, &r, &th);
   gcov_ks(r, th, gcovKS);
   set_dxdX_metric(Xzone, dxdX, 1);
   MUNULOOP {
+    gcov[mu][nu] = 0.;
     for (int lam=0; lam<NDIM; ++lam) {
       for (int kap=0; kap<NDIM; ++kap) {
         gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
@@ -90,7 +90,7 @@ double gdet_zone(int i, int j, int k)
 }
 
 // returns BL.{r,th} == KS.{r,th} of point with geodesic coordinates X
-void bl_coord(double *X, double *r, double *th)
+void bl_coord(const double *X, double *r, double *th)
 {
   *r = exp(X[1]);
 
