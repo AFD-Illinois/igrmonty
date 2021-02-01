@@ -10,9 +10,8 @@ void init_monty_rand(int seed)
   //gsl_rng = (gsl_rng*)malloc_rank1(nthreads, sizeof(gsl_rng*));
   #pragma omp parallel
   {
-    int seed = 139*omp_get_thread_num() + seed;
     r = gsl_rng_alloc(gsl_rng_mt19937);
-    gsl_rng_set(r, seed);
+    gsl_rng_set(r, 139 * omp_get_thread_num() + seed);
   }
 }
 
@@ -30,4 +29,3 @@ double monty_ran_chisq(int n)
 {
   return gsl_ran_chisq(r, n);
 }
-
