@@ -11,7 +11,7 @@ void load_par (const char *fname, Params *params) {
 
   if (fp == NULL) {
     fprintf(stderr, "! unable to load parameter file '%s'. (%d: %s)\n", fname, errno, strerror(errno));
-    exit(errno);
+    exit(-1);
   }
 
   // set default values here

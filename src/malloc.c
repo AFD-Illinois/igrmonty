@@ -6,7 +6,7 @@ void *malloc_rank1(int n1, int size)
 
   if((A = (void *)malloc(n1*size)) == NULL){
     fprintf(stderr,"malloc failure in malloc_rank1\n");
-    exit(123);
+    exit(-1);
   }
 
   return A;
