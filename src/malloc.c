@@ -60,6 +60,22 @@ void ****malloc_rank4(int n1, int n2, int n3, int n4, int size)
   return A;
 }
 
+void *****malloc_rank5(int n1, int n2, int n3, int n4, int n5, int size)
+{
+  void *****A;
+
+  if ((A = (void *****)malloc(n1*sizeof(void ****))) == NULL) {
+    fprintf(stderr, "malloc_rank5 failure\n");
+    exit(-1);
+  }
+
+  for (int i = 0; i < N1; i++) {
+    A[i] = malloc_rank4(n2, n3, n4, n5, size);
+  }
+
+  return A;
+}
+
 double **malloc_rank2_double(int n1, int n2)
 {
 
@@ -108,22 +124,6 @@ double ****malloc_rank4_double(int n1, int n2, int n3, int n4)
         A[i][j][k] = &(space[n4*(k + n3*(j + n2*i))]);
       }
     }
-  }
-
-  return A;
-}
-
-void *****malloc_rank5(int n1, int n2, int n3, int n4, int n5, int size)
-{
-  void *****A;
-
-  if ((A = (void *****)malloc(n1*sizeof(void ****))) == NULL) {
-    fprintf(stderr, "malloc_rank5 failure\n");
-    exit(-1);
-  }
-
-  for (int i = 0; i < N1; i++) {
-    A[i] = malloc_rank4(n2, n3, n4, n5, size);
   }
 
   return A;
