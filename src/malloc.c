@@ -71,6 +71,11 @@ double **malloc_rank2_double(int n1, int n2)
 
   A = malloc_rank1(n1, sizeof(double *));
 
+  if(!space || !A) {
+    fprintf(stderr, "malloc_rank2_double failure\n");
+    exit(-1);
+  }
+
   for(i=0;i<n1;i++){
     A[i] = &(space[n2*i]);
     //A[i] = malloc_rank1(n2,sizeof(double *));
@@ -89,6 +94,11 @@ double ****malloc_rank4_double(int n1, int n2, int n3, int n4)
   space = malloc_rank1(n1*n2*n3*n4, sizeof(double));
 
   A = malloc_rank1(n1, sizeof(double *));
+
+  if(!space || !A) {
+    fprintf(stderr, "malloc_rank4_double failure\n");
+    exit(-1);
+  }
 
   for(i=0;i<n1;i++){
     A[i] = malloc_rank1(n2,sizeof(double *));
