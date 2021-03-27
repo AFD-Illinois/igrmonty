@@ -11,7 +11,7 @@
 //        x^3 are normal KS coordinates. in addition you must set METRIC_*
 //        in order to specify how Xtoijk and gdet_zone should work.
 int METRIC_eKS;
-int with_derefine_poles, METRIC_MKS3;
+int with_derefine_poles, METRIC_MKS3, METRIC_sphMINK = 0;
 double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
@@ -19,6 +19,8 @@ int X_in_domain(const double X[NDIM]) {
   // returns 1 if X is within the computational grid.
   // checks different sets of coordinates depending on
   // specified grid coordinates
+
+  if (METRIC_sphMINK) return 1;
 
   if (METRIC_eKS) {
     double XG[4] = { 0 };
@@ -61,6 +63,8 @@ void set_dxdX(const double X[NDIM], double dxdX[NDIM][NDIM])
 // i,j,k
 double gdet_zone(int i, int j, int k)
 {
+  // TODO support extra zone coordinates (gdet versus gdetzone)
+
   // get the X for the zone (in geodesic coordinates for bl_coord)
   // and in zone coordinates (for set_dxdX_metric)
   double X[NDIM], Xzone[NDIM];
@@ -69,6 +73,12 @@ double gdet_zone(int i, int j, int k)
   Xzone[1] = startx[1] + (i+0.5)*dx[1];
   Xzone[2] = startx[2] + (j+0.5)*dx[2];
   Xzone[3] = startx[3] + (k+0.5)*dx[3];
+
+  if (METRIC_sphMINK) {
+    double gcov[NDIM][NDIM];
+    gcov_func(Xzone, gcov);
+    return gdet_func(gcov);
+  }
 
   // then get gcov for the zone (in zone coordinates)
   double gcovKS[NDIM][NDIM], gcov[NDIM][NDIM];
@@ -92,6 +102,12 @@ double gdet_zone(int i, int j, int k)
 // returns BL.{r,th} == KS.{r,th} of point with geodesic coordinates X
 void bl_coord(const double *X, double *r, double *th)
 {
+  if (METRIC_sphMINK) {
+    *r = X[1];
+    *th = X[2];
+    return;
+  }
+
   *r = exp(X[1]);
 
   if (METRIC_eKS) {
