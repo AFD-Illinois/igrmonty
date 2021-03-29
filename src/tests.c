@@ -20,7 +20,7 @@ void run_all_tests() {
   double kappa = 4;
   double Thetae = 1;
 
-  kappa = 100.;
+  kappa = 20;
   Thetae = 5;
 
   test_compare_beta_dist(Thetae, kappa);
