@@ -77,7 +77,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
   // optionally run tests. TODO use command line switch
-  run_all_tests();
+  //run_all_tests();
 
   double wtime = omp_get_wtime();
 
