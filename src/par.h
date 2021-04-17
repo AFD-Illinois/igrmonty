@@ -42,7 +42,8 @@ typedef struct params_t {
 } Params;
 
 // if you modify the 'parameters' struct above, you'll need to
-// modify this function as well to deal with the changes
+// modify these functions as well to deal with the changes
+void load_par_from_argv(int argc, char *argv[], Params *params);
 void load_par(const char *, Params *);
 
 // only modify if you add/modify types

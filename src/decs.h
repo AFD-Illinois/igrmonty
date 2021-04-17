@@ -21,7 +21,7 @@
 #include "model.h"
 #include "par.h"
 
-#define NUCUT (1.e14)
+#define NUCUT (5.e13)
 #define GAMMACUT (1000.)
 #define SCATTERING_THETAE_MAX (1000.)
 
@@ -85,10 +85,6 @@ struct of_spectrum {
   double E0;
 };
 
-//#define N_ESAMP   200
-//#define N_EBINS   200
-//#define N_THBINS  6
-
 extern struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS];
 #pragma omp threadprivate(spect)
 
@@ -126,7 +122,12 @@ extern double ***n2gens;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 
+/* radiation parameters */
+extern double KAPPA;
+
 /* some coordinate parameters */
+extern int METRIC_sphMINK;
+
 extern double t;
 extern double a;
 extern double R0, Rin, Rout, Rms, Rh, Rmax;
@@ -163,6 +164,14 @@ extern double max_tau_scatt, Ladv, dMact, bias_norm, biasTuning;
                  for(int nu=0; nu < NDIM; nu++)
 
 /** model-independent subroutines **/
+
+/* debug */
+void print_matrix(char *name, double g[NDIM][NDIM]);
+void print_vector(char *name, double v[NDIM]);
+
+/* testing */
+void run_all_tests();
+
 /* core monte carlo/radiative transport routines */
 void track_super_photon(struct of_photon *ph);
 void record_super_photon(struct of_photon *ph);
@@ -225,14 +234,10 @@ double jnu_inv(double nu, double thetae, double ne, double B,
          double theta);
 
   /* emissivity */
-double jnu(double nu, double Ne, double Thetae, double B,
-     double theta);
-double jnu_ratio_brems(double nu, double Ne, double Thetae, double B,
-     double theta);
+double jnu(double nu, double Ne, double Thetae, double B, double theta);
+double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta);
 double int_jnu(double Ne, double Thetae, double Bmag, double nu);
 void init_emiss_tables(void);
-double F_eval(double Thetae, double Bmag, double nu);
-double K2_eval(double Thetae);
 
   /* compton scattering */
 void init_hotcross(void);
@@ -262,6 +267,7 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Bcov[NDIM]);
 int stop_criterion(struct of_photon *ph);
 int record_criterion(struct of_photon *ph);
+double kappa_w(double Thetae);
 
 /* coordinate related */
 void get_connection(double *X, double lconn[][NDIM][NDIM]);
@@ -281,7 +287,6 @@ void init_tetrads(void);
 void init_data(int argc, char *argv[], Params *params);
 void init_nint_table(void);
 void init_storage(void);
-//double dOmega_func(double Xi[NDIM], double Xf[NDIM]);
 double dOmega_func(int j);
 
 double linear_interp_weight(double nu);

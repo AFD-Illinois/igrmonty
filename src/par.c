@@ -2,6 +2,31 @@
 #include <math.h>
 #include "par.h"
 
+// call this to set defaults
+void load_par_from_argv(int argc, char *argv[], Params *params) {
+
+  // set default values here
+  params->seed        = -1; // will use time() to randomize seed if set to -1
+
+  params->biasTuning  = 1.;
+  params->fitBias     = 0;
+  params->fitBiasNs   = 10000.;
+  params->targetRatio = M_SQRT2;
+
+  params->TP_OVER_TE = 3.;
+  params->beta_crit = 1.;
+  params->trat_small = 1.;
+  params->trat_large = 10.;
+  params->Thetae_max = 1.e100;
+
+  // Load parameters
+  for (int i=0; i<argc-1; ++i) {
+    if ( strcmp(argv[i], "-par") == 0 ) {
+      load_par(argv[i+1], params);
+    }
+  }
+}
+
 // sets default values for elements of params (if desired) and loads
 // from par file 'fname'
 void load_par (const char *fname, Params *params) {
@@ -13,20 +38,6 @@ void load_par (const char *fname, Params *params) {
     fprintf(stderr, "! unable to load parameter file '%s'. (%d: %s)\n", fname, errno, strerror(errno));
     exit(-1);
   }
-
-  // set default values here
-  params->seed        = -1; // will use time() to randomize seed if set to -1
-
-  params->biasTuning  = 1.;
-  params->fitBias     = 0.;
-  params->fitBiasNs   = 10000.;
-  params->targetRatio = M_SQRT2;
-
-  params->TP_OVER_TE = 3.;
-  params->beta_crit = 1.;
-  params->trat_small = 1.;
-  params->trat_large = 10.;
-  params->Thetae_max = 1.e100;
 
   // modify parameters/types below
   while (fgets(line, 255, fp) != NULL) {
@@ -69,7 +80,9 @@ void load_par (const char *fname, Params *params) {
 // loads value -> (type *)*val if line corresponds to (key,value)
 void read_param (const char *line, const char *key, void *val, int type) {
 
-  char word[256], value[256];
+  // silence valgrind warnings
+  char word[256] = {0};
+  char value[256] = {0};
 
   sscanf(line, "%s %s", word, value);
 

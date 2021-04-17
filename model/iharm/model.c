@@ -30,6 +30,8 @@ double ***b;
 
 double TP_OVER_TE;
 
+double KAPPA = 15.0; // WARNING: this should not be static!
+
 static double MBH, game, gamp;
 
 static hdf5_blob fluid_header = { 0 };

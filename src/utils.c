@@ -446,6 +446,11 @@ void init_geometry()
 
 void init_tetrads()
 {
+  if (B_unit == 0) {
+    fprintf(stderr, "B_unit must be > 0. Quitting.\n");
+    exit(1);
+  }
+
   #pragma omp parallel for collapse(3)
   for (int i=0; i<N1; ++i) {
     for (int j=0; j<N2; ++j) {

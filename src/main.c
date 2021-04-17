@@ -76,19 +76,19 @@ int main(int argc, char *argv[])
   fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
 
+  // optionally run tests. TODO use command line switch
+  //run_all_tests();
+
   double wtime = omp_get_wtime();
 
   // spectral bin parameters
   dlE = 0.25;         // bin width
   lE0 = log(1.e-12);  // location of first bin, in electron rest-mass units
 
-  // Load parameters
-  for (int i=0; i<argc-1; ++i) {
-    if ( strcmp(argv[i], "-par") == 0 ) {
-      load_par(argv[i+1], &params);
-    }
-  }
+  // load parameters from command line
+  load_par_from_argv(argc, argv, &params);
 
+  // initialize model
   init_model(argc, argv, &params);
 
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
@@ -173,7 +173,7 @@ int main(int argc, char *argv[])
   summary(NULL, NULL); /* initialize main loop timer */
   
   reset_state(1);
-  
+ 
   #pragma omp parallel firstprivate(quit_flag)
   {
     struct of_photon ph = {0};

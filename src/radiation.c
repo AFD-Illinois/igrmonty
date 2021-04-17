@@ -1,5 +1,3 @@
-
-
 /*
 
 model-independent radiation-related utilities.
@@ -8,63 +6,81 @@ model-independent radiation-related utilities.
 
 #include "decs.h"
 
-/* planck function */
+// this file defines:
+//
+//   Bnu_inv
+//   jnu_inv
+//   alpha_inv_scatt
+//   alpha_inv_abs
+//   kappa_es
+//   get_fluid_nu
+//   get_bk_angle
+//
+
+
+// determine w by finding effective w for total
+// energy to match thermal (MJ) at Thetae
+double kappa_w(double Thetae)
+{
+  return (KAPPA - 3.)/KAPPA * Thetae;
+}
+
+// planck function
 double Bnu_inv(double nu, double Thetae)
 {
+	double x = HPL * nu / (ME * CL * CL * Thetae);
 
-	double x;
-
-	x = HPL * nu / (ME * CL * CL * Thetae);
-
-	if (x < 1.e-3)		/* Taylor expand */
+	if (x < 1.e-3) { // Taylor expand if small
 		return ((2. * HPL / (CL * CL)) /
 			(x / 24. * (24. + x * (12. + x * (4. + x)))));
-	else
-		return ((2. * HPL / (CL * CL)) / (exp(x) - 1.));
+  }
+
+	return (2. * HPL / (CL * CL)) / (exp(x) - 1.);
 }
 
-/* return j_\nu/\nu^2, the invariant emissivity */
+// return j_\nu/\nu^2, the invariant emissivity
 double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
 {
-	double j;
+	double j = jnu(nu, Ne, Thetae, B, theta);
 
-	j = jnu(nu, Ne, Thetae, B, theta);
-
-	return (j / (nu * nu));
+	return j / (nu * nu);
 }
 
-/* return invariant scattering opacity */
+// return invariant scattering opacity if Compton scattering enabled
 double alpha_inv_scatt(double nu, double Thetae, double Ne)
 {
   #if COMPTON
-	double kappa;
 
-	kappa = kappa_es(nu, Thetae);
+	return nu * kappa_es(nu, Thetae) * Ne * MP;
 
-	return (nu * kappa * Ne * MP);
   #else
+
   return 0.;
+
   #endif
 }
 
-/* return invariant absorption opacity */
+// return invariant absorption opacity 
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {
   #if DIST_KAPPA && BREMSSTRAHLUNG
-  printf("ERROR absorptivities not set up for bremss and kappa!\n");
+  fprintf(stderr, "ERROR absorptivities not set up for bremss and kappa!\n");
   exit(-1);
   #endif
 
   #if DIST_KAPPA
-  // Pandya+ 2016 absorptivity
-  double Aslo, Ashi, As;
 
+  // Pandya+ 2016 absorptivity
+ 
   double kap = KAPPA;
-  double w = Thetae;
+  double w = kappa_w(Thetae);
+
   double nuc = EE*B/(2.*M_PI*ME*CL);
   double nuk = nuc*pow(w*kap,2)*sin(theta);
   double Xk = nu/nuk;
+
+  double Aslo, Ashi, As;
 
   Aslo  = pow(Xk,-2./3.)*pow(3.,1./6.)*10./41.;
   Aslo *= 2.*M_PI/(pow(w*kap,10./3.-kap));
@@ -96,45 +112,50 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   As = pow(pow(Aslo,-xbr) + pow(Ashi,-xbr),-1./xbr);
   double alphas = Ne*EE*EE/(nu*ME*CL)*As;
   double cut = exp(-nu/NUCUT);
-
+  
   return nu*alphas*cut;
 
   #else
-	double j, bnu;
 
-	j = jnu_inv(nu, Thetae, Ne, B, theta);
-	bnu = Bnu_inv(nu, Thetae);
+	double j = jnu_inv(nu, Thetae, Ne, B, theta);
+	double bnu = Bnu_inv(nu, Thetae);
 
-  //double alpha_kirch = j/(bnu + 1.e-100);
+  if (j > 0) {
+	  return j / (bnu + 1.e-100);
+  }
 
-	return (j / (bnu + 1.e-100));
+  return 0;
+
   #endif // DIST_KAPPA
 }
 
 
-/* return electron scattering opacity, in cgs */
+// return electron scattering opacity in cgs
 double kappa_es(double nu, double Thetae)
 {
-	double Eg;
 
-	/* assume pure hydrogen gas to
-	   convert cross section to opacity */
-	Eg = HPL * nu / (ME * CL * CL);
-	return (total_compton_cross_lkup(Eg, Thetae) / MP);
+	// assume pure hydrogen gas to
+	// convert cross section to opacity
+	
+	double Eg = HPL * nu / (ME * CL * CL);
+
+  if (Eg > 1.e75) {
+    fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
+  }
+
+	return total_compton_cross_lkup(Eg, Thetae) / MP;
 }
 
-/* get frequency in fluid frame, in Hz */
+// get frequency in fluid frame, in Hz
 double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM])
 {
-	double ener, nu;
+	// in electron rest-mass units 
+	double energy = -(K[0]*Ucov[0] + K[1]*Ucov[1] + K[2]*Ucov[2] + K[3]*Ucov[3]);
 
-	/* this is the energy in electron rest-mass units */
-	ener = -(K[0] * Ucov[0] +
-		 K[1] * Ucov[1] + K[2] * Ucov[2] + K[3] * Ucov[3]);
+  // in Hz
+	double nu = energy * ME * CL * CL / HPL;
 
-	nu = ener * ME * CL * CL / HPL;
-
-	if (isnan(ener)) {
+	if (isnan(energy)) {
 		fprintf(stderr, "isnan get_fluid_nu, K: %g %g %g %g\n",
 			K[0], K[1], K[2], K[3]);
 		fprintf(stderr, "isnan get_fluid_nu, X: %g %g %g %g\n",
@@ -144,29 +165,28 @@ double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Uco
 	}
 
 	return nu;
-
 }
 
-/* return angle between magnetic field and wavevector */
+// return angle between magnetic field and wavevector
 double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
 		    double Bcov[NDIM], double B)
 {
 	double k, mu;
 
-	if (B == 0.)
-		return (M_PI / 2.);
+	if (B == 0.) {
+		return M_PI / 2.;
+  }
 
-	k = fabs(K[0] * Ucov[0] + K[1] * Ucov[1] + K[2] * Ucov[2] +
-		 K[3] * Ucov[3]);
+	k = fabs(K[0]*Ucov[0] + K[1]*Ucov[1] + K[2]*Ucov[2] + K[3]*Ucov[3]);
 
-	/* B is in cgs but Bcov is in code units */
-	mu = (K[0] * Bcov[0] + K[1] * Bcov[1] + K[2] * Bcov[2] +
-	      K[3] * Bcov[3]) / (k * B / B_unit);
+	// B is in cgs but Bcov is in code units
+	mu = (K[0] * Bcov[0] + K[1] * Bcov[1] + K[2] * Bcov[2] + K[3] * Bcov[3]) / (k * B / B_unit);
 
-	if (fabs(mu) > 1.)
+	if (fabs(mu) > 1.) {
 		mu /= fabs(mu);
+  }
 
-	return (acos(mu));
+	return acos(mu);
 
-	(void)X; /* silence unused parameter warning */
+	(void)X; // silence unused parameter warning 
 }

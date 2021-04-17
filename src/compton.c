@@ -1,5 +1,5 @@
-
 #include "decs.h"
+#include "compton.h"
 
 /*
 
@@ -24,10 +24,9 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	double n0x, n0y, n0z, n0dotv0, v0x, v0y, v0z, v1x, v1y, v1z, v2x,
 	    v2y, v2z, v1, dir1, dir2, dir3;
 	double cth, sth, phi, cphi, sphi;
-	//void sincos(double x, double *sin, double *cos);
 
-	/* boost into the electron frame
-	   ke == photon momentum in elecron frame */
+	// boost into the electron frame
+	// ke == photon momentum in elecron frame
 
 	boost(k, p, ke);
 	if (ke[0] > 1.e-4) {
@@ -39,8 +38,8 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	}
 	sth = sqrt(fabs(1. - cth * cth));
 
-	/* unit vector 1 for scattering coordinate system is
-	   oriented along initial photon wavevector */
+	// unit vector 1 for scattering coordinate system is
+	// oriented along initial photon wavevector 
 	//v0x = ke[1] / ke[0];
 	//v0y = ke[2] / ke[0];
 	//v0z = ke[3] / ke[0];
@@ -53,12 +52,12 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
   v0y = ke[2]/kemag;
   v0z = ke[3]/kemag;
 
-	/* randomly pick zero-angle for scattering coordinate system.
-	   There's undoubtedly a better way to do this. */
+	// randomly pick zero-angle for scattering coordinate system.
+	// There's undoubtedly a better way to do this.
 	monty_ran_dir_3d(&n0x, &n0y, &n0z);
 	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
 
-	/* unit vector 2 */
+	// unit vector 2
 	v1x = n0x - (n0dotv0) * v0x;
 	v1y = n0y - (n0dotv0) * v0y;
 	v1z = n0z - (n0dotv0) * v0z;
@@ -67,23 +66,20 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	v1y /= v1;
 	v1z /= v1;
 
-	/* find one more unit vector using cross product;
-	   this guy is automatically normalized */
+	// find one more unit vector using cross product;
+	// this guy is automatically normalized
 	v2x = v0y * v1z - v0z * v1y;
 	v2y = v0z * v1x - v0x * v1z;
 	v2z = v0x * v1y - v0y * v1x;
 
-	/* now resolve new momentum vector along unit vectors */
-	/* create a four-vector $p$ */
-	/* solve for orientation of scattered photon */
+	// now resolve new momentum vector along unit vectors 
+	// create a four-vector $p$
+	// solve for orientation of scattered photon 
 
-	/* find phi for new photon */
+	// find phi for new photon 
 	phi = 2. * M_PI * monty_rand();
-    /* this won't work on some machines, but it's faster 
-	sincos(phi, &sphi, &cphi);
-    */
-    sphi = sin(phi);
-    cphi = cos(phi);
+  sphi = sin(phi);
+  cphi = cos(phi);
 
 	p[1] *= -1.;
 	p[2] *= -1.;
@@ -98,10 +94,10 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	kpe[2] = k0p * dir2;
 	kpe[3] = k0p * dir3;
 
-	/* transform k back to lab frame */
+	// transform k back to lab frame
 	boost(kpe, p, kp);
 
-	/* quality control */
+	// quality control
 	if (kp[0] < 0 || isnan(kp[0])) {
 		fprintf(stderr, "in sample_scattered_photon:\n");
 		fprintf(stderr, "kp[0], kpe[0]: %g %g\n", kp[0], kpe[0]);
@@ -117,7 +113,7 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 			kp[3]);
 	}
 
-	/* done! */
+	// done!
 }
 
 /*
@@ -139,7 +135,7 @@ void boost(double v[4], double u[4], double vp[4])
 	n3 = u[3] / (g * V + SMALL);
 	gm1 = g - 1.;
 
-	/* general Lorentz boost into frame u from lab frame */
+	// general Lorentz boost into frame u from lab frame 
 	vp[0] = u[0]*v[0] - 
 		u[1]*v[1] - 
 		u[2]*v[2] - 
@@ -191,16 +187,16 @@ double sample_klein_nishina(double k0)
 	double k0pmin, k0pmax, k0p_tent, x1;
 	int n = 0;
 
-	/* a low efficiency sampling algorithm, particularly for large k0;
-	   limiting efficiency is log(2 k0)/(2 k0) */
-	k0pmin = k0 / (1. + 2. * k0);	/* at theta = Pi */
-	k0pmax = k0;			/* at theta = 0 */
+	// a low efficiency sampling algorithm, particularly for large k0;
+	// limiting efficiency is log(2 k0)/(2 k0)
+	k0pmin = k0 / (1. + 2. * k0);	 // at theta = Pi
+	k0pmax = k0;  // at theta = 0
 	do {
 
-		/* tentative value */
+		// tentative value
 		k0p_tent = k0pmin + (k0pmax - k0pmin) * monty_rand();
 
-		/* rejection sample in box of height = kn(kmin) */
+		// rejection sample in box of height = kn(kmin)
 		x1 = 2. * (1. + 2. * k0 +
 			   2. * k0 * k0) / (k0 * k0 * (1. + 2. * k0));
 		x1 *= monty_rand();
@@ -246,37 +242,28 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	double v1x, v1y, v1z;
 	double v2x, v2y, v2z;
 	int sample_cnt = 0;
-	//void sincos(double x, double *sin, double *cos);
 
 	do {
 		sample_beta_distr(Thetae, &gamma_e, &beta_e);
 		mu = sample_mu_distr(beta_e);
-		/* sometimes |mu| > 1 from roundoff error, fix it */
+		// sometimes |mu| > 1 from roundoff error, fix it
 		if (mu > 1.)
 			mu = 1.;
 		else if (mu < -1.)
 			mu = -1;
 
-		/* frequency in electron rest frame */
+		// frequency in electron rest frame
 		K = gamma_e * (1. - beta_e * mu) * k[0];
 
-		/* Avoid problems at small K */
+		// Avoid problems at small K
 		if (K < 1.e-3) {
 			sigma_KN = 1. - 2. * K;
 		} else {
 
-			/* Klein-Nishina cross-section / Thomson */
-			sigma_KN = (3. / (4. * K * K)) * (2. +
-					   K * K * (1. +
-							    K) / ((1. +
-								   2. *
-								   K) *
-								  (1. +
-								   2. *
-								   K)) +
-						   (K * K - 2. * K -
-						    2.) / (2. * K) *
-						   log(1. + 2. * K));
+			// Klein-Nishina cross-section / Thomson
+			sigma_KN = (3. / (4. * K * K)) * 
+                 (2. + K * K * (1. + K) / ((1. + 2. * K) * (1. + 2. * K)) +
+						   (K * K - 2. * K - 2.) / (2. * K) * log(1. + 2. * K));
 		}
 
 		x1 = monty_rand();
@@ -287,14 +274,14 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 			fprintf(stderr,
 				"in sample_electron mu, gamma_e, K, sigma_KN, x1: %g %g %g %g %g %g\n",
 				Thetae, mu, gamma_e, K, sigma_KN, x1);
-			/* This is a kluge to prevent stalling for large values of \Theta_e */
+			// This is a kluge to prevent stalling for large values of \Theta_e 
 			Thetae *= 0.5;
 			sample_cnt = 0;
 		}
 
 	} while (x1 >= sigma_KN);
 
-	/* first unit vector for coordinate system */
+	// first unit vector for coordinate system 
 	v0x = k[1];
 	v0y = k[2];
 	v0z = k[3];
@@ -303,45 +290,39 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	v0y /= v0;
 	v0z /= v0;
 
-	/* pick zero-angle for coordinate system */
+	// pick zero-angle for coordinate system 
 	monty_ran_dir_3d(&n0x, &n0y, &n0z);
 	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
 
-	/* second unit vector */
+	// second unit vector
 	v1x = n0x - (n0dotv0) * v0x;
 	v1y = n0y - (n0dotv0) * v0y;
 	v1z = n0z - (n0dotv0) * v0z;
 
-	/* normalize */
+	// normalize
 	v1 = sqrt(v1x * v1x + v1y * v1y + v1z * v1z);
 	v1x /= v1;
 	v1y /= v1;
 	v1z /= v1;
 
-	/* find one more unit vector using cross product;
-	   this guy is automatically normalized */
+	// find one more unit vector using cross product;
+	// this guy is automatically normalized
 	v2x = v0y * v1z - v0z * v1y;
 	v2y = v0z * v1x - v0x * v1z;
 	v2z = v0x * v1y - v0y * v1x;
 
-	/* now resolve new momentum vector along unit vectors 
-	   and create a four-vector $p$ */
-	phi = monty_rand() * 2. * M_PI;	/* orient uniformly */
-    /* this won't work on many machines, but it's faster 
-	sincos(phi, &sphi, &cphi);
-    */
-    sphi = sin(phi);
-    cphi = cos(phi);
+	// now resolve new momentum vector along unit vectors 
+	// and create a four-vector $p$
+	phi = monty_rand() * 2. * M_PI;	// orient uniformly
+  sphi = sin(phi);
+  cphi = cos(phi);
 	cth = mu;
 	sth = sqrt(1. - mu * mu);
 
 	p[0] = gamma_e;
-	p[1] = gamma_e * beta_e * (cth * v0x +
-				sth * (cphi * v1x + sphi * v2x));
-	p[2] = gamma_e * beta_e * (cth * v0y +
-				sth * (cphi * v1y + sphi * v2y));
-	p[3] = gamma_e * beta_e * (cth * v0z +
-				sth * (cphi * v1z + sphi * v2z));
+	p[1] = gamma_e * beta_e * (cth * v0x + sth * (cphi * v1x + sphi * v2x));
+	p[2] = gamma_e * beta_e * (cth * v0y + sth * (cphi * v1y + sphi * v2y));
+	p[3] = gamma_e * beta_e * (cth * v0z + sth * (cphi * v1z + sphi * v2z));
 
 	if (beta_e < 0) {
 		fprintf(stderr, "betae error: %g %g %g %g\n",
@@ -359,33 +340,28 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
    
 */
 
-struct df_params {
-  double Thetae;
-};
-
 // Function that, when zero, gives gamma for which dN/d log gam is maximized
 double dfdgam(double ge, void *params)
 {
-  struct df_params *p = (struct df_params*) params;
-  double Te = p->Thetae;
+  double Thetae = *(double *)params;
 
   #if DIST_KAPPA
   double kap = KAPPA;
-  //return ((2.-3*ge*ge)*kap*Te + (ge-1)*(ge*(ge*(kap-2.)+kap+1)+2.)); 
-  double gc = GAMMACUT;
-  return (1.-ge)*ge*(-ge+ge*ge*ge+gc*(2.+ge*(1.+ge*(-2.+kap)+kap))) + ge*(ge-ge*ge*ge+gc*(-2.+3.*ge*ge))*kap*Te;
+  double w = kappa_w(Thetae);
+  return 2. + ge * ( ge / ( ge*ge - 1 ) - 1. / GAMMACUT - (kap+1)/kap/w / (1. + (ge-1.)/kap/w) );
   #else
-  return ge - pow(ge,3.) - 2.*Te + 3.*pow(ge,2.)*Te;
+  return ge - pow(ge,3.) - 2.*Thetae + 3.*pow(ge,2.)*Thetae;
   #endif
 }
 
-// Maxwell-Juettner distribution, prefactor removed for sampling
-// dN / d \log \gamma
+// electron distribution function (Maxwell-Juettner or kappa below)
+// dN / d log gamma
 double fdist(double ge, double Thetae)
 {
   #if DIST_KAPPA
   double kap = KAPPA;
-  return pow(ge,2)*sqrt(ge*ge-1.)*pow(1. + (ge-1.)/(kap*Thetae),-kap-1.)*exp(-ge/GAMMACUT);
+  double w = kappa_w(Thetae);
+  return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap * w), - kap - 1.)*exp(-ge/GAMMACUT);
   #else
   return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
   #endif
@@ -396,7 +372,25 @@ double fdist(double ge, double Thetae)
 #include <gsl/gsl_roots.h>
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
+  return sample_beta_distr_num(Thetae, gamma_e, beta_e);
+}
 
+void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e) 
+{
+  double sample_y_distr_kappa(double);
+  #if DIST_KAPPA
+  double y = sample_y_distr_kappa(Thetae);
+  #else
+  double y = sample_y_distr(Thetae);
+  #endif
+  *gamma_e = y * y * Thetae + 1.;
+  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
+
+  return;
+}
+
+void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
+{
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
   if (Thetae < 0.01) {
     *gamma_e = 1.000001;
@@ -409,16 +403,15 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
   const gsl_root_fsolver_type *T;
   gsl_root_fsolver *s;
   double ge_max = 1. + Thetae;
-  double ge_lo = GSL_MAX(1., 0.01*Thetae);
+  double ge_lo = GSL_MAX(1.000001, 0.01*Thetae); // dfdgam -> +inf as ge -> 1+
   double ge_hi = GSL_MAX(100., 1000.*Thetae);
 
   //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
   gsl_function F;
-  struct df_params params = {Thetae};
 
   //printf("%e %e\n", dfdgam(ge_lo, &params), dfdgam(ge_hi, &params));
   F.function = &dfdgam;
-  F.params = &params;
+  F.params = &Thetae;
   T = gsl_root_fsolver_brent;
   s = gsl_root_fsolver_alloc(T);
   gsl_root_fsolver_set(s, &F, ge_lo, ge_hi);
@@ -431,10 +424,9 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
     status = gsl_root_test_interval(ge_lo, ge_hi, 0, 0.001);
   } while (status == GSL_CONTINUE && iter < max_iter);
 
-  //printf("ge_max = %e\n", ge_max);
   double f_max = fdist(ge_max, Thetae);
-  //printf("fmax = %e\n", f_max);
   gsl_root_fsolver_free(s);
+  //fprintf(stderr, "max is %g at %g for %g\n", f_max, ge_max, Thetae);
   
   // Sample electron gamma
   double ge_samp;
@@ -488,8 +480,8 @@ double sample_y_distr(double Thetae)
 			x = monty_ran_chisq(6);
 		}
 
-		/* this translates between defn of distr in
-		   Canfield et al. and standard chisq distr */
+		// this translates between defn of distr in
+		// Canfield et al. and standard chisq distr
 		y = sqrt(x / 2);
 
 		x2 = monty_rand();
