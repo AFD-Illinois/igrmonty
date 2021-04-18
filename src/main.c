@@ -72,6 +72,9 @@ double biasTuning = 1.;
 
 int main(int argc, char *argv[])
 {
+  fprintf(stderr, "DO NOT USE THIS VERSION OF THE CODE. PLEASE USE A VERSION BEFORE THE KAPPA PR!\n");
+  exit(41);
+	
   // motd
   fprintf(stderr, "grmonty. githash: %s\n", xstr(VERSION));
   fprintf(stderr, "notes: %s\n\n", xstr(NOTES));
