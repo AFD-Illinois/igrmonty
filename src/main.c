@@ -82,7 +82,7 @@ int main(int argc, char *argv[])
   double wtime = omp_get_wtime();
 
   // spectral bin parameters
-  dlE = 0.0675;         // bin width  // TODO, why is this here and not set where it should be?
+  dlE = 0.25;         // bin width  // TODO, why is this here and not set where it should be?
   lE0 = log(1.e-12);  // location of first bin, in electron rest-mass units
 
   // load parameters from command line

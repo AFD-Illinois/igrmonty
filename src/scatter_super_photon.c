@@ -121,7 +121,7 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
 
   /* bookkeeping */
   K_tetrad_p[0] *= -1.;
-  tetrad_to_coordinate(Econ, K_tetrad_p, tmpK);  // changed Ecov -> Econ to agree with kmonty
+  tetrad_to_coordinate(Ecov, K_tetrad_p, tmpK);
 
   php->E = php->E0s = -tmpK[0];
   php->L = tmpK[3];
