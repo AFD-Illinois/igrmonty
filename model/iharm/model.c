@@ -1,5 +1,6 @@
 #include "decs.h"
 #include "coordinates.h"
+#include "model_radiation.h"
 
 #define NVAR (10)
 #define USE_FIXED_TPTE (0)
@@ -29,8 +30,6 @@ double ***thetae;
 double ***b;
 
 double TP_OVER_TE;
-
-double KAPPA = 15.0; // WARNING: this should not be static!
 
 static double MBH, game, gamp;
 
@@ -772,7 +771,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/THETAE_MAX", THETAE_MAX);
   h5io_add_data_dbl(fid, "/params/TP_OVER_TE", TP_OVER_TE);
   h5io_add_data_dbl(fid, "/params/WEIGHT_MIN", WEIGHT_MIN);
-  h5io_add_data_dbl(fid, "/params/KAPPA", KAPPA);
+  h5io_add_data_dbl(fid, "/params/KAPPA", model_kappa);
   h5io_add_data_dbl(fid, "/params/L_unit", L_unit);
   h5io_add_data_dbl(fid, "/params/T_unit", T_unit);
   h5io_add_data_dbl(fid, "/params/M_unit", M_unit);
@@ -792,7 +791,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
   h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);
   h5io_add_data_int(fid, "/params/COMPTON", COMPTON);
-  h5io_add_data_int(fid, "/params/DIST_KAPPA", DIST_KAPPA);
+  h5io_add_data_int(fid, "/params/DIST_KAPPA", MODEL_EDF==EDF_KAPPA_FIXED?1:0);
   h5io_add_data_int(fid, "/params/N_ESAMP", N_ESAMP);
   h5io_add_data_int(fid, "/params/N_EBINS", N_EBINS);
   h5io_add_data_int(fid, "/params/N_THBINS", N_THBINS);

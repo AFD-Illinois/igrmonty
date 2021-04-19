@@ -1,5 +1,6 @@
 #include "decs.h"
 #include "compton.h"
+#include "model_radiation.h"
 
 /*
 
@@ -345,26 +346,32 @@ double dfdgam(double ge, void *params)
 {
   double Thetae = *(double *)params;
 
-  #if DIST_KAPPA
-  double kap = KAPPA;
-  double w = kappa_w(Thetae);
+#if MODEL_EDF==EDF_KAPPA_FIXED
+  double kap = model_kappa;
+  double w = kappa_w(Thetae, kap);
   return 2. + ge * ( ge / ( ge*ge - 1 ) - 1. / GAMMACUT - (kap+1)/kap/w / (1. + (ge-1.)/kap/w) );
-  #else
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   return ge - pow(ge,3.) - 2.*Thetae + 3.*pow(ge,2.)*Thetae;
-  #endif
+#else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+#endif
 }
 
 // electron distribution function (Maxwell-Juettner or kappa below)
 // dN / d log gamma
 double fdist(double ge, double Thetae)
 {
-  #if DIST_KAPPA
-  double kap = KAPPA;
-  double w = kappa_w(Thetae);
+#if MODEL_EDF==EDF_KAPPA_FIXED
+  double kap = model_kappa;
+  double w = kappa_w(Thetae, kap);
   return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap * w), - kap - 1.)*exp(-ge/GAMMACUT);
-  #else
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
-  #endif
+#else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+#endif
 }
 
 #include <gsl/gsl_errno.h>
@@ -378,11 +385,14 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e) 
 {
   double sample_y_distr_kappa(double);
-  #if DIST_KAPPA
+#if MODEL_EDF==EDF_KAPPA_FIXED
   double y = sample_y_distr_kappa(Thetae);
-  #else
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   double y = sample_y_distr(Thetae);
-  #endif
+#else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+#endif
   *gamma_e = y * y * Thetae + 1.;
   *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
 

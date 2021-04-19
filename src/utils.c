@@ -375,7 +375,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   // Sample from superphoton distribution in current simulation zone
   nu = exp(monty_rand() * Nln + LNUMIN);
   weight = zone_linear_interp_weight(nu);
-
+  
   ph->w = weight;
   jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2.);
   do {
@@ -457,13 +457,17 @@ void init_tetrads()
       for (int k=0; k<N3; ++k) {
         // precompute tetrads
         double Ne, Thetae, Bmag;
-        double Ucon[NDIM], Bcon[NDIM], bhat[NDIM];
+        double Ucon[NDIM], Bcon[NDIM], Bcov[NDIM], bhat[NDIM];
 
         get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
+        lower(Bcon, geom[i][j].gcov, Bcov);
+        double Bsq = 0.;
+        for (int mu=0; mu<NDIM; ++mu) Bsq += Bcon[mu] * Bcov[mu];
+
         if (Bmag > 0.) {
           for (int l = 0; l < NDIM; l++) {
-            bhat[l] = Bcon[l] * B_unit / Bmag;
+            bhat[l] = Bcon[l] / sqrt(Bsq);
           }
         } else {
           for (int l = 1; l < NDIM; l++) {

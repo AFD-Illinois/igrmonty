@@ -6,7 +6,7 @@
 //        x^3 are normal KS coordinates. in addition you must set METRIC_*
 //        in order to specify how Xtoijk and gdet_zone should work.
 extern int METRIC_eKS;
-extern int with_derefine_poles, METRIC_MKS3;
+extern int with_derefine_poles, METRIC_MKS3, METRIC_sphMINK, METRIC_esphMINK;
 extern double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 extern double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
@@ -18,6 +18,15 @@ static inline __attribute__((always_inline)) void set_dxdX_metric(const double X
   // Jacobian with respect to KS basis where X is given in
   // non-KS basis
   MUNULOOP dxdX[mu][nu] = 0.;
+
+  if ( METRIC_sphMINK ) {
+    MUNULOOP dxdX[mu][nu] = mu==nu ? 1 : 0;
+    return;
+  } else if ( METRIC_esphMINK ) {
+    MUNULOOP dxdX[mu][nu] = mu==nu ? 1 : 0;
+    dxdX[1][1] = exp(X[1]);
+    return;
+  }
 
   if ( METRIC_eKS && metric==0 ) {
 

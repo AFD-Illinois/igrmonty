@@ -46,7 +46,6 @@ void track_super_photon(struct of_photon *ph)
   bi = bias_func(Thetae, ph->w);
 
   init_dKdlam(ph->X, ph->K, ph->dKdlam);
-
   while (!stop_criterion(ph)) {
     // Save initial position/wave vector
     Xi[0] = ph->X[0];
@@ -70,7 +69,6 @@ void track_super_photon(struct of_photon *ph)
     push_photon(ph->X, ph->K, ph->dKdlam, dl, &(ph->E0s), 0);
     if (stop_criterion(ph))
       break;
-
 
 #ifdef MODEL_TRANSPARENT
     if (0 == 1) {
@@ -134,10 +132,11 @@ void track_super_photon(struct of_photon *ph)
 
         dtau_scatt *= frac;
         dtau = dtau_abs + dtau_scatt;
-        if (dtau_abs < 1.e-3)
+        if (dtau_abs < 1.e-3) {
           ph->w *= (1. - dtau/24.*(24. - dtau*(12. - dtau*(4. - dtau))));
-        else
+        } else {
           ph->w *= exp(-dtau);
+        }
 
         // Interpolate position and wave vector to scattering event
         push_photon(Xi, Ki, dKi, dl*frac, &E0, 0);

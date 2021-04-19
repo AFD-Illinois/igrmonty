@@ -11,7 +11,6 @@
 #define SYNCHROTRON (1)
 #define BREMSSTRAHLUNG (1)
 #define COMPTON (1)
-#define DIST_KAPPA (0)
 
 #define KRHO     0
 #define UU       1

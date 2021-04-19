@@ -5,6 +5,7 @@ model-independent radiation-related utilities.
 */
 
 #include "decs.h"
+#include "model_radiation.h"
 
 // this file defines:
 //
@@ -17,12 +18,13 @@ model-independent radiation-related utilities.
 //   get_bk_angle
 //
 
+double model_kappa = 4.;
 
 // determine w by finding effective w for total
 // energy to match thermal (MJ) at Thetae
-double kappa_w(double Thetae)
+double kappa_w(double Thetae, double kappa)
 {
-  return (KAPPA - 3.)/KAPPA * Thetae;
+  return (kappa - 3.)/kappa * Thetae;
 }
 
 // planck function
@@ -64,17 +66,18 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne)
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {
-  #if DIST_KAPPA && BREMSSTRAHLUNG
+
+#if BRESMSSTRAHLUNG && (MODEL_EDF==EDF_KAPPA_FIXED)
   fprintf(stderr, "ERROR absorptivities not set up for bremss and kappa!\n");
   exit(-1);
-  #endif
+#endif
 
-  #if DIST_KAPPA
+#if MODEL_EDF==EDF_KAPPA_FIXED
 
   // Pandya+ 2016 absorptivity
  
-  double kap = KAPPA;
-  double w = kappa_w(Thetae);
+  double kap = model_kappa;
+  double w = kappa_w(Thetae, kap);
 
   double nuc = EE*B/(2.*M_PI*ME*CL);
   double nuk = nuc*pow(w*kap,2)*sin(theta);
@@ -115,7 +118,7 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   
   return nu*alphas*cut;
 
-  #else
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
 	double j = jnu_inv(nu, Thetae, Ne, B, theta);
 	double bnu = Bnu_inv(nu, Thetae);
@@ -126,7 +129,12 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 
   return 0;
 
-  #endif // DIST_KAPPA
+#else
+
+  fprintf(stderr, "must select valid MODEL_EDF\n");
+  exit(3);
+
+#endif 
 }
 
 
