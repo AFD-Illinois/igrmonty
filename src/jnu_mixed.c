@@ -1,4 +1,7 @@
 #include "decs.h"
+
+#include "model_radiation.h"
+
 //#include "gsl_sf_gamma.h"
 //#pragma omp threadprivate(r)
 /* 
@@ -34,13 +37,16 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta)
 {
   double j = 0.;
   
-  #if SYNCHROTRON
-  #if DIST_KAPPA
+#if SYNCHROTRON
+ #if MODEL_EDF==EDF_KAPPA_FIXED
   j += jnu_kappa(nu, Ne, Thetae, B, theta);
-  #else
+ #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   j += jnu_thermal(nu, Ne, Thetae, B, theta);
-  #endif
-  #endif
+ #else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+ #endif
+#endif
 
   #if BREMSSTRAHLUNG
   j += jnu_bremss(nu, Ne, Thetae);
@@ -54,13 +60,16 @@ double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double the
   double synch = 0.;
   double brems = 0.;
 
-  #if SYNCHROTRON
-  #if DIST_KAPPA
+#if SYNCHROTRON
+ #if MODEL_EDF==EDF_KAPPA_FIXED
   synch = jnu_kappa(nu, Ne, Thetae, B, theta);
-  #else
+ #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   synch = jnu_thermal(nu, Ne, Thetae, B, theta);
-  #endif // DIST_KAPPA
-  #endif // SYNCHROTRON
+ #else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+ #endif  // MODEL_EDF
+#endif  // SYNCHROTRON
 
   #if BREMSSTRAHLUNG
   brems = jnu_bremss(nu, Ne, Thetae);
@@ -80,17 +89,20 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
 {
   double intj = 0.;
   
-  #if SYNCHROTRON
-  #if DIST_KAPPA
+#if SYNCHROTRON
+ #if MODEL_EDF==EDF_KAPPA_FIXED
   intj += int_jnu_kappa(Ne, Thetae, B, nu);
-  #else
+ #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   intj += int_jnu_thermal(Ne, Thetae, B, nu);
-  #endif
-  #endif
+ #else
+  fprintf(stderr, "must choose valid MODEL_EDF\n");
+  exit(3);
+ #endif  // MODEL_EDF
+#endif  // SYNCHROTRON
 
-  #if BREMSSTRAHLUNG
+#if BREMSSTRAHLUNG
   intj += int_jnu_bremss(Ne, Thetae, nu);
-  #endif
+#endif
   
   return intj;
 
@@ -187,8 +199,6 @@ static double jnu_thermal(double nu, double Ne, double Thetae, double B,
 	j = (M_SQRT2 * M_PI * EE * EE * Ne * nus / (3. * CL * K2)) * f *
 	    exp(-xp1);
 
-  return j * pow(sin(theta), 8);
-
 	return j;
 }
 
@@ -201,14 +211,14 @@ static double jnu_kappa(double nu, double Ne, double Thetae, double B, double th
   if (theta < SMALL || theta > M_PI-SMALL) {
     return 0.;
   } 
- 
-  double kap = KAPPA;
+
+  double kap = model_kappa;
 	double nuc = EE * B / (2. * M_PI * ME * CL);
   double js = Ne*pow(EE,2)*nuc/CL;
   double x = 3.*pow(kap,-3./2.);
   double Jslo, Jshi;
 
-  double w = kappa_w(Thetae);
+  double w = kappa_w(Thetae, model_kappa);
   double nuk = nuc * w*kap * w*kap * sin(theta);
   double Xk = nu/nuk;
 
@@ -263,7 +273,7 @@ static double jnu_kappa_integrand(double th, void *params)
 	double K = *(double *)params;
 	double sth = sin(th);
 	double Xk = K / sth;
-  double kap = KAPPA;
+  double kap = model_kappa;
 
 	if (sth < 1.e-150 || Xk > 2.e8) {
 		return 0.;
@@ -305,7 +315,6 @@ static double int_jnu_bremss(double Ne, double Thetae, double nu)
 #define CST 1.88774862536	/* 2^{11/12} */
 static double jnu_thermal_integrand(double th, void *params)
 {
-
 	double K = *(double *) params;
 	double sth = sin(th);
 	double x = K / sth;
@@ -367,10 +376,10 @@ void init_emiss_tables(void)
   // kappa synchrotron lookup table
   {
     // Store & evaluate Gamma functions
-    GAM1 = gsl_sf_gamma(KAPPA - 4./3.);
-    GAM2 = gsl_sf_gamma(KAPPA - 2.);
-    GAM3 = gsl_sf_gamma(KAPPA/4. - 1./3.);
-    GAM4 = gsl_sf_gamma(KAPPA/4. + 4./3.);
+    GAM1 = gsl_sf_gamma(model_kappa - 4./3.);
+    GAM2 = gsl_sf_gamma(model_kappa - 2.);
+    GAM3 = gsl_sf_gamma(model_kappa/4. - 1./3.);
+    GAM4 = gsl_sf_gamma(model_kappa/4. + 4./3.);
    
     double L;
     gsl_function func;
@@ -445,9 +454,9 @@ double G_eval(double Thetae, double Bmag, double nu)
 	double L;
 	double linear_interp_G(double);
 
-  double w = kappa_w(Thetae);
+  double w = kappa_w(Thetae, model_kappa);
 
-	L = GFAC*nu/(Bmag* w*KAPPA * w*KAPPA);
+	L = GFAC*nu/(Bmag* w*model_kappa * w*model_kappa);
 
 	if (L > LMAX) {
 		return 0.;

@@ -2,6 +2,7 @@
 #include "decs.h"
 #include "hotcross.h"
 #include "compton.h"
+#include "model_radiation.h"
 
 void test_compton_sampling_functions();
 void test_compton_sampling(double Thetae, double kappa, const char *fname);
@@ -162,7 +163,7 @@ void test_emiss_abs()
 
   KAPPA = 4.;
 
-  fprintf(stderr, "DIST_KAPPA %d\n", DIST_KAPPA);
+  fprintf(stderr, "DIST_KAPPA %d\n", MODEL_EDF==EDF_KAPPA_FIXED?1:0);
 
   double B = 10;
   double Thetae = 10;

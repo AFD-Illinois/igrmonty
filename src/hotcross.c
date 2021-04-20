@@ -1,5 +1,6 @@
 #include "decs.h"
 #include "hotcross.h"
+#include "model_radiation.h"
 
 /*
 
@@ -173,12 +174,12 @@ double dNdg_integrand(double beta, void *params)
 
 double dNdgammae_kappa(double thetae, double gammae)
 {
-  double kap = KAPPA;
+  double kap = model_kappa;
   double exp_cutoff = exp(-gammae / gamma_max);
 
   // determine w by finding effective w for total energy match
   // (thermal MJ) at Thetae
-  double w = kappa_w(thetae);
+  double w = kappa_w(thetae, kap);
   
   return gammae * 
          sqrt(gammae*gammae - 1.) * 
@@ -188,7 +189,7 @@ double dNdgammae_kappa(double thetae, double gammae)
 
 double getnorm_dNdg(double thetae)
 {
-  #if DIST_KAPPA
+#if MODEL_EDF==EDF_KAPPA_FIXED
   
   double result, error;
   gsl_function F;
@@ -209,21 +210,26 @@ double getnorm_dNdg(double thetae)
 
   return 1. / result;
 
-  #else
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
   return 1.;
   (void)thetae; // silence unused parameter warning
 
-  #endif
+#else
+
+  fprintf(stderr, "must select valid MODEL_EDF\n");
+  exit(3);
+
+#endif
 }
 
 double dNdgammae(double thetae, double gammae)
 {
-  #if DIST_KAPPA
+#if MODEL_EDF==EDF_KAPPA_FIXED
 
   return dNdgammae_kappa(thetae, gammae);
 
-  #else // thermal MJ eDF
+#elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
   // multiply K2(1/Thetae) by e^(1/Thetae) for numerical purposes
   double K2f;
@@ -236,7 +242,12 @@ double dNdgammae(double thetae, double gammae)
   return (gammae * sqrt(gammae * gammae - 1.) / (thetae * K2f)) *
     exp(-(gammae - 1.) / thetae);
 
-  #endif
+#else
+
+  fprintf(stderr, "must select valid MODEL_EDF\n");
+  exit(3);
+
+#endif
 }
 
 double boostcross(double w, double mue, double gammae)

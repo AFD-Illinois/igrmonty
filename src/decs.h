@@ -126,7 +126,7 @@ extern int n_within_horizon;
 extern double KAPPA;
 
 /* some coordinate parameters */
-extern int METRIC_sphMINK;
+extern int METRIC_sphMINK, METRIC_esphMINK;
 
 extern double t;
 extern double a;
@@ -267,7 +267,7 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Bcov[NDIM]);
 int stop_criterion(struct of_photon *ph);
 int record_criterion(struct of_photon *ph);
-double kappa_w(double Thetae);
+double kappa_w(double Thetae, double kappa);
 
 /* coordinate related */
 void get_connection(double *X, double lconn[][NDIM][NDIM]);

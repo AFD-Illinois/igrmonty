@@ -1,5 +1,6 @@
 #include "decs.h"
 #include "coordinates.h"
+#include "model_radiation.h"
 
 // fluid data
 double ****bcon;
@@ -11,7 +12,7 @@ double ***ne;
 double ***thetae;
 double ***b;
 
-double KAPPA = 4.0; // WARNING: this should not be static!
+static double Rmax_record = 1.e4;
 
 static double MODEL_R_0 = 100;
 static double MODEL_TAU_0 = 1.e-5;
@@ -48,7 +49,10 @@ int stop_criterion(struct of_photon *ph)
     }
   }
 
-  if (ph->X[1] < 0 || ph->X[1] > Rmax*1.1) {
+  double r, h;
+  bl_coord(ph->X, &r, &h);
+
+  if (r < Rin || r > Rmax_record) {
     return 1;
   }
 
@@ -57,8 +61,10 @@ int stop_criterion(struct of_photon *ph)
 
 int record_criterion(struct of_photon *ph)
 {
+  double r, h;
+  bl_coord(ph->X, &r, &h);
 
-  if (ph->X[1] > Rmax * 1.1) {
+  if (r >= Rmax_record) {
     return 1;
   }
 
@@ -86,7 +92,7 @@ double stepsize(double X[NDIM], double K[NDIM])
 
   dl = 1. / (idlx1 + idlx2 + idlx3);
 
-  return (dl);
+  return dl;
 }
 #undef EPS
 
@@ -167,6 +173,7 @@ struct of_spectrum shared_spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 void omp_reduce_spect()
 {
+  // TODO: should shared_spect be explicitly set to zero (in all model files?)
   #pragma omp parallel
   {
     #pragma omp critical
@@ -278,10 +285,7 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 {
   // get grid zone center
   double X[4] = { 0. };
-  X[0] = 0.;
-  X[1] = (i+0.5) * dx[1] + startx[1];
-  X[2] = (j+0.5) * dx[2] + startx[2];
-  X[3] = (k+0.5) * dx[3] + startx[3];
+  ijktoX(i, j, k, X);
 
   // fill gcov
   double gcov[4][4];
@@ -305,7 +309,10 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
     return;
   }
 
-  if (X[1] > MODEL_R_0) {
+  double r, h;
+  bl_coord(X, &r, &h);
+
+  if (r > MODEL_R_0) {
     *Ne = 0.;
     *Thetae = 0;
     *B = 0;
@@ -315,19 +322,20 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   *Ne = model_Ne0;
   *Thetae = MODEL_THETAE_0;
   *B = model_B0;
-  
-  double r = X[1];
-  double h = X[2];
 
   Ucon[0] = 1;
   Ucon[1] = 0.;
   Ucon[2] = 0.;
   Ucon[3] = 0.;
-
+ 
   Bcon[0] = 0.;
   Bcon[1] = model_B0 * cos(h);
   Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8);
   Bcon[3] = 0.;
+
+  if (METRIC_esphMINK) {
+    Bcon[1] /= r;
+  }
 
   lower(Ucon, gcov, Ucov);
   lower(Bcon, gcov, Bcov);
@@ -339,10 +347,17 @@ void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 {
   MUNULOOP gcov[mu][nu] = 0.;
 
+  double r, h;
+  bl_coord(X, &r, &h);
+
   gcov[0][0] = -1.;
   gcov[1][1] = 1.;
-  gcov[2][2] = pow(X[1],2);
-  gcov[3][3] = pow(X[1]*sin(X[2]),2);
+  gcov[2][2] = r*r;
+  gcov[3][3] = pow(r*sin(h),2);
+
+  if ( METRIC_esphMINK ) {
+    gcov[1][1] = r*r;
+  }
 
 }
 
@@ -366,6 +381,8 @@ void init_data(int argc, char *argv[], Params *params)
   if (params->loaded && strlen(params->dump) > 0) {
   }
   biasTuning = params->biasTuning;
+
+  model_kappa = 4.;
 
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 100.;
@@ -402,16 +419,26 @@ void init_data(int argc, char *argv[], Params *params)
   model_B0 = CL * sqrt(8 * M_PI * (gam-1.) * (MP+ME) / MODEL_BETA_0) * sqrt( model_Ne0 * MODEL_THETAE_0 ) / sqrt( THETAE_UNIT );
 
   // domain parameters
-  Rin = 0.;
+  Rin = 0.01;
   Rmax = fmax(120., MODEL_R_0);
+  Rmax_record = 1.e4;  // this should be large enough that the source looks small
 
   fprintf(stderr, "Running with isothermal sphere model.\n");
   fprintf(stderr, "MBH, L_unit: %g [Msun], %g\n", MODEL_MBH, L_unit);
   fprintf(stderr, "Ne, Thetae, B: %g %g %g\n", model_Ne0, MODEL_THETAE_0, model_B0);
   fprintf(stderr, "Sphere radius, Rout: %g %g\n", MODEL_R_0 * L_unit, Rmax * L_unit);
 
-  // domain parameters
-  METRIC_sphMINK = 1;
+  // domain parameters (supports sphMINK and esphMINK, but esph is much faster)
+  METRIC_esphMINK = 1;
+
+  if (METRIC_esphMINK) {
+    fprintf(stderr, "Using exponential spherical coordinates.\n");
+  } else if (METRIC_sphMINK) {
+    fprintf(stderr, "Using regular spherical coordinates.\n");
+  } else {
+    fprintf(stderr, "Invalid coordinate choice in model file.\n");
+    exit(1);
+  }
  
   // the larger this is, the thinner the surface zones -> recover low frequency behavior
   N1 = 8192;
@@ -433,6 +460,12 @@ void init_data(int argc, char *argv[], Params *params)
   stopx[2] = startx[2]+N2*dx[2];
   stopx[3] = startx[3]+N3*dx[3];
 
+  // reset some quantities if exponential
+  if (METRIC_esphMINK) {
+    startx[1] = log(Rin);
+    dx[1] = (log(Rmax) - log(Rin)) / N1;
+    stopx[1] = startx[1]+N1*dx[1];
+  }
 
   /*
   // set other units. THESE ARE SOMETIMES USED ELSEWHERE WITHOUT WARNING
@@ -496,7 +529,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/THETAE_MIN", THETAE_MIN);
   h5io_add_data_dbl(fid, "/params/THETAE_MAX", THETAE_MAX);
   h5io_add_data_dbl(fid, "/params/WEIGHT_MIN", WEIGHT_MIN);
-  h5io_add_data_dbl(fid, "/params/KAPPA", KAPPA);
+  h5io_add_data_dbl(fid, "/params/KAPPA", model_kappa);
   h5io_add_data_dbl(fid, "/params/L_unit", L_unit);
   h5io_add_data_dbl(fid, "/params/T_unit", T_unit);
   h5io_add_data_dbl(fid, "/params/Thetae_unit", Thetae_unit);
@@ -515,7 +548,7 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
   h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);
   h5io_add_data_int(fid, "/params/COMPTON", COMPTON);
-  h5io_add_data_int(fid, "/params/DIST_KAPPA", DIST_KAPPA);
+  h5io_add_data_int(fid, "/params/DIST_KAPPA", MODEL_EDF==EDF_KAPPA_FIXED?1:0);
   h5io_add_data_int(fid, "/params/N_ESAMP", N_ESAMP);
   h5io_add_data_int(fid, "/params/N_EBINS", N_EBINS);
   h5io_add_data_int(fid, "/params/N_THBINS", N_THBINS);
@@ -572,7 +605,7 @@ void report_spectrum(int N_superph_made, Params *params)
         x3av_buf[k][i][j] = sqrt(fabs(spect[k][j][i].X3fsq/(spect[k][j][i].dNdlE + SMALL)));
         nscatt_buf[k][i][j] = spect[k][j][i].nscatt / (spect[k][j][i].dNdlE + SMALL);
 
-        nph_buf[k][i][j] += spect[k][j][i].nph;
+        nph_buf[k][i][j] = spect[k][j][i].nph;
 
         if (tau_scatt > max_tau_scatt) max_tau_scatt = tau_scatt;
 

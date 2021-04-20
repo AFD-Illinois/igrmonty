@@ -10,8 +10,7 @@
 
 #define SYNCHROTRON (1)
 #define BREMSSTRAHLUNG (0)
-#define COMPTON (1)
-#define DIST_KAPPA (1)
+#define COMPTON (0)
 
 #define KRHO     0
 #define UU       1
@@ -29,7 +28,7 @@
 
 #define N_ESAMP 200
 #define N_EBINS 200
-#define N_THBINS 3
+#define N_THBINS 12
 
 #include "hdf5_utils.h"
 #include "h5io.h"

@@ -11,7 +11,7 @@
 //        x^3 are normal KS coordinates. in addition you must set METRIC_*
 //        in order to specify how Xtoijk and gdet_zone should work.
 int METRIC_eKS;
-int with_derefine_poles, METRIC_MKS3, METRIC_sphMINK = 0;
+int with_derefine_poles, METRIC_MKS3, METRIC_sphMINK, METRIC_esphMINK = 0;
 double poly_norm, poly_xt, poly_alpha, mks_smooth; // mmks
 double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
@@ -74,7 +74,7 @@ double gdet_zone(int i, int j, int k)
   Xzone[2] = startx[2] + (j+0.5)*dx[2];
   Xzone[3] = startx[3] + (k+0.5)*dx[3];
 
-  if (METRIC_sphMINK) {
+  if (METRIC_sphMINK || METRIC_esphMINK) {
     double gcov[NDIM][NDIM];
     gcov_func(Xzone, gcov);
     return gdet_func(gcov);
@@ -104,6 +104,10 @@ void bl_coord(const double *X, double *r, double *th)
 {
   if (METRIC_sphMINK) {
     *r = X[1];
+    *th = X[2];
+    return;
+  } else if (METRIC_esphMINK) {
+    *r = exp(X[1]);
     *th = X[2];
     return;
   }
