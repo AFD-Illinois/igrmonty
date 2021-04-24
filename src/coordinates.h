@@ -12,6 +12,8 @@ extern double mks3R0, mks3H0, mks3MY1, mks3MY2, mks3MP0; // mks3
 
 // coordinate functions
 void set_dxdX(const double [NDIM], double [NDIM][NDIM]);
+void bl_to_ks(const double X[NDIM], double ucon_bl[NDIM], double ucon_ks[NDIM]);
+void vec_from_ks(const double X[NDIM], double v_ks[NDIM], double v_nat[NDIM]);
 
 static inline __attribute__((always_inline)) void set_dxdX_metric(const double X[NDIM], double dxdX[NDIM][NDIM], int metric)
 {
@@ -82,6 +84,29 @@ static inline __attribute__((always_inline)) void set_dxdX_metric(const double X
 
 }
 
+// cribbed from ipole
+static inline __attribute__((always_inline)) void gcov_bl(double r, double th, double gcov[NDIM][NDIM])
+{
+  double sth, cth, s2, a2, r2, DD, mu;
+  sth = fabs(sin(th));
+  s2 = sth * sth;
+  cth = cos(th);
+  a2 = a * a;
+  r2 = r * r;
+  DD = 1. - 2. / r + a2 / r2;
+  mu = 1. + a2 * cth * cth / r2;
+
+  MUNULOOP gcov[mu][nu] = 0.;
+  // Compute BL metric from BL coordinates
+  gcov[0][0] = -(1. - 2. / (r * mu));
+  gcov[0][3] = -2. * a * s2 / (r * mu);
+  gcov[3][0] = gcov[0][3];
+  gcov[1][1] = mu / DD;
+  gcov[2][2] = r2 * mu;
+  gcov[3][3] = r2 * sth * sth * (1. + a2 / r2 + 2. * a2 * s2 / (r2 * r * mu));
+
+}
+
 // compute KS metric at point (r,th) in KS coordinates (cyclic in t, ph)
 static inline __attribute__((always_inline)) void gcov_ks(double r, double th, double gcov[NDIM][NDIM])
 {
@@ -116,3 +141,9 @@ static inline __attribute__((always_inline)) void gcov_ks(double r, double th, d
   gcov[3][2] = 0;
   gcov[3][3] = s2*(rho2 + a*a*s2*(1. + 2.*r/rho2));
 }
+
+
+int invert_matrix(double Am[][NDIM], double Aminv[][NDIM]);
+int LU_decompose(double A[][NDIM], int permute[]);
+void LU_substitution(double A[][NDIM], double B[], int permute[]);
+

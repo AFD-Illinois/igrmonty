@@ -167,7 +167,8 @@ extern double max_tau_scatt, Ladv, dMact, bias_norm, biasTuning;
 
 /* debug */
 void print_matrix(char *name, double g[NDIM][NDIM]);
-void print_vector(char *name, double v[NDIM]);
+void print_vector(const char *name, const double v[NDIM]);
+void dump_at_X(double X[NDIM]);
 
 /* testing */
 void run_all_tests();

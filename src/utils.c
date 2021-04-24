@@ -42,7 +42,9 @@ void init_model(int argc, char *argv[], Params *params)
   init_data(argc, argv, params);
 
   // make look-up table for hot cross sections
+#if COMPTON
   init_hotcross();
+#endif
 
   // make table for solid angle integrated emissivity and K2
   init_emiss_tables();
