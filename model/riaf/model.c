@@ -23,20 +23,6 @@ void report_bad_input(int argc)
     fprintf(stderr, "  riaf:    Ns\n");
     exit(0);
   }
-
-  MBH_solar = 4.3e6;
-  Ne_unit = 3.e7;
-  Te_unit = 3.e11;
-  //rmax_geo = ? // TODO, do these two need to be re-set if we use weird input parameters?
-  //rmin_geo = ? 
-  a = 0.9375;
-  nth0 = 1.;
-  Te0 = 1.;
-  disk_h = 0.1;
-  pow_nth = -1.1;
-  pow_T = -0.84;
-  keplerian_factor = 1.0;
-  infall_factor = 0.0;
 }
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
@@ -533,6 +519,21 @@ void init_data(int argc, char *argv[], Params *params)
 {
   with_derefine_poles = 0; // since we've set nothing, this should default to MKS
   hslope = 1.;
+
+  // parameter defaults
+  MBH_solar = 4.3e6;
+  Ne_unit = 3.e7;
+  Te_unit = 3.e11;
+  //rmax_geo = ? // TODO, do these two need to be re-set if we use weird input parameters?
+  //rmin_geo = ?
+  a = 0.9375;
+  nth0 = 1.;
+  Te0 = 1.;
+  disk_h = 0.1;
+  pow_nth = -1.1;
+  pow_T = -0.84;
+  keplerian_factor = 1.0;
+  infall_factor = 0.0;
 
   // TODO deal with this in a more clever way
   if (params->loaded && strlen(params->dump) > 0) {
