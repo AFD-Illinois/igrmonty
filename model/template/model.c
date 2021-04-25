@@ -315,8 +315,6 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
   lower(Ucov, gcon, Ucon);
   lower(Bcon, gcov, Bcov);
-
-  // BOGUE RETURN
 }
 
 ////////////////////////////////// COORDINATES /////////////////////////////////

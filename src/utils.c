@@ -92,11 +92,13 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
 #endif // EMIT_ORIGIN
 }
 
+// figure out how to distribute superphotons across zones and
+// across energy bins
 void init_weight_table(void)
 {
   double sum[N_ESAMP+1], nu[N_ESAMP+1];
 
-  fprintf(stderr, "Building table for superphoton weights\n");
+  fprintf(stderr, "Building table for weights\n");
 
   #pragma omp parallel for
   for (int i = 0; i <= N_ESAMP; i++) {
@@ -106,6 +108,8 @@ void init_weight_table(void)
 
   double sfac = dx[1]*dx[2]*dx[3]*L_unit*L_unit*L_unit;
 
+  // compute total expected emission per frequency bin over the
+  // entire domain.
   #pragma omp parallel for shared(sum) collapse(3)
   ZLOOP {
     double Ne, Thetae, B, Ucon[NDIM], Bcon[NDIM];
@@ -119,10 +123,14 @@ void init_weight_table(void)
     }
   }
 
+  // assign per-energy-bin weights by attempting to target
+  // the same number of superphotons emitted for every bin
   #pragma omp parallel for
   for (int i = 0; i <= N_ESAMP; i++)
     wgt[i] = log(sum[i]/(HPL*Ns) + WEIGHT_MIN);
 
+  // now actually assign the number of superphotons to be
+  // generated in each zone
   #pragma omp parallel for collapse(3)
   ZLOOP {
     double Ne, Thetae, Bmag;
@@ -132,7 +140,7 @@ void init_weight_table(void)
     for (int m=0; m<=N_ESAMP; ++m) {
       ninterp += DLNU * int_jnu(Ne, Thetae, Bmag, exp(m*DLNU + LNUMIN)) / (HPL*exp(wgt[m]));
     }
-    ninterp *= geom[i][j].g * dx[1]*dx[2]*dx[3] * L_unit*L_unit*L_unit;
+    ninterp *= geom[i][j].gzone * sfac;
     n2gens[i][j][k] = ninterp;
   }
 
@@ -162,12 +170,12 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   }
 
   *nz = n2gens[i][j][k];
-  ninterp = *nz / geom[i][j].g / dx[1]/dx[2]/dx[3] / L_unit/L_unit/L_unit;
+  ninterp = *nz / geom[i][j].gzone / dx[1]/dx[2]/dx[3] / L_unit/L_unit/L_unit;
 
   if (*nz > Ns * log(NUMAX / NUMIN)) {
     fprintf(stderr,
       "Something very wrong in zone %d %d: \ng = %g B=%g  Thetae=%g  ninterp=%g nz = %e\n\n",
-      i, j, geom[i][j].g, Bmag, Thetae, ninterp, *nz);
+      i, j, geom[i][j].gzone, Bmag, Thetae, ninterp, *nz);
     exit(-1);
     *nz = 0.;
     *dnmax = 0.;
@@ -405,6 +413,11 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->QTY0 = blr;
 
   tetrad_to_coordinate(tetrads[i][j][k].Econ, K_tetrad, ph->K);
+  if ( isnan(ph->K[0]) ) {
+    fprintf(stderr, "initial ph->Kcon nan in %d %d %d\n", i, j, k);
+    print_vector("K_tetrad", K_tetrad);
+    print_matrix("Econ", tetrads[i][j][k].Econ);
+  }
 
   K_tetrad[0] *= -1.;
   tetrad_to_coordinate(tetrads[i][j][k].Ecov, K_tetrad, tmpK);

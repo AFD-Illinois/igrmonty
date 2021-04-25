@@ -2,36 +2,41 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 
-// fluid data
-double ****bcon;
-double ****bcov;
-double ****ucon;
-double ****ucov;
-double ****p;
-double ***ne;
-double ***thetae;
-double ***b;
 
 static double Rmax_record = 1.e4;
 
-static double MODEL_R_0 = 100;
-static double MODEL_TAU_0 = 1.e-5;
-static double MODEL_THETAE_0 = 10.;
-static double MODEL_BETA_0 = 20.;
-static double MODEL_MBH = 4.1e6;
-static double MODEL_TP_OVER_TE = 3;
-static double MODEL_GAM = 13./9;
+double rmax_geo = 1000.;
+double rmin_geo = 0.;
+double MBH_solar = 4.3e6;
 
-static double model_Ne0 = 1.;
-static double model_B0 = 1.;
+double Te_unit = 1.e11;
+double Ne_unit = 5.e6;
+
+double nth0, Te0, disk_h, pow_nth, pow_T;
+double keplerian_factor, infall_factor;
+double r_isco;
 
 void report_bad_input(int argc)
 {
   if (argc < 2) {
     fprintf(stderr, "usage: \n");
-    fprintf(stderr, "  sphere:    Ns\n");
+    fprintf(stderr, "  riaf:    Ns\n");
     exit(0);
   }
+
+  MBH_solar = 4.3e6;
+  Ne_unit = 3.e7;
+  Te_unit = 3.e11;
+  //rmax_geo = ? // TODO, do these two need to be re-set if we use weird input parameters?
+  //rmin_geo = ? 
+  a = 0.9375;
+  nth0 = 1.;
+  Te0 = 1.;
+  disk_h = 0.1;
+  pow_nth = -1.1;
+  pow_T = -0.84;
+  keplerian_factor = 1.0;
+  infall_factor = 0.0;
 }
 
 ///////////////////////////////// SUPERPHOTONS /////////////////////////////////
@@ -52,7 +57,7 @@ int stop_criterion(struct of_photon *ph)
   double r, h;
   bl_coord(ph->X, &r, &h);
 
-  if (r < Rin || r > Rmax_record) {
+  if (r < Rh*1.05 || r > Rmax_record) {
     return 1;
   }
 
@@ -81,7 +86,7 @@ double stepsize(double X[NDIM], double K[NDIM])
   #define MIN(A,B) (A<B?A:B)
 
   dlx1 = EPS / (fabs(K[1]) + SMALL);
-  dlx2 = EPS * MIN(X[2], M_PI - X[2]) / (fabs(K[2]) + SMALL);
+  dlx2 = EPS * MIN(X[2], 1. - X[2]) / (fabs(K[2]) + SMALL);
   dlx3 = EPS / (fabs(K[3]) + SMALL) ;
 
   #undef MIN
@@ -304,40 +309,182 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
 {
-  if (X[1] < startx[1] || X[1] > stopx[1] || X[2] < startx[2] || X[2] > stopx[2]) {
+  double r, th;
+  bl_coord(X, &r, &th);
+
+  if (r < Rin || r > Rout) {
     *Ne = 0;
     return;
   }
 
-  double r, h;
-  bl_coord(X, &r, &h);
+  // set scalars 
+  double zc=r*cos(th);
+  double rc=r*sin(th);
+  *Ne = nth0 * exp(-zc*zc/2./rc/rc/disk_h/disk_h) * pow(r,pow_nth) * Ne_unit;
 
-  if (r > MODEL_R_0) {
-    *Ne = 0.;
-    *Thetae = 0;
-    *B = 0;
-    return;
+  *Thetae = Te0 * pow(r, pow_T) * Te_unit * KBOL / (ME*CL*CL);
+
+  double eps = 0.1;
+  *B = sqrt(8. * M_PI * eps * (*Ne) * MP * CL * CL / 6. / r);
+  if (*B == 0) *B = 1.e-6;
+
+  // Metrics: BL
+  double bl_gcov[NDIM][NDIM], bl_gcon[NDIM][NDIM];
+  gcov_bl(r, th, bl_gcov);
+  gcon_func(bl_gcov, bl_gcon);
+  // Native
+  double gcon[NDIM][NDIM];
+  gcon_func(gcov, gcon);
+
+  // Get the 4-velocity
+  double bl_Ucon[NDIM];
+  double omegaK, omegaFF, omega;
+  double K, ur, ut;
+  if (r < Rh) {
+    // Inside r_h, none
+    double bl_Ucov[NDIM];
+    bl_Ucov[0] = -1;
+    bl_Ucov[1] = 0.;
+    bl_Ucov[2] = 0.;
+    bl_Ucov[3] = 0.;
+    lower(bl_Ucov, bl_gcon, bl_Ucon);
+  } else if (r < r_isco) {
+    // Inside r_isco, freefall
+    double omegaK_isco = 1. / (pow(r_isco, 3./2) + a);
+
+    // Get conserved quantities at the ISCO...
+    double bl_Ucon_isco[NDIM], bl_Ucov_isco[NDIM];
+    bl_Ucon_isco[0] = 1.0;
+    bl_Ucon_isco[1] = 0.0;
+    bl_Ucon_isco[2] = 0.0;
+    bl_Ucon_isco[3] = omegaK_isco;
+
+    double bl_gcov_isco[NDIM][NDIM];
+    gcov_bl(r_isco, th, bl_gcov_isco);
+
+    normalize(bl_Ucon_isco, bl_gcov_isco);
+    lower(bl_Ucon_isco, bl_gcov_isco, bl_Ucov_isco);
+    double e = bl_Ucov_isco[0];
+    double l = bl_Ucov_isco[3];
+
+    // ...then set the infall velocity and find omega
+    double bl_Ucon_tmp[NDIM], bl_Ucov_tmp[NDIM];
+    double K_con = bl_gcon[0][0] * e * e + 2.0 * bl_gcon[0][3] * e * l + bl_gcon[3][3] * l * l;
+    double urk_precut = -(1.0 + K_con) / bl_gcon[1][1];
+    double urk = -sqrt(fmax(0.0, urk_precut));
+    bl_Ucov_tmp[0] = e;
+    bl_Ucov_tmp[1] = urk;
+    bl_Ucov_tmp[2] = 0.0;
+    bl_Ucov_tmp[3] = l;
+    lower(bl_Ucov_tmp, bl_gcon, bl_Ucon_tmp);
+    omegaK = bl_Ucon_tmp[3] / bl_Ucon_tmp[0];
+
+    omegaFF = bl_gcon[0][3] / bl_gcon[0][0];
+    // Compromise
+    omega = omegaK + (1 - keplerian_factor)*(omegaFF - omegaK);
+
+    // Then set the infall rate
+    double urFF = -sqrt(fmax(0.0, -(1.0 + bl_gcon[0][0]) * bl_gcon[1][1]));
+    ur = bl_Ucon_tmp[1] + infall_factor * (urFF - bl_Ucon_tmp[1]);
+
+#if DEBUG
+    if (fabs(ur) < 1e-10) {
+      fprintf(stderr, "Bad ur: ur is %g\n", ur);
+      fprintf(stderr, "Ucon BL: %g %g %g %g\n",
+              bl_Ucon_tmp[0], bl_Ucon_tmp[1], bl_Ucon_tmp[2], bl_Ucon_tmp[3]);
+      fprintf(stderr, "Ucov BL: %g %g %g %g\n",
+              bl_Ucov_tmp[0], bl_Ucov_tmp[1], bl_Ucov_tmp[2], bl_Ucov_tmp[3]);
+      fprintf(stderr, "urk was %g (%g pre-cut), e & l were %g %g\n", urk, urk_precut, e, l);
+    }
+#endif
+
+    // Finally, get Ucon in BL coordinates
+    K = bl_gcov[0][0] + 2*omega*bl_gcov[0][3] + omega*omega*bl_gcov[3][3];
+    ut = sqrt(fmax(0.0, -(1. + ur*ur*bl_gcov[1][1]) / K));
+    bl_Ucon[0] = ut;
+    bl_Ucon[1] = ur;
+    bl_Ucon[2] = 0.;
+    bl_Ucon[3] = omega * ut;
+  } else {
+    // Outside r_isco, Keplerian
+    omegaK = 1. / (pow(r, 3./2) + a);
+    omegaFF = bl_gcon[0][3] / bl_gcon[0][0];
+
+    // Compromise
+    omega = omegaK + (1 - keplerian_factor)*(omegaFF - omegaK);
+    // Set infall rate
+    ur = infall_factor * -sqrt(fmax(0.0, -(1.0 + bl_gcon[0][0]) * bl_gcon[1][1]));
+
+    // Get the normal observer velocity for Ucon/Ucov, in BL coordinates
+    K = bl_gcov[0][0] + 2*omega*bl_gcov[0][3] + omega*omega*bl_gcov[3][3];
+    ut = sqrt(fmax(0.0, -(1. + ur*ur*bl_gcov[1][1]) / K));
+    bl_Ucon[0] = ut;
+    bl_Ucon[1] = ur;
+    bl_Ucon[2] = 0.;
+    bl_Ucon[3] = omega * ut;
   }
 
-  *Ne = model_Ne0;
-  *Thetae = MODEL_THETAE_0;
-  *B = model_B0;
+  // Transform to KS coordinates,
+  double ks_Ucon[NDIM];
+  bl_to_ks(X, bl_Ucon, ks_Ucon);
+  // then to our coordinates,
+  vec_from_ks(X, ks_Ucon, Ucon);
 
-  Ucon[0] = 1;
-  Ucon[1] = 0.;
-  Ucon[2] = 0.;
-  Ucon[3] = 0.;
- 
-  Bcon[0] = 0.;
-  Bcon[1] = model_B0 * cos(h) / B_unit;
-  Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8) / B_unit;
-  Bcon[3] = 0.;
-
-  if (METRIC_esphMINK) {
-    Bcon[1] /= r;
-  }
-
+  // and grab Ucov
   lower(Ucon, gcov, Ucov);
+
+
+  // Check
+#if DEBUG
+  //if (r < r_isco) { fprintf(stderr, "ur = %g\n", Ucon[1]); }
+  double bl_Ucov[NDIM];
+  double dot_U = Ucon[0]*Ucov[0] + Ucon[1]*Ucov[1] + Ucon[2]*Ucov[2] + Ucon[3]*Ucov[3];
+  double sum_U = Ucon[0]+Ucon[1]+Ucon[2]+Ucon[3];
+  // Following condition gets handled better above
+  // (r < r_isco && fabs(Ucon[1]) < 1e-10) ||
+  if (get_fluid_nu(Kcon, Ucov) == 1. ||
+      fabs(fabs(dot_U) - 1.) > 1e-10 || sum_U < 0.1) {
+    lower(bl_Ucon, bl_gcov, bl_Ucov);
+    fprintf(stderr, "RIAF model problem at r, th, phi = %g %g %g\n", r, th, X[3]);
+    fprintf(stderr, "Omega K: %g FF: %g Final: %g K: %g ur: %g ut: %g\n",
+            omegaK, omegaFF, omega, K, ur, ut);
+    fprintf(stderr, "K1: %g K2: %g K3: %g\n", bl_gcov[0][0], 2*omega*bl_gcov[0][3], omega*omega*bl_gcov[3][3]);
+    fprintf(stderr, "Ucon BL: %g %g %g %g\n", bl_Ucon[0], bl_Ucon[1], bl_Ucon[2], bl_Ucon[3]);
+    fprintf(stderr, "Ucon KS: %g %g %g %g\n", ks_Ucon[0], ks_Ucon[1], ks_Ucon[2], ks_Ucon[3]);
+    fprintf(stderr, "Ucon native: %g %g %g %g\n", Ucon[0], Ucon[1], Ucon[2], Ucon[3]);
+    fprintf(stderr, "Ucov: %g %g %g %g\n", Ucov[0], Ucov[1], Ucov[2], Ucov[3]);
+    fprintf(stderr, "Ubl.Ubl: %g\n", bl_Ucov[0]*bl_Ucon[0]+bl_Ucov[1]*bl_Ucon[1]+
+                                    bl_Ucov[2]*bl_Ucon[2]+bl_Ucov[3]*bl_Ucon[3]);
+    fprintf(stderr, "U.U: %g\n", Ucov[0]*Ucon[0]+Ucov[1]*Ucon[1]+Ucov[2]*Ucon[2]+Ucov[3]*Ucon[3]);
+  }
+#endif
+
+  // Use pure toroidal field,
+  // See Themis src/VRT2/src/AccretionFlows/mf_toroidal_beta.cpp/h
+  double bl_Bcon[NDIM];
+  bl_Bcon[0] = 0.0;
+  bl_Bcon[1] = 0.0;
+  bl_Bcon[2] = 0.0;
+  bl_Bcon[3] = 1.0;
+
+  // Transform to KS coordinates,
+  double ks_Bcon[NDIM];
+  bl_to_ks(X, bl_Bcon, ks_Bcon);
+  // then to our coordinates,
+  vec_from_ks(X, ks_Bcon, Bcon);
+  normalize(Bcon, gcov);
+
+  // Compute u.b and subtract it, normalize to get_model_b
+  //project_out(Bcon, Ucon, gcov); ?
+  double BdotU = 0;
+  MULOOP BdotU += Bcon[mu] * Ucov[mu];
+  MULOOP Bcon[mu] += BdotU * Ucon[mu];
+  lower(Bcon, gcov, Bcov);
+  double Bsq = 0;
+  MULOOP Bsq += Bcon[mu] * Bcov[mu];
+  double bmag = fmax(*B, 1e-10) / B_unit;
+  MULOOP Bcon[mu] *= bmag / sqrt(Bsq);
+
   lower(Bcon, gcov, Bcov);
 }
 
@@ -345,20 +492,27 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 {
-  MUNULOOP gcov[mu][nu] = 0.;
+  // despite the name, get equivalent values for
+  // r, th for KS coordinates
+  double r, th;
+  bl_coord(X, &r, &th);
 
-  double r, h;
-  bl_coord(X, &r, &h);
+  // compute ks metric
+  double gcovKS[NDIM][NDIM];
+  gcov_ks(r, th, gcovKS);
 
-  gcov[0][0] = -1.;
-  gcov[1][1] = 1.;
-  gcov[2][2] = r*r;
-  gcov[3][3] = pow(r*sin(h),2);
+  // Apply coordinate transformation to code coordinates X
+  double dxdX[NDIM][NDIM];
+  set_dxdX(X, dxdX);
 
-  if ( METRIC_esphMINK ) {
-    gcov[1][1] = r*r;
+  MUNULOOP {
+    gcov[mu][nu] = 0.;
+    for (int lam = 0; lam < NDIM; lam++) {
+      for (int kap = 0; kap < NDIM; kap++) {
+        gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+      }
+    }
   }
-
 }
 
 double dOmega_func(int j)
@@ -377,6 +531,9 @@ double dOmega_func(int j)
 
 void init_data(int argc, char *argv[], Params *params)
 {
+  with_derefine_poles = 0; // since we've set nothing, this should default to MKS
+  hslope = 1.;
+
   // TODO deal with this in a more clever way
   if (params->loaded && strlen(params->dump) > 0) {
   }
@@ -384,75 +541,35 @@ void init_data(int argc, char *argv[], Params *params)
 
   model_kappa = 4.;
 
-  // model parameters // TODO, maybe load these from model parameters
-  MODEL_R_0 = 100.;
-  MODEL_TAU_0 = 1.e-5;
-  MODEL_BETA_0 = 20.;
-  MODEL_THETAE_0 = 10.;
-  MODEL_TP_OVER_TE = 3.;
-  MODEL_GAM = 13./9;  
-  MODEL_MBH = 4.1e6;
+  // Set all the geometry for coordinates.c
+  Rh = 1 + sqrt(1. - a * a);  // needed for geodesic steps
 
-  // physics parameters set the size of the grid zones
-  L_unit = MODEL_MBH * GNEWT*MSUN/(CL*CL);
-  T_unit = L_unit/CL;
- 
-  // derive model Ne (in cgs)
-  model_Ne0 = MODEL_TAU_0 / SIGMA_THOMSON / MODEL_R_0 / L_unit;
+  Rin = Rh;
+  Rout = rmax_geo;
 
-  // derive model B (in gauss)
-  double THETAE_UNIT = 1.;
-
-  // since B = B(pressure), we need to specify the thermodynamics to
-  // find pressure = pressure(Thetae)
-  double gam = MODEL_GAM;
-  double game = 4./3;
-  double gamp = 5./3;
-
-  // as implemented in the Illinois suite
-  THETAE_UNIT = MP/ME * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1)*MODEL_TP_OVER_TE );
-
-  // as implemented in RAPTOR + kmonty
-  THETAE_UNIT = MP/ME * (gam-1.) / (1. + MODEL_TP_OVER_TE);
-
-  // now we can find B (again, in gauss)
-  model_B0 = CL * sqrt(8 * M_PI * (gam-1.) * (MP+ME) / MODEL_BETA_0) * sqrt( model_Ne0 * MODEL_THETAE_0 ) / sqrt( THETAE_UNIT );
-
-  // domain parameters
-  Rin = 0.01;
-  Rmax = fmax(120., MODEL_R_0);
   Rmax_record = 1.e4;  // this should be large enough that the source looks small
 
-  fprintf(stderr, "Running with isothermal sphere model.\n");
-  fprintf(stderr, "MBH, L_unit: %g [Msun], %g\n", MODEL_MBH, L_unit);
-  fprintf(stderr, "Ne, Thetae, B: %g %g %g\n", model_Ne0, MODEL_THETAE_0, model_B0);
-  fprintf(stderr, "Sphere radius, Rout: %g %g\n", MODEL_R_0 * L_unit, Rmax * L_unit);
+  double z1 = 1. + pow(1. - a * a, 1. / 3.) * (pow(1. + a, 1. / 3.) + pow(1. - a, 1. / 3.));
+  double z2 = sqrt(3. * a * a + z1 * z1);
+  r_isco = 3. + z2 - copysign(sqrt((3. - z1) * (3. + z1 + 2. * z2)), a);
+  startx[0] = 0.0;
+  startx[1] = log(Rin);
+  startx[2] = 0.0;
+  startx[3] = 0.0;
 
-  // domain parameters (supports sphMINK and esphMINK, but esph is much faster)
-  METRIC_esphMINK = 1;
+  // set units
+  L_unit = GNEWT * MBH_solar * MSUN / (CL * CL);
+  RHO_unit = Ne_unit * (MP + ME);
+  B_unit = CL * sqrt(4.*M_PI*RHO_unit);
 
-  if (METRIC_esphMINK) {
-    fprintf(stderr, "Using exponential spherical coordinates.\n");
-  } else if (METRIC_sphMINK) {
-    fprintf(stderr, "Using regular spherical coordinates.\n");
-  } else {
-    fprintf(stderr, "Invalid coordinate choice in model file.\n");
-    exit(1);
-  }
- 
   // the larger this is, the thinner the surface zones -> recover low frequency behavior
-  N1 = 8192;
-  N2 = 128;
+  N1 = 512;
+  N2 = 512;
   N3 = 1;
 
-  startx[0] = 0.;
-  startx[1] = 0.;
-  startx[2] = 0.;
-  startx[3] = 0.;
-
-  dx[0] = 0;
-  dx[1] = (Rmax - Rin) / N1;
-  dx[2] = M_PI / N2;
+  dx[0] = 0.;
+  dx[1] = ( log(Rout) - log(Rin) ) / N1;
+  dx[2] = 1. / N2;
   dx[3] = 2. * M_PI / N3;
 
   stopx[0] = 1.;
@@ -460,28 +577,10 @@ void init_data(int argc, char *argv[], Params *params)
   stopx[2] = startx[2]+N2*dx[2];
   stopx[3] = startx[3]+N3*dx[3];
 
-  // reset some quantities if exponential
-  if (METRIC_esphMINK) {
-    startx[1] = log(Rin);
-    dx[1] = (log(Rmax) - log(Rin)) / N1;
-    stopx[1] = startx[1]+N1*dx[1];
-  }
-
-  /*
-  // set other units. THESE ARE SOMETIMES USED ELSEWHERE WITHOUT WARNING
-  Thetae_unit = 1.;
-   */
-
-  M_unit = 1.;
-
-  // Set remaining units and constants
-  RHO_unit = M_unit/pow(L_unit,3);
-  U_unit = RHO_unit*CL*CL;
-  B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  Ne_unit = RHO_unit/(MP + ME);
-  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
-
-  fprintf(stderr, "B_unit: %g\n", B_unit);
+  // set other units. THESE MAY BE USED ELSEWHERE WITHOUT WARNING
+  T_unit = L_unit / CL;
+  M_unit = RHO_unit * pow(L_unit, 3);
+  max_tau_scatt = (6. * L_unit) * RHO_unit * 0.4;
 
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
@@ -490,6 +589,11 @@ void init_data(int argc, char *argv[], Params *params)
   init_tetrads();
 
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
+
+  fprintf(stderr, "Running RIAF model with a=%g, nth0=%g, Te0=%g, disk_h=%g, pow_nth=%g, pow_T=%g\n",
+          a, nth0, Te0, disk_h, pow_nth, pow_T);
+  fprintf(stderr, "Velocity model: Keplerian by %g, infall rate %g\n",
+          keplerian_factor, infall_factor);
 }
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
@@ -539,13 +643,18 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/Rout", Rmax);
   h5io_add_data_dbl(fid, "/params/bias", biasTuning);
 
-  h5io_add_data_dbl(fid, "/params/R0", MODEL_R_0);
-  h5io_add_data_dbl(fid, "/params/TAU_0", MODEL_TAU_0);
-  h5io_add_data_dbl(fid, "/params/BETA_0", MODEL_BETA_0);
-  h5io_add_data_dbl(fid, "/params/THETAE_0", MODEL_THETAE_0);
-  h5io_add_data_dbl(fid, "/params/TP_OVER_TE", MODEL_TP_OVER_TE);
-  h5io_add_data_dbl(fid, "/params/GAM", MODEL_GAM);
-  h5io_add_data_dbl(fid, "/params/MBH", MODEL_MBH);
+  h5io_add_data_dbl(fid, "/params/MBH_solar", MBH_solar);
+  h5io_add_data_dbl(fid, "/params/a", a);
+  h5io_add_data_dbl(fid, "/params/nth0", nth0);
+  h5io_add_data_dbl(fid, "/params/Te0", Te0);
+  h5io_add_data_dbl(fid, "/params/disk_h", disk_h);
+  h5io_add_data_dbl(fid, "/params/pow_nth", pow_nth);
+  h5io_add_data_dbl(fid, "/params/pow_T", pow_T);
+  h5io_add_data_dbl(fid, "/params/keplerian_factor", keplerian_factor);
+  h5io_add_data_dbl(fid, "/params/infall_factor", infall_factor);
+
+  h5io_add_data_dbl(fid, "/params/Te_unit", Te_unit);
+  h5io_add_data_dbl(fid, "/params/Ne_unit", Ne_unit);
 
   h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
   h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);
@@ -644,7 +753,7 @@ void report_spectrum(int N_superph_made, Params *params)
   // diagnostic output to screen
   fprintf(stderr, "\n");
 
-  fprintf(stderr, "MBH = %g Msun\n", MODEL_MBH/MSUN);
+  fprintf(stderr, "MBH = %g Msun\n", MBH_solar);
   fprintf(stderr, "max_tau_scatt = %g\n", max_tau_scatt);
   fprintf(stderr, "L = %g erg/s \n", Lum);
 
