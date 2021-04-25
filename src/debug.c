@@ -17,7 +17,7 @@ void print_matrix(char *name, double g[NDIM][NDIM])
     if (isnan(g[mu][nu]))
       exit(-1);
 }
-void print_vector(char *name, double v[NDIM])
+void print_vector(const char *name, const double v[NDIM])
 {
   fprintf(stderr, "%s: ", name);
   fprintf(stderr,
@@ -26,5 +26,26 @@ void print_vector(char *name, double v[NDIM])
   MUNULOOP
     if (isnan(v[nu]))
       exit(-1);
+}
+
+void dump_at_X(double X[NDIM])
+{
+  // warning that this does not necessarily print contiguously!
+  double r, h, Ne, Thetae, B;
+  double gcov[4][4], gcon[4][4], ucon[4], ucov[4], bcon[4], bcov[4];
+  bl_coord(X, &r, &h);
+  gcov_func(X, gcov);
+  gcon_func(gcov, gcon);
+  get_fluid_params(X, gcov, &Ne, &Thetae, &B, ucon, ucov, bcon, bcov);
+  fprintf(stderr, "-----\n");
+  print_vector("X", X);
+  fprintf(stderr, "r, h: %g, %g\n", r, h);
+  print_matrix("gcov", gcov);
+  print_matrix("gcon", gcon);
+  fprintf(stderr, "Ne, Thetae, B: %g, %g, %g\n", Ne, Thetae, B);
+  print_vector("ucon", ucon);
+  print_vector("ucov", ucov);
+  print_vector("bcon", bcon);
+  print_vector("bcov", bcov);
 }
 

@@ -2,34 +2,15 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 
-// fluid data
-double ****bcon;
-double ****bcov;
-double ****ucon;
-double ****ucov;
-double ****p;
-double ***ne;
-double ***thetae;
-double ***b;
-
-static double Rmax_record = 1.e4;
-
-static double MODEL_R_0 = 100;
-static double MODEL_TAU_0 = 1.e-5;
-static double MODEL_THETAE_0 = 10.;
-static double MODEL_BETA_0 = 20.;
-static double MODEL_MBH = 4.1e6;
-static double MODEL_TP_OVER_TE = 3;
-static double MODEL_GAM = 13./9;
-
-static double model_Ne0 = 1.;
-static double model_B0 = 1.;
 
 void report_bad_input(int argc)
 {
+  // this function is called very early on and can be 
+  // used to set units / validate input.
+  
   if (argc < 2) {
     fprintf(stderr, "usage: \n");
-    fprintf(stderr, "  sphere:    Ns\n");
+    fprintf(stderr, "  riaf:    Ns\n");
     exit(0);
   }
 }
@@ -39,6 +20,11 @@ void report_bad_input(int argc)
 #define ROULETTE  1.e4
 int stop_criterion(struct of_photon *ph)
 {
+  // this function is called on each step and used to 
+  // determine if we should stop evolving the photon.
+  // generally triggered to prune the low-weight ones
+  // and whenever the photon has left the domain
+
   // stop if weight below minimum weight
   if (ph->w < WEIGHT_MIN) {
     if (monty_rand() <= 1. / ROULETTE) {
@@ -52,22 +38,23 @@ int stop_criterion(struct of_photon *ph)
   double r, h;
   bl_coord(ph->X, &r, &h);
 
-  if (r < Rin || r > Rmax_record) {
-    return 1;
-  }
+  // if ( out_of_bounds ) return 1;
 
   return 0;
 }
 
 int record_criterion(struct of_photon *ph)
 {
+  // when we stop evolving a superphoton, this function determines
+  // whether or not we record it in the spectrum. in general, only
+  // record photons that are "far enough" away so that any effects
+  // due to geometry are small.
+
   double r, h;
   bl_coord(ph->X, &r, &h);
 
-  if (r >= Rmax_record) {
-    return 1;
-  }
-
+  // if ( should_record_to_spectrum ) return 1;
+  
   return 0;
 }
 #undef ROULETTE
@@ -75,14 +62,22 @@ int record_criterion(struct of_photon *ph)
 #define EPS 0.04
 double stepsize(double X[NDIM], double K[NDIM])
 {
+  // determine the stepsize for each geodesic step. note especially
+  // the way we set dlx2, which cares about the "upper" X2 limit.
+  
+
   double dl, dlx1, dlx2, dlx3;
   double idlx1, idlx2, idlx3;
 
   #define MIN(A,B) (A<B?A:B)
+  
+  #define X2MAX 1
 
   dlx1 = EPS / (fabs(K[1]) + SMALL);
-  dlx2 = EPS * MIN(X[2], M_PI - X[2]) / (fabs(K[2]) + SMALL);
+  dlx2 = EPS * MIN(X[2], X2MAX - X[2]) / (fabs(K[2]) + SMALL);
   dlx3 = EPS / (fabs(K[3]) + SMALL) ;
+
+  #undef X2MAX
 
   #undef MIN
 
@@ -98,6 +93,10 @@ double stepsize(double X[NDIM], double K[NDIM])
 
 void record_super_photon(struct of_photon *ph)
 {
+  // record the superphoton. you probably don't need to modify this function
+  // unless you want to change the binning scheme, which is currently set to
+  // record in elevational bins with constant dtheta (not X2)
+
   double lE, dx2;
   int iE, ix2, ic;
 
@@ -250,50 +249,39 @@ void omp_reduce_spect()
 
 double bias_func(double Te, double w)
 {
+  // bias tuning magic. you'll may need to play around with this to get
+  // a nice spectrum for the Compton component(s)
+
   double bias, max;
 
   max = 0.5 * w / WEIGHT_MIN;
 
   bias = Te * Te / (5. * max_tau_scatt);
-  // bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
   if (bias > max)
     bias = max;
 
   return  bias * biasTuning;
-
-
-  // TODO maybe swap this out with something in sphere_old or simplesphere ?
-
-  // use old method with bias tuning parameter ?
-  /*
-  double bias, max;
-
-  max = 0.5 * w / WEIGHT_MIN;
-
-  if (Te > SCATTERING_THETAE_MAX) Te = SCATTERING_THETAE_MAX;
-  bias = 16. * Te * Te / (5. * max_tau_scatt);
-
-  if (bias > max) bias = max;
-
-  return bias * biasTuning;
-   */
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM])
 {
+  // return Ne, Thetae, B (in cgs) as well as Ucon and Bcon at center of i,j,k-th 
+  // zone. B must be equal to sqrt(Bcon.Bcov) * B_unit. vector components must be
+  // in "raytracing" coordinates.
+
   // get grid zone center
-  double X[4] = { 0. };
+  double X[NDIM] = { 0. };
   ijktoX(i, j, k, X);
 
-  // fill gcov
-  double gcov[4][4];
+  // get metric at grid center
+  double gcov[NDIM][NDIM];
   gcov_func(X, gcov);
 
   // create dummy vectors
-  double Ucov[4] = { 0. };
-  double Bcov[4] = { 0. };
+  double Ucov[NDIM] = { 0. };
+  double Bcov[NDIM] = { 0. };
 
   // call into analytic model
   get_fluid_params(X, gcov, Ne, Thetae, B, Ucon, Ucov, Bcon, Bcov);
@@ -304,40 +292,28 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM])
 {
-  if (X[1] < startx[1] || X[1] > stopx[1] || X[2] < startx[2] || X[2] > stopx[2]) {
-    *Ne = 0;
-    return;
-  }
+  // return the values of Ne, Thetae, B (in cgs) as well as Ucon,Ucov,Bcon,
+  // and Bcov at X (with covariant metric gcov) where the vector components
+  // are in "raytracing" coordinates. note that B must be equal to 
+  //    sqrt(Bcon.Bcov) * B_unit
 
-  double r, h;
-  bl_coord(X, &r, &h);
+  *Ne = 0.; 
+  *Thetae = 0.;
+  *B = 0.;
 
-  if (r > MODEL_R_0) {
-    *Ne = 0.;
-    *Thetae = 0;
-    *B = 0;
-    return;
-  }
+  double gcon[NDIM][NDIM];
+  gcon_func(gcov, gcon);
+  Ucov[0] = sqrt(-1 / gcon[0][0]);
+  Ucov[1] = 0;
+  Ucov[2] = 0;
+  Ucov[3] = 0;
 
-  *Ne = model_Ne0;
-  *Thetae = MODEL_THETAE_0;
-  *B = model_B0;
+  Bcon[0] = 0;
+  Bcon[1] = 0;
+  Bcon[2] = 0;
+  Bcon[3] = 0;
 
-  Ucon[0] = 1;
-  Ucon[1] = 0.;
-  Ucon[2] = 0.;
-  Ucon[3] = 0.;
- 
-  Bcon[0] = 0.;
-  Bcon[1] = model_B0 * cos(h) / B_unit;
-  Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8) / B_unit;
-  Bcon[3] = 0.;
-
-  if (METRIC_esphMINK) {
-    Bcon[1] /= r;
-  }
-
-  lower(Ucon, gcov, Ucov);
+  lower(Ucov, gcon, Ucon);
   lower(Bcon, gcov, Bcov);
 }
 
@@ -345,24 +321,37 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
 void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 {
-  MUNULOOP gcov[mu][nu] = 0.;
+  // set the covariant metric gcov based on location X. all components
+  // are in "raytracing" coordinates. note that you can use any of the
+  // provided functions like bl_coord, gcov_ks, set_dxdX
 
-  double r, h;
-  bl_coord(X, &r, &h);
+  // despite the name, get equivalent values for
+  // r, th for KS coordinates
+  double r, th;
+  bl_coord(X, &r, &th);
 
-  gcov[0][0] = -1.;
-  gcov[1][1] = 1.;
-  gcov[2][2] = r*r;
-  gcov[3][3] = pow(r*sin(h),2);
+  // compute ks metric
+  double gcovKS[NDIM][NDIM];
+  gcov_ks(r, th, gcovKS);
 
-  if ( METRIC_esphMINK ) {
-    gcov[1][1] = r*r;
+  // Apply coordinate transformation to code coordinates X
+  double dxdX[NDIM][NDIM];
+  set_dxdX(X, dxdX);
+
+  MUNULOOP {
+    gcov[mu][nu] = 0.;
+    for (int lam = 0; lam < NDIM; lam++) {
+      for (int kap = 0; kap < NDIM; kap++) {
+        gcov[mu][nu] += gcovKS[lam][kap]*dxdX[lam][mu]*dxdX[kap][nu];
+      }
+    }
   }
-
 }
 
 double dOmega_func(int j)
 {
+  // return solid angle subtended by j-th elevational record bin
+
   double dx2 = M_PI/2./N_THBINS;
   double thi = j * dx2;
   double thf = (j+1) * dx2;
@@ -377,82 +366,39 @@ double dOmega_func(int j)
 
 void init_data(int argc, char *argv[], Params *params)
 {
-  // TODO deal with this in a more clever way
-  if (params->loaded && strlen(params->dump) > 0) {
-  }
+  // set any general model parameters 
   biasTuning = params->biasTuning;
-
   model_kappa = 4.;
 
-  // model parameters // TODO, maybe load these from model parameters
-  MODEL_R_0 = 100.;
-  MODEL_TAU_0 = 1.e-5;
-  MODEL_BETA_0 = 20.;
-  MODEL_THETAE_0 = 10.;
-  MODEL_TP_OVER_TE = 3.;
-  MODEL_GAM = 13./9;  
-  MODEL_MBH = 4.1e6;
+  // set metric information
+  with_derefine_poles = 0; // if we don't set anything, code defaults to MKS
+  hslope = 1.;
 
-  // physics parameters set the size of the grid zones
-  L_unit = MODEL_MBH * GNEWT*MSUN/(CL*CL);
-  T_unit = L_unit/CL;
- 
-  // derive model Ne (in cgs)
-  model_Ne0 = MODEL_TAU_0 / SIGMA_THOMSON / MODEL_R_0 / L_unit;
+  // set units. note that B_unit is used elsewhere!
+  double MBH_solar = 4.14e6;
+  L_unit = GNEWT * MBH_solar * MSUN / (CL * CL);
+  RHO_unit = 1. * (MP + ME);
+  B_unit = CL * sqrt(4.*M_PI*RHO_unit); 
+  T_unit = L_unit / CL;
+  M_unit = RHO_unit * pow(L_unit, 3);
+  max_tau_scatt = (6. * L_unit) * RHO_unit * 0.4;
 
-  // derive model B (in gauss)
-  double THETAE_UNIT = 1.;
+  // set up grid. grmonty requires some notion of a grid in order to figure
+  // out where to emit the original superphotons
+  startx[0] = 0.0;
+  startx[1] = 0.1;
+  startx[2] = 0.0;
+  startx[3] = 0.0;
 
-  // since B = B(pressure), we need to specify the thermodynamics to
-  // find pressure = pressure(Thetae)
-  double gam = MODEL_GAM;
-  double game = 4./3;
-  double gamp = 5./3;
-
-  // as implemented in the Illinois suite
-  THETAE_UNIT = MP/ME * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1)*MODEL_TP_OVER_TE );
-
-  // as implemented in RAPTOR + kmonty
-  THETAE_UNIT = MP/ME * (gam-1.) / (1. + MODEL_TP_OVER_TE);
-
-  // now we can find B (again, in gauss)
-  model_B0 = CL * sqrt(8 * M_PI * (gam-1.) * (MP+ME) / MODEL_BETA_0) * sqrt( model_Ne0 * MODEL_THETAE_0 ) / sqrt( THETAE_UNIT );
-
-  // domain parameters
-  Rin = 0.01;
-  Rmax = fmax(120., MODEL_R_0);
-  Rmax_record = 1.e4;  // this should be large enough that the source looks small
-
-  fprintf(stderr, "Running with isothermal sphere model.\n");
-  fprintf(stderr, "MBH, L_unit: %g [Msun], %g\n", MODEL_MBH, L_unit);
-  fprintf(stderr, "Ne, Thetae, B: %g %g %g\n", model_Ne0, MODEL_THETAE_0, model_B0);
-  fprintf(stderr, "Sphere radius, Rout: %g %g\n", MODEL_R_0 * L_unit, Rmax * L_unit);
-
-  // domain parameters (supports sphMINK and esphMINK, but esph is much faster)
-  METRIC_esphMINK = 1;
-
-  if (METRIC_esphMINK) {
-    fprintf(stderr, "Using exponential spherical coordinates.\n");
-  } else if (METRIC_sphMINK) {
-    fprintf(stderr, "Using regular spherical coordinates.\n");
-  } else {
-    fprintf(stderr, "Invalid coordinate choice in model file.\n");
-    exit(1);
-  }
- 
-  // the larger this is, the thinner the surface zones -> recover low frequency behavior
-  N1 = 8192;
-  N2 = 128;
+  // make sure to think about objects with high optical depth when setting
+  // radial zone extents!
+  N1 = 512;
+  N2 = 512;
   N3 = 1;
 
-  startx[0] = 0.;
-  startx[1] = 0.;
-  startx[2] = 0.;
-  startx[3] = 0.;
-
-  dx[0] = 0;
-  dx[1] = (Rmax - Rin) / N1;
-  dx[2] = M_PI / N2;
+  dx[0] = 0.;
+  dx[1] = 1. / N1;
+  dx[2] = 1. / N2;
   dx[3] = 2. * M_PI / N3;
 
   stopx[0] = 1.;
@@ -460,35 +406,18 @@ void init_data(int argc, char *argv[], Params *params)
   stopx[2] = startx[2]+N2*dx[2];
   stopx[3] = startx[3]+N3*dx[3];
 
-  // reset some quantities if exponential
-  if (METRIC_esphMINK) {
-    startx[1] = log(Rin);
-    dx[1] = (log(Rmax) - log(Rin)) / N1;
-    stopx[1] = startx[1]+N1*dx[1];
-  }
+  fprintf(stderr, "using model TEMPLATE.\n");
 
-  /*
-  // set other units. THESE ARE SOMETIMES USED ELSEWHERE WITHOUT WARNING
-  Thetae_unit = 1.;
-   */
-
-  M_unit = 1.;
-
-  // Set remaining units and constants
-  RHO_unit = M_unit/pow(L_unit,3);
-  U_unit = RHO_unit*CL*CL;
-  B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  Ne_unit = RHO_unit/(MP + ME);
-  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
-
-  fprintf(stderr, "B_unit: %g\n", B_unit);
-
+  // call init_geometry to set up gcon/gcov/gdet/gdet_zone in each zone
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
   init_geometry();
 
+  // call init_tetrads to set up Econ/Ecov in each zone. must be called after
+  // we have a way to determine Ucon, Bcon in each zone
   tetrads = (struct of_tetrads***)malloc_rank3(N1, N2, N3, sizeof(struct of_tetrads));
   init_tetrads();
 
+  // allocate memory for "number of superphotons to generate per zone"
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
 }
 
@@ -496,6 +425,9 @@ void init_data(int argc, char *argv[], Params *params)
 
 void report_spectrum(int N_superph_made, Params *params)
 {
+  // write spectrum file and print information to the screen. you'll probably
+  // only want to modify this function to output model parameters.
+
   hid_t fid = -1;
 
   if (params->loaded && strlen(params->spectrum) > 0) {
@@ -538,14 +470,6 @@ void report_spectrum(int N_superph_made, Params *params)
   h5io_add_data_dbl(fid, "/params/Rin", Rin);
   h5io_add_data_dbl(fid, "/params/Rout", Rmax);
   h5io_add_data_dbl(fid, "/params/bias", biasTuning);
-
-  h5io_add_data_dbl(fid, "/params/R0", MODEL_R_0);
-  h5io_add_data_dbl(fid, "/params/TAU_0", MODEL_TAU_0);
-  h5io_add_data_dbl(fid, "/params/BETA_0", MODEL_BETA_0);
-  h5io_add_data_dbl(fid, "/params/THETAE_0", MODEL_THETAE_0);
-  h5io_add_data_dbl(fid, "/params/TP_OVER_TE", MODEL_TP_OVER_TE);
-  h5io_add_data_dbl(fid, "/params/GAM", MODEL_GAM);
-  h5io_add_data_dbl(fid, "/params/MBH", MODEL_MBH);
 
   h5io_add_data_int(fid, "/params/SYNCHROTRON", SYNCHROTRON);
   h5io_add_data_int(fid, "/params/BREMSSTRAHLUNG", BREMSSTRAHLUNG);
@@ -644,7 +568,6 @@ void report_spectrum(int N_superph_made, Params *params)
   // diagnostic output to screen
   fprintf(stderr, "\n");
 
-  fprintf(stderr, "MBH = %g Msun\n", MODEL_MBH/MSUN);
   fprintf(stderr, "max_tau_scatt = %g\n", max_tau_scatt);
   fprintf(stderr, "L = %g erg/s \n", Lum);
 

@@ -1,15 +1,18 @@
-
-
 /*
 
 all functions related to creation and manipulation of tetrads
+
+if you're running into problems with nan Econ (e.g., because
+of normalization errors) try defining one of
+
+#define TETRAD3_0111
+#define TETRAD3_1111
 
 */
 
 #include "decs.h"
 
-
-/* input and vectors are contravariant (index up) */
+// input and vectors are contravariant (index up)
 void coordinate_to_tetrad(double Ecov[NDIM][NDIM], double K[NDIM],
 			  double K_tetrad[NDIM])
 {
@@ -23,7 +26,7 @@ void coordinate_to_tetrad(double Ecov[NDIM][NDIM], double K[NDIM],
 	}
 }
 
-/* input and vectors are contravariant (index up) */
+// input and vectors are contravariant (index up) 
 void tetrad_to_coordinate(double Econ[NDIM][NDIM], double K_tetrad[NDIM],
 			  double K[NDIM])
 {
@@ -66,68 +69,75 @@ void make_tetrad(double Ucon[NDIM], double trial[NDIM],
 	   index down
 	 */
 
-	/* start w/ time component parallel to U */
+	// start w/ time component parallel to U
 	for (k = 0; k < 4; k++)
 		Econ[0][k] = Ucon[k];
 	normalize(Econ[0], Gcov);
 
-	/*** done w/ basis vector 0 ***/
+	//// done w/ basis vector 0 
 
-	/* now use the trial vector in basis vector 1 */
-	/* cast a suspicious eye on the trial vector... */
+	// now use the trial vector in basis vector 1 
+	// cast a suspicious eye on the trial vector...
 	norm = 0.;
 	for (k = 0; k < 4; k++)
 		for (l = 0; l < 4; l++)
 			norm += trial[k] * trial[l] * Gcov[k][l];
-	if (norm <= SMALL_VECTOR) {	/* bad trial vector; default to radial direction */
-		for (k = 0; k < 4; k++)	/* trial vector */
+	if (norm <= SMALL_VECTOR) {	 // bad trial vector; default to radial direction 
+		for (k = 0; k < 4; k++)	 // trial vector 
 			trial[k] = delta(k, 1);
 	}
 
-	for (k = 0; k < 4; k++)	/* trial vector */
+	for (k = 0; k < 4; k++)	 // trial vector 
 		Econ[1][k] = trial[k];
 
-	/* project out econ0 */
+	// project out econ0 
 	project_out(Econ[1], Econ[0], Gcov);
 	normalize(Econ[1], Gcov);
 
-	/*** done w/ basis vector 1 ***/
+	//// done w/ basis vector 1 
 
-	/* repeat for x2 unit basis vector */
-	for (k = 0; k < 4; k++)	/* trial vector */
+	// repeat for x2 unit basis vector 
+	for (k = 0; k < 4; k++)	 // trial vector 
 		Econ[2][k] = delta(k, 2);
-	/* project out econ[0-1] */
+	// project out econ[0-1] 
 	project_out(Econ[2], Econ[0], Gcov);
 	project_out(Econ[2], Econ[1], Gcov);
 	normalize(Econ[2], Gcov);
 
-	/*** done w/ basis vector 2 ***/
+	//// done w/ basis vector 2
 
-	/* and repeat for x3 unit basis vector */
-	for (k = 0; k < 4; k++)	/* trial vector */
-		Econ[3][k] = delta(k, 3);
-	/* project out econ[0-2] */
+	// and repeat for x3 unit basis vector 
+	for (k = 0; k < 4; k++)	{
+    // trial vector 
+    #if defined TETRAD3_0111
+		Econ[3][k] = (k>0) ? 1 : 0;
+    #elif defined TETRAD3_1111
+		Econ[3][k] = 1;
+    #else
+		Econ[3][k] = delta(k,3);
+    #endif
+  }
+	// project out econ[0-2] 
 	project_out(Econ[3], Econ[0], Gcov);
 	project_out(Econ[3], Econ[1], Gcov);
 	project_out(Econ[3], Econ[2], Gcov);
 	normalize(Econ[3], Gcov);
 
-	/*** done w/ basis vector 3 ***/
+	//// done w/ basis vector 3 
 
-	/* now make covariant version */
+	// now make covariant version 
 	for (k = 0; k < 4; k++) {
 
-		/* lower coordinate basis index */
+		// lower coordinate basis index
 		lower(Econ[k], Gcov, Ecov[k]);
 	}
 
-	/* then raise tetrad basis index */
+	// then raise tetrad basis index 
 	for (l = 0; l < 4; l++) {
 		Ecov[0][l] *= -1.;
 	}
 
-
-	/* paranoia: check orthonormality */
+	// paranoia: optionally check orthonormality 
   if (1==0) {
     double sum ;
     int m ;
@@ -151,8 +161,6 @@ void make_tetrad(double Ucon[NDIM], double trial[NDIM],
     }
 	  fprintf(stderr,"\n");
   }
-
-	/* done */
 
 }
 
