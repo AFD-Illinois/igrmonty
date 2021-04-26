@@ -1,15 +1,53 @@
-
 #include "decs.h"
 #include "hotcross.h"
 #include "compton.h"
 #include "model_radiation.h"
 
-void test_compton_sampling_functions();
-void test_compton_sampling(double Thetae, double kappa, const char *fname);
-void test_emiss_abs();
-void test_hotcross();
-void test_dNdgamma(double Thetae, double kappa);
-void test_compare_beta_dist(double Thetae, double kappa);
+// test dNdgammae function in hotcross.c this is the only 
+// public "interface" for the sampling eDF, so it can act
+// as a sort of regression test
+void test_hotcross_dNdgammae(const char *ofname, double Thetae)
+{
+  fprintf(stderr, "testing src/hotcross.c for Thetae=%g\n", Thetae);
+
+  init_hotcross();
+
+  FILE *fp = fopen(ofname, "w");
+  fprintf(fp, "# %g %g %g\n", Thetae, model_kappa, powerlaw_p);
+
+  double norm = getnorm_dNdg(Thetae);
+  for (double lge = 0.; lge < 5; lge += 0.001) {
+    fprintf(fp, "%g %g\n", lge, dNdgammae(Thetae, pow(10., lge)) * norm);
+  }
+
+  fprintf(fp, "\n");
+  fclose(fp);
+}
+
+// test sample_beta_distr in compton.c. as above, this is the
+// only public "interface", so we use it as a regression test
+void test_compton_sample_beta_dist(const char *ofname, double Thetae)
+{
+  fprintf(stderr, "testing src/compton.c for Thetae=%g\n", Thetae);
+
+  init_monty_rand(64);
+  int nsamp = 100000;
+
+  FILE *fp;
+  double ge, be;
+
+  fp = fopen(ofname, "w");
+  fprintf(fp, "# %g %g %g\n", Thetae, model_kappa, powerlaw_p);
+
+  for (int i=0; i<nsamp; ++i) {
+    sample_beta_distr(Thetae, &ge, &be);
+    fprintf(fp, "%g ", ge);
+  }
+
+  fprintf(fp, "\n");
+  fclose(fp);
+}
+
 
 double Thetae_from_kappa_w(double kappa, double w)
 {
@@ -18,77 +56,41 @@ double Thetae_from_kappa_w(double kappa, double w)
 
 void run_all_tests() {
 
-  double kappa = 4;
-  double Thetae = 1;
+  // note: in the future, it might make sense to allow 
+  // switching of the eDF at runtime
+  
+  // set eDF parameters
+  model_kappa = 4.;
+  powerlaw_p = 3.;
+  powerlaw_gamma_min = 25.;
+  powerlaw_gamma_max = 1.e7;
+  powerlaw_gamma_cut = 1.e3;
 
-  kappa = 20;
-  Thetae = 5;
+  // test hotcross.c functionality
+  test_hotcross_dNdgammae("test/dNdgammae_0.1.out", 0.1);
+  test_hotcross_dNdgammae("test/dNdgammae_1.out", 1);
+  test_hotcross_dNdgammae("test/dNdgammae_5.out", 5);
+  test_hotcross_dNdgammae("test/dNdgammae_10.out", 10);
 
-  test_compare_beta_dist(Thetae, kappa);
-
-  // most recent debugging quits here
-  exit(42);
-
-  test_compton_sampling(Thetae, kappa, "test/compton_sampling.out");
-  test_compton_sampling_functions(kappa);
-
-  Thetae = Thetae_from_kappa_w(kappa, 2.5);
-  test_dNdgamma(Thetae, kappa);
-
-  // now reproduce figure 4
-  kappa = 5;
-  Thetae = Thetae_from_kappa_w(kappa, 1.);
-  test_compton_sampling(Thetae, kappa, "test/sampling_5_1.out");
-  Thetae = Thetae_from_kappa_w(kappa, 5.);
-  test_compton_sampling(Thetae, kappa, "test/sampling_5_5.out");
-  Thetae = Thetae_from_kappa_w(kappa, 50.);
-  test_compton_sampling(Thetae, kappa, "test/sampling_5_50.out");
-
-  test_emiss_abs();
-  test_hotcross();
+  // test compton.c functionality
+  test_compton_sample_beta_dist("test/sample_beta_0.1.out", 0.1);
+  test_compton_sample_beta_dist("test/sample_beta_1.out", 1);
+  test_compton_sample_beta_dist("test/sample_beta_5.out", 5);
+  test_compton_sample_beta_dist("test/sample_beta_10.out", 10);
 
   exit(42);
 }
 
-void test_compare_beta_dist(double Thetae, double kappa)
-{
-  KAPPA = kappa;
-
-  init_monty_rand(64);
-  int nsamp = 100000;
-
-  FILE *fp;
-  double ge, be;
-
-  fp = fopen("test/beta_dist_y.out", "w");
-  fprintf(fp, "%g %g\n", kappa, Thetae);
-
-  for (int i=0; i<nsamp; ++i) {
-    sample_beta_distr_y(Thetae, &ge, &be);
-    fprintf(fp, "%g ", ge);
-  }
-
-  fprintf(fp, "\n");
-  fclose(fp);
-
-  fp = fopen("test/beta_dist_num.out", "w");
-  fprintf(fp, "%g %g\n", kappa, Thetae);
-
-  for (int i=0; i<nsamp; ++i) {
-    sample_beta_distr_num(Thetae, &ge, &be);
-    fprintf(fp, "%g ", ge);
-  }
-
-  fprintf(fp, "\n");
-  fclose(fp);
-}
-
+// functions below left in for legacy reasons
+// primarily used to unit test the individual
+// components of the above. not guaranteed to
+// compile/work.
 
 void test_compton_sampling_functions(double kappa)
 {
   fprintf(stderr, "testing eDF in compton.c for kappa=%g\n", kappa);
 
-  KAPPA = kappa;
+  model_kappa = kappa;
 
   FILE *fp = fopen("test/compton_sampling_functions.out", "w");
   fprintf(fp, "%g\n", kappa);
@@ -118,7 +120,7 @@ void test_compton_sampling(double Thetae, double kappa, const char *fname)
 {
   fprintf(stderr, "testing Compton sampling for Thetae=%g and kappa=%g\n", Thetae, kappa);
 
-  KAPPA = kappa;
+  model_kappa = kappa;
 
   FILE *fp = fopen(fname, "w");
   fprintf(fp, "%g %g ", kappa, Thetae);
@@ -136,32 +138,11 @@ void test_compton_sampling(double Thetae, double kappa, const char *fname)
   fclose(fp);
 }
 
-void test_dNdgamma(double Thetae, double kappa) 
-{
-  fprintf(stderr, "testing eDF for Thetae=%g and kappa=%g\n", Thetae, kappa);
-
-  // can set kappa parameter here. make sure to initialize tables first!
-  KAPPA = kappa;
-  init_hotcross();
-
-  // print normalized dNdgamma for given Thetae
-  double norm = getnorm_dNdg(Thetae);
-
-  FILE *fp = fopen("test/dNdgamma.out", "w");
-  fprintf(fp, "%g %g\n", Thetae, KAPPA);
-
-  for (double lge = 0.; lge < 3; lge += 0.01) {
-    fprintf(fp, "%g %g\n", lge, dNdgammae(Thetae, pow(10., lge)) * norm);
-  }
-
-  fclose(fp);
-}
-
 void test_emiss_abs()
 {
   init_emiss_tables();
 
-  KAPPA = 4.;
+  model_kappa = 4.;
 
   fprintf(stderr, "DIST_KAPPA %d\n", MODEL_EDF==EDF_KAPPA_FIXED?1:0);
 

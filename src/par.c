@@ -1,6 +1,7 @@
 
 #include <math.h>
 #include "par.h"
+#include "model_radiation.h"
 
 // call this to set defaults
 void load_par_from_argv(int argc, char *argv[], Params *params) {
@@ -69,6 +70,9 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "trat_small", &(params->trat_small), TYPE_DBL);
     read_param(line, "trat_large", &(params->trat_large), TYPE_DBL);
     read_param(line, "Thetae_max", &(params->Thetae_max), TYPE_DBL);
+
+    // set model parameters
+    try_set_radiation_parameter(line);
   }
 
   fclose(fp);

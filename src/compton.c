@@ -352,6 +352,10 @@ double dfdgam(double ge, void *params)
   return 2. + ge * ( ge / ( ge*ge - 1 ) - 1. / GAMMACUT - (kap+1)/kap/w / (1. + (ge-1.)/kap/w) );
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   return ge - pow(ge,3.) - 2.*Thetae + 3.*pow(ge,2.)*Thetae;
+#elif MODEL_EDF==EDF_POWER_LAW
+  (void)Thetae;
+  fprintf(stderr, "power law EDF not supported with dfdgam\n");
+  exit(3);
 #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);
@@ -368,10 +372,28 @@ double fdist(double ge, double Thetae)
   return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap * w), - kap - 1.)*exp(-ge/GAMMACUT);
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
+#elif MODEL_EDF==EDF_POWER_LAW
+  (void)Thetae;
+  (void)ge;
+  fprintf(stderr, "power law EDF not supported with fdist\n");
+  exit(3);
 #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);
 #endif
+}
+
+
+void sample_powerlaw_distr(double *gamma_e, double *beta_e)
+{
+  double p = powerlaw_p;
+  double gmin = powerlaw_gamma_min;
+  double gmax = powerlaw_gamma_max;
+
+  double x = monty_rand();
+
+  *gamma_e = pow( (1.-x) * pow(gmin, 1.-p) + x * pow(gmax, 1.-p), 1./(1.-p) );
+  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
 }
 
 #include <gsl/gsl_errno.h>
@@ -379,7 +401,11 @@ double fdist(double ge, double Thetae)
 #include <gsl/gsl_roots.h>
 void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 {
-  return sample_beta_distr_num(Thetae, gamma_e, beta_e);
+#if MODEL_EDF==EDF_POWER_LAW
+  sample_powerlaw_distr(gamma_e, beta_e);
+#else
+  sample_beta_distr_num(Thetae, gamma_e, beta_e);
+#endif
 }
 
 void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e) 
@@ -389,6 +415,10 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e)
   double y = sample_y_distr_kappa(Thetae);
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   double y = sample_y_distr(Thetae);
+#elif MODEL_EDF==EDF_POWER_LAW
+  double y = 0.;
+  fprintf(stderr, "power law EDF not supported with sample_beta_distr_y\n");
+  exit(3);
 #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);

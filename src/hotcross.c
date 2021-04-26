@@ -1,3 +1,5 @@
+#include <assert.h>
+
 #include "decs.h"
 #include "hotcross.h"
 #include "model_radiation.h"
@@ -164,12 +166,29 @@ double total_compton_cross_num(double w, double thetae, double norm)
   return cross * SIGMA_THOMSON;
 }
 
-// use beta instead of gamma, because its nicely bound between 0 and 1.
+// use beta instead of gamma, because its nicely bounded between 0 and 1.
 double dNdg_integrand(double beta, void *params) 
 {
   double thetae = *(double *)params;
   double gammae = exp(beta); // integrating in log space
   return gammae * dNdgammae(thetae, gammae);
+}
+
+double dNdgammae_powerlaw(double thetae, double gammae)
+{
+   double p = powerlaw_p;
+   double gmin = powerlaw_gamma_min;
+   double gmax = powerlaw_gamma_max;
+
+   double exp_cutoff = exp(-gammae / gamma_max);
+   (void)exp_cutoff;
+
+   if (gammae < gmin || gmax < gammae) return 0.;
+
+  // note no exponential cutoff. this means we're not using powerlaw_gamma_cut
+  // or gamma_max. this choice makes normalization easier and seems consistent
+  // with the symphony emissivity formula
+  return (p-1) * pow(gammae, -p) / ( pow(gmin, 1-p) - pow(gmax, 1-p) );
 }
 
 double dNdgammae_kappa(double thetae, double gammae)
@@ -210,10 +229,15 @@ double getnorm_dNdg(double thetae)
 
   return 1. / result;
 
+#elif MODEL_EDF==EDF_POWER_LAW
+
+  return 1.;
+  (void)thetae;  // silence unused parameter warning
+
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
   return 1.;
-  (void)thetae; // silence unused parameter warning
+  (void)thetae;  // silence unused parameter warning
 
 #else
 
@@ -228,6 +252,10 @@ double dNdgammae(double thetae, double gammae)
 #if MODEL_EDF==EDF_KAPPA_FIXED
 
   return dNdgammae_kappa(thetae, gammae);
+
+#elif MODEL_EDF==EDF_POWER_LAW
+
+  return dNdgammae_powerlaw(thetae, gammae);
 
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
