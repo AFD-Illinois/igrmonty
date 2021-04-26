@@ -6,6 +6,7 @@ model-independent radiation-related utilities.
 
 #include "decs.h"
 #include "model_radiation.h"
+#include "par.h"
 
 // this file defines:
 //
@@ -19,6 +20,20 @@ model-independent radiation-related utilities.
 //
 
 double model_kappa = 4.;
+
+double powerlaw_gamma_cut = 1.e10;
+double powerlaw_gamma_min = 1.e2;
+double powerlaw_gamma_max = 1.e5;
+double powerlaw_p = 3.25;
+
+
+void try_set_radiation_parameter(const char *line)
+{
+  read_param(line, "powerlaw_gamma_cut", &powerlaw_gamma_cut, TYPE_DBL);
+  read_param(line, "powerlaw_gamma_min", &powerlaw_gamma_min, TYPE_DBL);
+  read_param(line, "powerlaw_gamma_max", &powerlaw_gamma_max, TYPE_DBL);
+  read_param(line, "powerlaw_p", &powerlaw_p, TYPE_DBL);
+}
 
 // determine w by finding effective w for total
 // energy to match thermal (MJ) at Thetae
@@ -117,6 +132,38 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   double cut = exp(-nu/NUCUT);
   
   return nu*alphas*cut;
+
+#elif MODEL_EDF==EDF_POWER_LAW
+
+  /*
+  double p = powerlaw_p;
+  double gmin = powerlaw_gamma_min;
+  double gmax = powerlaw_gamma_max;
+
+  double sth = sin(theta);
+  double nuc = EE * B / (2.*M_PI*ME*CL);
+  double factor = (Ne * EE*EE)/(nu * ME*CL);
+
+  double X = nu/(nuc*sth);
+
+  double As = pow(3.,(p+1)/2.)*(p-1)/(4*(pow(gmin,1-p)-pow(gmax,1-p)));
+  As *= gsl_sf_gamma((3*p+2)/12.)*gsl_sf_gamma((3*p+22)/12.)*pow(1./3.*X,-(p+2)/2.);
+
+  return As*factor;
+   */
+
+  double sth = sin(theta);
+  double nu_c = EE * B / (2 * M_PI * ME * CL); 
+
+  double prefactor = Ne * EE*EE / (nu * ME * CL);
+
+  double t1 = pow(3., (powerlaw_p+1)/2.) * (powerlaw_p - 1.);
+  double t2 = 4. * (pow(powerlaw_gamma_min, 1.-powerlaw_p) - 
+                    pow(powerlaw_gamma_max, 1.-powerlaw_p));
+  double t3 = tgamma((3*powerlaw_p+2)/12.) * tgamma((3.*powerlaw_p+22)/12.);
+  double t4 = pow(nu/(nu_c * sth), -(powerlaw_p+2)/2.);
+
+  return nu * prefactor * t1 / t2 * t3 * t4;
 
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 

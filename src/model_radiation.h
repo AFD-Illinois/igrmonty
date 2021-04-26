@@ -17,6 +17,11 @@
 extern double model_kappa;  // defined in radiation.c
 
 // powerlaw model
-//  TODO
+extern double powerlaw_gamma_cut;  // all defined in radiation.c
+extern double powerlaw_gamma_min;
+extern double powerlaw_gamma_max;
+extern double powerlaw_p;
+
+void try_set_radiation_parameter(const char *line);
 
 #endif // MODEL_RADIATION_H

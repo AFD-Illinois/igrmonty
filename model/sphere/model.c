@@ -384,6 +384,11 @@ void init_data(int argc, char *argv[], Params *params)
 
   model_kappa = 4.;
 
+  powerlaw_p = 3;
+  powerlaw_gamma_min = 25;
+  powerlaw_gamma_max = 1.e7;
+  powerlaw_gamma_cut = 1.e3;
+
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 100.;
   MODEL_TAU_0 = 1.e-5;

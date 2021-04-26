@@ -28,9 +28,11 @@ static double GAM1, GAM2, GAM3, GAM4;
 // these functions are scoped here only and called from above "public" functions.
 static double jnu_thermal(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
+static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_bremss(double nu, double Ne, double Thetae);
 static double int_jnu_thermal(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
+static double int_jnu_powerlaw(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_bremss(double Ne, double Thetae, double nu);
 
 double jnu(double nu, double Ne, double Thetae, double B, double theta)
@@ -42,6 +44,8 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta)
   j += jnu_kappa(nu, Ne, Thetae, B, theta);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   j += jnu_thermal(nu, Ne, Thetae, B, theta);
+ #elif MODEL_EDF==EDF_POWER_LAW
+  j += jnu_powerlaw(nu, Ne, Thetae, B, theta);
  #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);
@@ -65,6 +69,8 @@ double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double the
   synch = jnu_kappa(nu, Ne, Thetae, B, theta);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   synch = jnu_thermal(nu, Ne, Thetae, B, theta);
+ #elif MODEL_EDF==EDF_POWER_LAW
+  synch = jnu_powerlaw(nu, Ne, Thetae, B, theta);
  #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);
@@ -83,6 +89,7 @@ double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double the
   (void)jnu_bremss;
   (void)jnu_thermal;
   (void)jnu_kappa;
+  (void)jnu_powerlaw;
 }
 
 double int_jnu(double Ne, double Thetae, double B, double nu)
@@ -94,6 +101,8 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
   intj += int_jnu_kappa(Ne, Thetae, B, nu);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   intj += int_jnu_thermal(Ne, Thetae, B, nu);
+ #elif MODEL_EDF==EDF_POWER_LAW
+  intj += int_jnu_powerlaw(Ne, Thetae, B, nu);
  #else
   fprintf(stderr, "must choose valid MODEL_EDF\n");
   exit(3);
@@ -110,6 +119,7 @@ double int_jnu(double Ne, double Thetae, double B, double nu)
   (void)int_jnu_bremss;
   (void)int_jnu_thermal;
   (void)int_jnu_kappa;
+  (void)int_jnu_powerlaw;
 }
 
 static double jnu_bremss(double nu, double Ne, double Thetae)
@@ -202,6 +212,35 @@ static double jnu_thermal(double nu, double Ne, double Thetae, double B,
 	return j;
 }
 
+static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta)
+{
+  if (Thetae < THETAE_MIN) {
+    return 0.;
+  }
+  if (theta < SMALL || theta > M_PI-SMALL) {
+    return 0.;
+  }
+
+  double p = powerlaw_p;
+  double gmin = powerlaw_gamma_min;
+  double gmax = powerlaw_gamma_max;
+
+  double sth = sin(theta);
+  double nuc = EE * B / (2. * M_PI * ME * CL);
+  double factor = (Ne * pow(EE,2.) * nuc)/CL;
+
+  if (nu > 1.e8 * nuc) {
+    return 0.;
+  }
+
+  double Xs = nu/(nuc*sth);
+
+  double Js = pow(3.,p/2.)*(p-1)*sth/(2*(p+1)*(pow(gmin,1-p)-pow(gmax,1-p)));
+  Js *= gsl_sf_gamma((3*p-1)/12.)*gsl_sf_gamma((3*p+19)/12.)*pow(Xs,-(p-1)/2.);
+
+  return Js*factor;
+}
+
 #include <gsl/gsl_sf_gamma.h>
 static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
 {
@@ -286,6 +325,36 @@ static double jnu_kappa_integrand(double th, void *params)
   double Js = pow(pow(Jslo,-x) + pow(Jshi,-x),-1./x);
 
   return Js * sth;
+}
+
+static double jnu_powerlaw_integrand(double th, void *params)
+{
+ double K = *(double *)params;
+ double sth = sin(th);
+ double x = K / sth;
+
+ double p = powerlaw_p;
+ double gmin = powerlaw_gamma_min;
+ double gmax = powerlaw_gamma_max;
+
+ double factor = sth;
+
+ double Js = pow(3.,p/2.)*(p-1)*sth/(2*(p+1)*(pow(gmin,1-p)-pow(gmax,1-p)));
+ Js *= gsl_sf_gamma((3*p-1)/12.)*gsl_sf_gamma((3*p+19)/12.)*pow(x,-(p-1)/2.);
+
+ return Js*factor;
+}
+
+static double int_jnu_powerlaw(double Ne, double Thetae, double B, double nu)
+{
+  double G_eval_powerlaw(double Thetae, double B, double nu);
+
+  if (Thetae < THETAE_MIN) {
+    return 0.;
+  }
+
+  double CONST = EE * EE * EE / (2. * M_PI * ME * CL * CL);
+  return CONST * Ne * B * G_eval_powerlaw(Thetae, B, nu);
 }
 
 static double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
@@ -373,7 +442,7 @@ void init_emiss_tables(void)
     gsl_integration_workspace_free(w);
   }
 
-  // kappa synchrotron lookup table
+  // kappa OR powerlaw synchrotron lookup table
   {
     // Store & evaluate Gamma functions
     GAM1 = gsl_sf_gamma(model_kappa - 4./3.);
@@ -385,7 +454,15 @@ void init_emiss_tables(void)
     gsl_function func;
     gsl_integration_workspace *w;
 
+    // silence unused warning
+    (void)jnu_kappa_integrand;
+    (void)jnu_powerlaw_integrand;
+
+#if MODEL_EDF==EDF_KAPPA_FIXED
     func.function = &jnu_kappa_integrand;
+#else
+    func.function = &jnu_powerlaw_integrand;
+#endif
     func.params = &L;
 
     lL_min = log(LMIN);
@@ -447,6 +524,25 @@ double F_eval(double Thetae, double Bmag, double nu)
 		return linear_interp_F(K);
 	}
 }
+
+
+double G_eval_powerlaw(double Thetae, double Bmag, double nu) {
+
+  double K;
+    double linear_interp_G(double);
+  double nuc = EE * Bmag / (2. * M_PI * ME * CL);
+
+  K = nu / nuc;
+  if (K > KMAX)
+    return 0.;
+  if (K < KMIN)
+    return 0.;
+  double F_value = linear_interp_G(K); 
+  if (isnan(F_value))
+    fprintf(stderr, " f_eval %e %e %e %e %e\n", nu, Thetae, nuc, Bmag, F_value);
+  return F_value;
+}
+
 
 #define GFAC (2.*M_PI*ME*CL/EE)
 double G_eval(double Thetae, double Bmag, double nu)
