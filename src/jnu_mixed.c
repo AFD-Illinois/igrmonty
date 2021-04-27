@@ -15,8 +15,6 @@ good for Thetae > 1
 
 */
 
-static double GAM1, GAM2, GAM3, GAM4;
-
 // exposed functions are:
 //   jnu(double nu, double Ne, double Thetae, double B, double theta)
 //      -> directly computes emissivity from formulae. used in radiation.c
@@ -34,6 +32,17 @@ static double int_jnu_thermal(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_powerlaw(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_bremss(double Ne, double Thetae, double nu);
+
+// these are helper functions
+double K2_eval(double Thetae);
+double F_eval(double Thetae, double B, double nu);
+double G_eval(double Thetae, double B, double nu);
+double H_eval(double Thetae, double B, double nu);
+double linear_interp_K2(double);
+double linear_interp_F(double);
+double linear_interp_G(double);
+double linear_interp_H(double);
+void populate_table_from_function(double table[], double (* function) (double x, void * params));
 
 double jnu(double nu, double Ne, double Thetae, double B, double theta)
 {
@@ -290,8 +299,6 @@ static double int_jnu_thermal(double Ne, double Thetae, double Bmag, double nu)
   // Returns energy per unit time at frequency nu, all in cgs
 
 	double j_fac, K2;
-	double F_eval(double Thetae, double B, double nu);
-	double K2_eval(double Thetae);
 
 	if (Thetae < THETAE_MIN) {
 		return 0.;
@@ -317,6 +324,11 @@ static double jnu_kappa_integrand(double th, void *params)
 	if (sth < 1.e-150 || Xk > 2.e8) {
 		return 0.;
   }
+
+  double GAM1 = gsl_sf_gamma(kap - 4./3.);
+  double GAM2 = gsl_sf_gamma(kap - 2.);
+  double GAM3 = gsl_sf_gamma(kap/4. - 1./3.);
+  double GAM4 = gsl_sf_gamma(kap/4. + 4./3.);
 
   double Jslo = pow(Xk,1./3.)*sth*4.*M_PI*GAM1/(pow(3.,7./3.)*GAM2);
   double Jshi = pow(Xk,-(kap-2.)/2.)*sth*pow(3.,(kap-1.)/2.)*(kap-2.)*(kap-1.)/4.*GAM3*GAM4;
@@ -347,23 +359,16 @@ static double jnu_powerlaw_integrand(double th, void *params)
 
 static double int_jnu_powerlaw(double Ne, double Thetae, double B, double nu)
 {
-  double G_eval_powerlaw(double Thetae, double B, double nu);
-
   if (Thetae < THETAE_MIN) {
     return 0.;
   }
 
   double CONST = EE * EE * EE / (2. * M_PI * ME * CL * CL);
-  return CONST * Ne * B * G_eval_powerlaw(Thetae, B, nu);
+  return CONST * Ne * B * H_eval(Thetae, B, nu);
 }
 
 static double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
 {
-  // Returns energy per unit time at
-  // frequency nu in cgs
-
-	double G_eval(double Thetae, double B, double nu);
-
 	if (Thetae < THETAE_MIN) {
 		return 0.;
   }
@@ -398,7 +403,10 @@ static double jnu_thermal_integrand(double th, void *params)
 #undef CST
 
 /* Tables */
-static double _F[N_ESAMP + 1], _G[N_ESAMP + 1], _K2[N_ESAMP + 1];
+static double _F[N_ESAMP + 1];
+static double _G[N_ESAMP + 1];  // kappa edf
+static double _H[N_ESAMP + 1];  // power law
+static double _K2[N_ESAMP + 1];
 static double lK_min, dlK;
 static double lL_min, dlL;
 static double lT_min, dlT;
@@ -442,44 +450,9 @@ void init_emiss_tables(void)
     gsl_integration_workspace_free(w);
   }
 
-  // kappa OR powerlaw synchrotron lookup table
-  {
-    // Store & evaluate Gamma functions
-    GAM1 = gsl_sf_gamma(model_kappa - 4./3.);
-    GAM2 = gsl_sf_gamma(model_kappa - 2.);
-    GAM3 = gsl_sf_gamma(model_kappa/4. - 1./3.);
-    GAM4 = gsl_sf_gamma(model_kappa/4. + 4./3.);
-   
-    double L;
-    gsl_function func;
-    gsl_integration_workspace *w;
-
-    // silence unused warning
-    (void)jnu_kappa_integrand;
-    (void)jnu_powerlaw_integrand;
-
-#if MODEL_EDF==EDF_KAPPA_FIXED
-    func.function = &jnu_kappa_integrand;
-#else
-    func.function = &jnu_powerlaw_integrand;
-#endif
-    func.params = &L;
-
-    lL_min = log(LMIN);
-    dlL = log(LMAX / LMIN) / (N_ESAMP);
-
-    //  build table for G(L) where G(L) is given by
-    //   2 \pi \int_0^\pi  ...( (K/\sin\theta)^{1/2} + 2^{11/12}(K/\sin\theta)^{1/6})^2 \exp[-(K/\sin\theta)^{1/3}]
-    //  so that J_{\nu} = const.*G(L)
-    w = gsl_integration_workspace_alloc(1000);
-    for (k = 0; k <= N_ESAMP; k++) {
-      L = exp(k * dlL + lL_min);
-      gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000, 
-        GSL_INTEG_GAUSS61, w, &result, &err);
-      _G[k] = log(4*M_PI*result);
-    }
-    gsl_integration_workspace_free(w);
-  }
+  // kappa and powerlaw lookup tables
+  populate_table_from_function(_G, &jnu_kappa_integrand);
+  populate_table_from_function(_H, &jnu_powerlaw_integrand);
 
 	// Bessel K2 lookup table
   {
@@ -492,12 +465,36 @@ void init_emiss_tables(void)
   }
 }
 
+void populate_table_from_function(double table[], double (* function) (double x, void * params))
+{
+  double L, result, err;
+  gsl_function func;
+  gsl_integration_workspace *w;
+
+  // silence unused warning
+  (void)jnu_kappa_integrand;
+  (void)jnu_powerlaw_integrand;
+
+  func.function = function;
+  func.params = &L;
+
+  lL_min = log(LMIN);
+  dlL = log(LMAX / LMIN) / (N_ESAMP);
+
+  w = gsl_integration_workspace_alloc(1000);
+  for (int k = 0; k <= N_ESAMP; k++) {
+    L = exp(k * dlL + lL_min);
+    gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000,
+      GSL_INTEG_GAUSS61, w, &result, &err);
+    table[k] = log(4*M_PI*result);
+  }
+  gsl_integration_workspace_free(w);
+}
+
 // rapid evaluation of K_2(1/\Thetae) 
 
 double K2_eval(double Thetae)
 {
-	double linear_interp_K2(double);
-
 	if (Thetae < THETAE_MIN)
 		return 0.;
 	if (Thetae > TMAX)
@@ -510,7 +507,6 @@ double K2_eval(double Thetae)
 double F_eval(double Thetae, double Bmag, double nu)
 {
 	double K, x;
-	double linear_interp_F(double);
 
 	K = KFAC * nu / (Bmag * Thetae * Thetae);
 
@@ -526,10 +522,9 @@ double F_eval(double Thetae, double Bmag, double nu)
 }
 
 
-double G_eval_powerlaw(double Thetae, double Bmag, double nu) {
+double H_eval(double Thetae, double Bmag, double nu) {
 
   double K;
-    double linear_interp_G(double);
   double nuc = EE * Bmag / (2. * M_PI * ME * CL);
 
   K = nu / nuc;
@@ -537,22 +532,18 @@ double G_eval_powerlaw(double Thetae, double Bmag, double nu) {
     return 0.;
   if (K < KMIN)
     return 0.;
-  double F_value = linear_interp_G(K); 
-  if (isnan(F_value))
-    fprintf(stderr, " f_eval %e %e %e %e %e\n", nu, Thetae, nuc, Bmag, F_value);
-  return F_value;
+  double H_value = linear_interp_H(K); 
+  if (isnan(H_value))
+    fprintf(stderr, " h_eval %e %e %e %e %e\n", nu, Thetae, nuc, Bmag, H_value);
+  return H_value;
 }
 
 
 #define GFAC (2.*M_PI*ME*CL/EE)
 double G_eval(double Thetae, double Bmag, double nu)
 {
-	double L;
-	double linear_interp_G(double);
-
   double w = kappa_w(Thetae, model_kappa);
-
-	L = GFAC*nu/(Bmag* w*model_kappa * w*model_kappa);
+	double L = GFAC*nu/(Bmag* w*model_kappa * w*model_kappa);
 
 	if (L > LMAX) {
 		return 0.;
@@ -613,5 +604,19 @@ double linear_interp_G(double L)
 	di = di - i;
 
 	return exp((1. - di) * _G[i] + di * _G[i + 1]);
+}
+
+double linear_interp_H(double L)
+{
+  int i;
+  double di, lL;
+
+  lL = log(L);
+
+  di = (lL - lL_min)/dlL;
+  i = (int) di;
+  di = di - i;
+
+  return exp((1. - di) * _H[i] + di * _H[i + 1]);
 }
 
