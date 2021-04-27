@@ -266,6 +266,8 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM]);
+double get_model_sigma(const double X[NDIM]);  // should be defined in model.c
+double get_model_beta(const double X[NDIM]);
 int stop_criterion(struct of_photon *ph);
 int record_criterion(struct of_photon *ph);
 double kappa_w(double Thetae, double kappa);

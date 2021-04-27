@@ -100,6 +100,33 @@ double **malloc_rank2_double(int n1, int n2)
   return A;
 }
 
+double ***malloc_rank3_double(int n1, int n2, int n3)
+{
+
+  double ***A;
+  double *space;
+  int i,j;
+
+  space = malloc_rank1(n1*n2*n3, sizeof(double));
+
+  A = malloc_rank1(n1, sizeof(double *));
+
+  if(!space || !A) {
+    fprintf(stderr, "malloc_rank3_double failure\n");
+    exit(-1);
+  }
+
+  for(i=0;i<n1;i++){
+    A[i] = malloc_rank1(n2,sizeof(double *));
+    for(j=0;j<n2;j++){
+      A[i][j] = malloc_rank1(n3,sizeof(double *));
+      A[i][j] = &(space[n3*(j + n2*i)]);
+    }
+  }
+
+  return A;
+}
+
 double ****malloc_rank4_double(int n1, int n2, int n3, int n4)
 {
 
