@@ -3,6 +3,7 @@
 #include "decs.h"
 #include "hotcross.h"
 #include "model_radiation.h"
+#include "tablecache.h"
 
 /*
 
@@ -54,28 +55,44 @@ void init_hotcross(void)
   lminw = log10(MINW);
   lmint = log10(MINT);
 
-  fprintf(stderr, "making lookup table for compton cross section... ");
+  fprintf(stderr, "table for compton cross section... ");
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 
+  size_t dims[3] = { KAPPA_NSAMP, NW+1, NT+1 };
+  double start[3] = { KAPPA_MIN, lminw, lmint };
+  double dx[3] = { DKAPPA, dlw, dlT };
+
+  int version = 1;
+  // if you change the FORMAT of the table, please increment the version number. otherwise,
+  // the table loader automatically recognizes changes to the table's shape, start, and dx.
+  if (load_table("hotcross_edf_kappa_var.h5", version, table, 3, dims, start, dx) != 0) {
+
+    fprintf(stderr, "generating... ");
+
 #pragma omp parallel for
-  for (int k = 0; k < KAPPA_NSAMP; ++k) {
-    for (int j = 0; j <= NT; j++) {
-      radiation_params rpars;
-      rpars.kappa = KAPPA_MIN + k * DKAPPA;
-      double lT = lmint + j * dlT;
-      double norm = getnorm_dNdg(pow(10., lT), &rpars);
-      for (int i = 0; i <= NW; i++) {
-        double lw = lminw + i * dlw;
-        double value = total_compton_cross_num(pow(10.,lw),pow(10.,lT),norm,&rpars);
-        // note: this table is in w and *thetae*
-        table[k][i][j] = log10(value);
-        if (isnan(table[k][i][j])) {
-          fprintf(stderr, "%d %d %g %g\n", i, j, lw, lT);
-          exit(0);
+    for (int k = 0; k < KAPPA_NSAMP; ++k) {
+      for (int j = 0; j <= NT; j++) {
+        radiation_params rpars;
+        rpars.kappa = KAPPA_MIN + k * DKAPPA;
+        double lT = lmint + j * dlT;
+        double norm = getnorm_dNdg(pow(10., lT), &rpars);
+        for (int i = 0; i <= NW; i++) {
+          double lw = lminw + i * dlw;
+          double value = total_compton_cross_num(pow(10.,lw),pow(10.,lT),norm,&rpars);
+          // note: this table is in w and *thetae*
+          table[k][i][j] = log10(value);
+          if (isnan(table[k][i][j])) {
+            fprintf(stderr, "%d %d %g %g\n", i, j, lw, lT);
+            exit(0);
+          }
         }
       }
     }
+    write_table("hotcross_edf_kappa_var.h5", 1, table, 3, dims, start, dx);
+
+  } else {
+    fprintf(stderr, "loading from file... ");
   }
 
 #else

@@ -13,8 +13,8 @@
 
 // for variable kappa. also set behavior for how to
 // deal with out-of-bounds kappas in get_model_kappa(...)
-#define KAPPA_MIN (2.5)
-#define KAPPA_MAX (7.5)
+#define KAPPA_MIN (3.1)
+#define KAPPA_MAX (8.1)
 #define KAPPA_NSAMP (50)
 #define DKAPPA (((double)KAPPA_MAX - (double)KAPPA_MIN) / KAPPA_NSAMP)
 
