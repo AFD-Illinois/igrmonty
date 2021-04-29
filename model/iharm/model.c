@@ -6,6 +6,8 @@
 #define USE_FIXED_TPTE (0)
 #define USE_MIXED_TPTE (1)
 
+double interp_scalar(const double X[NDIM], double ***var);
+
 // electron model. these values will be overwritten by anything found in par.c
 // or in the runtime parameter file.
 // with_electrons ->
@@ -20,14 +22,9 @@ static double Thetae_max = 1.e100;
 static int with_electrons;
 
 // fluid data
-double ****bcon;
-double ****bcov;
-double ****ucon;
-double ****ucov;
 double ****p;
-double ***ne;
-double ***thetae;
-double ***b;
+double ***sigma_array;
+double ***beta_array;
 
 double TP_OVER_TE;
 
@@ -371,6 +368,16 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 
 }
 
+double get_model_sigma(const double X[NDIM])
+{
+  return interp_scalar(X, sigma_array);
+}
+
+double get_model_beta(const double X[NDIM])
+{
+  return interp_scalar(X, beta_array);
+}
+
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
@@ -379,7 +386,6 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double rho, kel, uu;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
-  double interp_scalar(const double X[NDIM], double ***var);
   double sig ;
 
   if ( X_in_domain(X) == 0 ) {
@@ -653,8 +659,11 @@ void init_data(int argc, char *argv[], Params *params)
   fprintf(stderr, "Thetae_unit = %g\n", Thetae_unit);
 
   // Allocate storage and set geometry
+  double ***malloc_rank3_double(int n1, int n2, int n3);
   double ****malloc_rank4_double(int n1, int n2, int n3, int n4);
   p = malloc_rank4_double(NVAR, N1, N2, N3);
+  sigma_array = malloc_rank3_double(N1, N2, N3);
+  beta_array = malloc_rank3_double(N1, N2, N3);
   fprintf(stderr, "NVAR N1 N2 N3 = %i %i %i %i\n", NVAR, N1, N2, N3);
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
   geom = (struct of_geom**)malloc_rank2(N1, N2, sizeof(struct of_geom));
@@ -710,6 +719,10 @@ void init_data(int argc, char *argv[], Params *params)
     get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
 
     bias_norm += dV*geom[i][j].gzone * Thetae*Thetae;
+
+    double bsq = Bmag*Bmag/B_unit/B_unit;  // in code units
+    sigma_array[i][j][k] = bsq / (Ne / Ne_unit);
+    beta_array[i][j][k] = p[UU][i][j][k] * (gam - 1.) * 2. / bsq;
 
     if (10 <= i && i <= 20) {
       lower(Ucon, geom[i][j].gcov, Ucov);

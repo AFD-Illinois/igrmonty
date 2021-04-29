@@ -15,9 +15,12 @@ void test_hotcross_dNdgammae(const char *ofname, double Thetae)
   FILE *fp = fopen(ofname, "w");
   fprintf(fp, "# %g %g %g\n", Thetae, model_kappa, powerlaw_p);
 
-  double norm = getnorm_dNdg(Thetae);
+  radiation_params rpars;
+  rpars.kappa = model_kappa;
+
+  double norm = getnorm_dNdg(Thetae, &rpars);
   for (double lge = 0.; lge < 5; lge += 0.001) {
-    fprintf(fp, "%g %g\n", lge, dNdgammae(Thetae, pow(10., lge)) * norm);
+    fprintf(fp, "%g %g\n", lge, dNdgammae(Thetae, pow(10., lge), &rpars) * norm);
   }
 
   fprintf(fp, "\n");
@@ -36,11 +39,14 @@ void test_compton_sample_beta_dist(const char *ofname, double Thetae)
   FILE *fp;
   double ge, be;
 
+  radiation_params rpars;
+  rpars.kappa = model_kappa;
+
   fp = fopen(ofname, "w");
   fprintf(fp, "# %g %g %g\n", Thetae, model_kappa, powerlaw_p);
 
   for (int i=0; i<nsamp; ++i) {
-    sample_beta_distr(Thetae, &ge, &be);
+    sample_beta_distr(Thetae, &ge, &be, &rpars);
     fprintf(fp, "%g ", ge);
   }
 
@@ -86,6 +92,9 @@ void run_all_tests() {
 // components of the above. not guaranteed to
 // compile/work.
 
+// defined internally in compton.c
+struct rrpars_s { double Thetae; radiation_params *rpars; };
+
 void test_compton_sampling_functions(double kappa)
 {
   fprintf(stderr, "testing eDF in compton.c for kappa=%g\n", kappa);
@@ -95,14 +104,20 @@ void test_compton_sampling_functions(double kappa)
   FILE *fp = fopen("test/compton_sampling_functions.out", "w");
   fprintf(fp, "%g\n", kappa);
 
+  radiation_params rpars;
+  rpars.kappa = kappa;
+
   // test to make sure the distribution functions return reasonable values
   for (double Thetae = 0; Thetae<100; Thetae+=0.5) {
     double geofmin = -1;
     double vofmin = 1.e10;
     double dofmin = 0;
     for (double ge=1.; ge < 1001; ge+=0.01) {
-      double dist = fdist(ge, Thetae);
-      double ddist = fabs(dfdgam(ge, &Thetae));
+      double dist = fdist(ge, Thetae, kappa);
+      struct rrpars_s rrpars;
+      rrpars.Thetae = Thetae;
+      rrpars.rpars = &rpars;
+      double ddist = fabs(dfdgam(ge, &rrpars));
       if ( ddist < vofmin ) {
         geofmin = ge;
         vofmin = ddist;
@@ -121,6 +136,8 @@ void test_compton_sampling(double Thetae, double kappa, const char *fname)
   fprintf(stderr, "testing Compton sampling for Thetae=%g and kappa=%g\n", Thetae, kappa);
 
   model_kappa = kappa;
+  radiation_params rpars;
+  rpars.kappa = kappa;
 
   FILE *fp = fopen(fname, "w");
   fprintf(fp, "%g %g ", kappa, Thetae);
@@ -130,7 +147,7 @@ void test_compton_sampling(double Thetae, double kappa, const char *fname)
   init_monty_rand(64);
   double gamma_e, beta_e;
   for (int i=0; i<10000; ++i) {
-    sample_beta_distr(Thetae, &gamma_e, &beta_e); 
+    sample_beta_distr(Thetae, &gamma_e, &beta_e, &rpars); 
     fprintf(fp, "%g ", gamma_e);
   }
 
@@ -151,12 +168,14 @@ void test_emiss_abs()
   double theta = M_PI/3.;
 
   for (double lnu=9; lnu < 15; lnu += 0.2) {
+    radiation_params rpars;
+    rpars.kappa = model_kappa;
     double nu = pow(10., lnu);
-    double iem = jnu_inv(nu, Thetae, 1., B, theta);
-    double iabs = alpha_inv_abs(nu, Thetae, 1., B, theta);
+    double iem = jnu_inv(nu, Thetae, 1., B, theta, &rpars);
+    double iabs = alpha_inv_abs(nu, Thetae, 1., B, theta, &rpars);
     if (1==0) 
     fprintf(stderr, "%g %g %g\n", nu, iem, iabs);
-    double ijnu = int_jnu(1., Thetae, B, nu);
+    double ijnu = int_jnu(1., Thetae, B, nu, &rpars);
     fprintf(stderr, "%g %g\n", nu, ijnu);
   }
 }
@@ -168,7 +187,10 @@ void test_hotcross()
 
   double w = 1.2;
   double thetae = 3.4;
-  double value = total_compton_cross_lkup(w, thetae);
+  radiation_params rpars;
+  rpars.kappa = model_kappa;
+
+  double value = total_compton_cross_lkup(w, thetae, &rpars);
 
   fprintf(stderr, "%g %g -> %g\n", w, thetae, value);
 }
