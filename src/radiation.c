@@ -8,6 +8,8 @@ model-independent radiation-related utilities.
 #include "model_radiation.h"
 #include "par.h"
 
+#include <assert.h>
+
 // this file defines:
 //
 //   Bnu_inv
@@ -26,6 +28,7 @@ double powerlaw_gamma_min = 1.e2;
 double powerlaw_gamma_max = 1.e5;
 double powerlaw_p = 3.25;
 
+double kappa_es(double nu, double Thetae, radiation_params *rpars);
 
 void try_set_radiation_parameter(const char *line)
 {
@@ -33,6 +36,31 @@ void try_set_radiation_parameter(const char *line)
   read_param(line, "powerlaw_gamma_min", &powerlaw_gamma_min, TYPE_DBL);
   read_param(line, "powerlaw_gamma_max", &powerlaw_gamma_max, TYPE_DBL);
   read_param(line, "powerlaw_p", &powerlaw_p, TYPE_DBL);
+}
+
+// determine local kappa using Ball+ 2016 model
+double get_model_kappa(const double X[NDIM])
+{
+#if MODEL_EDF==EDF_KAPPA_FIXED
+  return model_kappa;
+#elif MODEL_EDF==EDF_KAPPA_VARIABLE
+  double sigma = get_model_sigma(X);
+  double beta = get_model_beta(X);
+  return model_kappa;  // TODO: for testing purposes
+  return 2.8 + 0.7*pow(sigma,-0.5) + 3.7*pow(sigma,-0.19)*tanh(23.4*pow(sigma,0.26)*beta);
+#else
+  assert(1==0);  // unsupported kappa model
+#endif
+}
+
+// get params struct 
+radiation_params get_model_radiation_params(const double X[NDIM])
+{
+  radiation_params rpars;
+#if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  rpars.kappa = get_model_kappa(X);
+#endif
+  return rpars;
 }
 
 // determine w by finding effective w for total
@@ -56,19 +84,19 @@ double Bnu_inv(double nu, double Thetae)
 }
 
 // return j_\nu/\nu^2, the invariant emissivity
-double jnu_inv(double nu, double Thetae, double Ne, double B, double theta)
+double jnu_inv(double nu, double Thetae, double Ne, double B, double theta, radiation_params *rpars)
 {
-	double j = jnu(nu, Ne, Thetae, B, theta);
+	double j = jnu(nu, Ne, Thetae, B, theta, rpars);
 
 	return j / (nu * nu);
 }
 
 // return invariant scattering opacity if Compton scattering enabled
-double alpha_inv_scatt(double nu, double Thetae, double Ne)
+double alpha_inv_scatt(double nu, double Thetae, double Ne, radiation_params *rpars)
 {
   #if COMPTON
 
-	return nu * kappa_es(nu, Thetae) * Ne * MP;
+	return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;
 
   #else
 
@@ -79,7 +107,7 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne)
 
 // return invariant absorption opacity 
 double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
-		     double theta)
+		     double theta, radiation_params *rpars)
 {
 
 #if BRESMSSTRAHLUNG && (MODEL_EDF==EDF_KAPPA_FIXED)
@@ -87,11 +115,11 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
   exit(-1);
 #endif
 
-#if MODEL_EDF==EDF_KAPPA_FIXED
+#if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
 
   // Pandya+ 2016 absorptivity
- 
-  double kap = model_kappa;
+
+  double kap = rpars->kappa;
   double w = kappa_w(Thetae, kap);
 
   double nuc = EE*B/(2.*M_PI*ME*CL);
@@ -186,7 +214,7 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 
 
 // return electron scattering opacity in cgs
-double kappa_es(double nu, double Thetae)
+double kappa_es(double nu, double Thetae, radiation_params *rpars)
 {
 
 	// assume pure hydrogen gas to
@@ -198,7 +226,7 @@ double kappa_es(double nu, double Thetae)
     fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
   }
 
-	return total_compton_cross_lkup(Eg, Thetae) / MP;
+	return total_compton_cross_lkup(Eg, Thetae, rpars) / MP;
 }
 
 // get frequency in fluid frame, in Hz

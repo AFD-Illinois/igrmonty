@@ -227,11 +227,15 @@ double F6(double y, void *params) {
   return value;
 }
 
-double sample_y_distr_kappa(double Thetae) {
-  double w = (KAPPA - 3.)/KAPPA * Thetae;
+double sample_y_distr_kappa(double Thetae, double kappa) {
+
+  // this code is untested and seems to disagree with 
+  // analytic formula for kappa eDF pdf
+  assert(1==0);
+
+  double w = (kappa - 3.)/kappa * Thetae;
   double S_3, pi_3, pi_4, pi_5, pi_6, y, x1, x2, prob;
   double num, den;
-  double kappa = KAPPA;
   yhigh = sqrt((10 * gamma_max - 1) / w);
   // gsl_set_error_handler_off();
 

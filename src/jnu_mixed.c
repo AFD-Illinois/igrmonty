@@ -1,9 +1,8 @@
 #include "decs.h"
-
 #include "model_radiation.h"
 
-//#include "gsl_sf_gamma.h"
-//#pragma omp threadprivate(r)
+#include <assert.h>
+
 /* 
 
 "mixed" emissivity formula 
@@ -25,32 +24,37 @@ good for Thetae > 1
 
 // these functions are scoped here only and called from above "public" functions.
 static double jnu_thermal(double nu, double Ne, double Thetae, double B, double theta);
-static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta);
+static double jnu_kappa(double, double, double, double, double, radiation_params *);
 static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_bremss(double nu, double Ne, double Thetae);
 static double int_jnu_thermal(double Ne, double Thetae, double Bmag, double nu);
-static double int_jnu_kappa(double Ne, double Thetae, double Bmag, double nu);
+static double int_jnu_kappa(double, double, double, double, radiation_params *);
 static double int_jnu_powerlaw(double Ne, double Thetae, double Bmag, double nu);
 static double int_jnu_bremss(double Ne, double Thetae, double nu);
 
 // these are helper functions
 double K2_eval(double Thetae);
 double F_eval(double Thetae, double B, double nu);
-double G_eval(double Thetae, double B, double nu);
+double G_eval(double Thetae, double B, double nu, double kappa);
 double H_eval(double Thetae, double B, double nu);
 double linear_interp_K2(double);
 double linear_interp_F(double);
-double linear_interp_G(double);
+double linear_interp_G(double, double);
 double linear_interp_H(double);
-void populate_table_from_function(double table[], double (* function) (double x, void * params));
+void populate_table_from_function(double table[], double (* function) (double x, void * params), radiation_params *rpars);
 
-double jnu(double nu, double Ne, double Thetae, double B, double theta)
+typedef struct int_rpars_struct {
+  double value;
+  radiation_params *rpars;
+} int_rpars;
+
+double jnu(double nu, double Ne, double Thetae, double B, double theta, radiation_params *rpars)
 {
   double j = 0.;
   
 #if SYNCHROTRON
- #if MODEL_EDF==EDF_KAPPA_FIXED
-  j += jnu_kappa(nu, Ne, Thetae, B, theta);
+ #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  j += jnu_kappa(nu, Ne, Thetae, B, theta, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   j += jnu_thermal(nu, Ne, Thetae, B, theta);
  #elif MODEL_EDF==EDF_POWER_LAW
@@ -68,14 +72,14 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta)
   return j;
 }
 
-double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta)
+double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta, radiation_params *rpars)
 {
   double synch = 0.;
   double brems = 0.;
 
 #if SYNCHROTRON
- #if MODEL_EDF==EDF_KAPPA_FIXED
-  synch = jnu_kappa(nu, Ne, Thetae, B, theta);
+ #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  synch = jnu_kappa(nu, Ne, Thetae, B, theta, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   synch = jnu_thermal(nu, Ne, Thetae, B, theta);
  #elif MODEL_EDF==EDF_POWER_LAW
@@ -101,13 +105,13 @@ double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double the
   (void)jnu_powerlaw;
 }
 
-double int_jnu(double Ne, double Thetae, double B, double nu)
+double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *rpars)
 {
   double intj = 0.;
   
 #if SYNCHROTRON
- #if MODEL_EDF==EDF_KAPPA_FIXED
-  intj += int_jnu_kappa(Ne, Thetae, B, nu);
+ #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  intj += int_jnu_kappa(Ne, Thetae, B, nu, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   intj += int_jnu_thermal(Ne, Thetae, B, nu);
  #elif MODEL_EDF==EDF_POWER_LAW
@@ -251,7 +255,7 @@ static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double
 }
 
 #include <gsl/gsl_sf_gamma.h>
-static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta)
+static double jnu_kappa(double nu, double Ne, double Thetae, double B, double theta, radiation_params *rpars)
 {
 	if (Thetae < THETAE_MIN) {
 		return 0.;
@@ -260,13 +264,13 @@ static double jnu_kappa(double nu, double Ne, double Thetae, double B, double th
     return 0.;
   } 
 
-  double kap = model_kappa;
+  double kap = rpars->kappa;
 	double nuc = EE * B / (2. * M_PI * ME * CL);
   double js = Ne*pow(EE,2)*nuc/CL;
   double x = 3.*pow(kap,-3./2.);
   double Jslo, Jshi;
 
-  double w = kappa_w(Thetae, model_kappa);
+  double w = kappa_w(Thetae, kap);
   double nuk = nuc * w*kap * w*kap * sin(theta);
   double Xk = nu/nuk;
 
@@ -316,10 +320,10 @@ static double int_jnu_thermal(double Ne, double Thetae, double Bmag, double nu)
 
 static double jnu_kappa_integrand(double th, void *params)
 {
-	double K = *(double *)params;
+	double K = ((int_rpars *)params)->value;
 	double sth = sin(th);
 	double Xk = K / sth;
-  double kap = model_kappa;
+  double kap = ((int_rpars *)params)->rpars->kappa;
 
 	if (sth < 1.e-150 || Xk > 2.e8) {
 		return 0.;
@@ -341,20 +345,20 @@ static double jnu_kappa_integrand(double th, void *params)
 
 static double jnu_powerlaw_integrand(double th, void *params)
 {
- double K = *(double *)params;
- double sth = sin(th);
- double x = K / sth;
+  double K = ((int_rpars *)params)->value;
+  double sth = sin(th);
+  double x = K / sth;
 
- double p = powerlaw_p;
- double gmin = powerlaw_gamma_min;
- double gmax = powerlaw_gamma_max;
+  double p = powerlaw_p;
+  double gmin = powerlaw_gamma_min;
+  double gmax = powerlaw_gamma_max;
 
- double factor = sth;
+  double factor = sth;
 
- double Js = pow(3.,p/2.)*(p-1)*sth/(2*(p+1)*(pow(gmin,1-p)-pow(gmax,1-p)));
- Js *= gsl_sf_gamma((3*p-1)/12.)*gsl_sf_gamma((3*p+19)/12.)*pow(x,-(p-1)/2.);
+  double Js = pow(3.,p/2.)*(p-1)*sth/(2*(p+1)*(pow(gmin,1-p)-pow(gmax,1-p)));
+  Js *= gsl_sf_gamma((3*p-1)/12.)*gsl_sf_gamma((3*p+19)/12.)*pow(x,-(p-1)/2.);
 
- return Js*factor;
+  return Js*factor;
 }
 
 static double int_jnu_powerlaw(double Ne, double Thetae, double B, double nu)
@@ -367,7 +371,7 @@ static double int_jnu_powerlaw(double Ne, double Thetae, double B, double nu)
   return CONST * Ne * B * H_eval(Thetae, B, nu);
 }
 
-static double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
+static double int_jnu_kappa(double Ne, double Thetae, double B, double nu, radiation_params *rpars)
 {
 	if (Thetae < THETAE_MIN) {
 		return 0.;
@@ -377,7 +381,7 @@ static double int_jnu_kappa(double Ne, double Thetae, double B, double nu)
 	double js = Ne*EE*EE*nuc/CL;
   double cut = exp(-nu/NUCUT);
 
-	return js*G_eval(Thetae, B, nu)*cut;
+	return js*G_eval(Thetae, B, nu, rpars->kappa)*cut;
 }
 #undef JCST
 
@@ -404,7 +408,7 @@ static double jnu_thermal_integrand(double th, void *params)
 
 /* Tables */
 static double _F[N_ESAMP + 1];
-static double _G[N_ESAMP + 1];  // kappa edf
+static double _G[KAPPA_NSAMP][N_ESAMP + 1];  // kappa edf
 static double _H[N_ESAMP + 1];  // power law
 static double _K2[N_ESAMP + 1];
 static double lK_min, dlK;
@@ -450,9 +454,21 @@ void init_emiss_tables(void)
     gsl_integration_workspace_free(w);
   }
 
-  // kappa and powerlaw lookup tables
-  populate_table_from_function(_G, &jnu_kappa_integrand);
-  populate_table_from_function(_H, &jnu_powerlaw_integrand);
+  radiation_params rpars;
+
+  // kappa lookup table
+#if MODEL_EDF==EDF_KAPPA_FIXED
+  rpars.kappa = model_kappa;
+  populate_table_from_function(_G[0], &jnu_kappa_integrand, &rpars);
+#elif MODEL_EDF==EDF_KAPPA_VARIABLE
+  for (int i=0; i<KAPPA_NSAMP; ++i) {
+    rpars.kappa = KAPPA_MIN + i*DKAPPA;
+    populate_table_from_function(_G[i], &jnu_kappa_integrand, &rpars);
+  }
+#endif
+
+  // powerlaw lookup table
+  populate_table_from_function(_H, &jnu_powerlaw_integrand, &rpars);
 
 	// Bessel K2 lookup table
   {
@@ -465,25 +481,23 @@ void init_emiss_tables(void)
   }
 }
 
-void populate_table_from_function(double table[], double (* function) (double x, void * params))
+void populate_table_from_function(double table[], double (* function) (double x, void * params), radiation_params *rpars)
 {
-  double L, result, err;
+  int_rpars irp;
+  double result, err;
   gsl_function func;
   gsl_integration_workspace *w;
 
-  // silence unused warning
-  (void)jnu_kappa_integrand;
-  (void)jnu_powerlaw_integrand;
-
   func.function = function;
-  func.params = &L;
+  func.params = &irp;
+  irp.rpars = rpars;
 
   lL_min = log(LMIN);
   dlL = log(LMAX / LMIN) / (N_ESAMP);
 
   w = gsl_integration_workspace_alloc(1000);
   for (int k = 0; k <= N_ESAMP; k++) {
-    L = exp(k * dlL + lL_min);
+    irp.value = exp(k * dlL + lL_min);
     gsl_integration_qag(&func, 0., M_PI / 2., EPSABS, EPSREL, 1000,
       GSL_INTEG_GAUSS61, w, &result, &err);
     table[k] = log(4*M_PI*result);
@@ -540,10 +554,10 @@ double H_eval(double Thetae, double Bmag, double nu) {
 
 
 #define GFAC (2.*M_PI*ME*CL/EE)
-double G_eval(double Thetae, double Bmag, double nu)
+double G_eval(double Thetae, double Bmag, double nu, double kappa)
 {
-  double w = kappa_w(Thetae, model_kappa);
-	double L = GFAC*nu/(Bmag* w*model_kappa * w*model_kappa);
+  double w = kappa_w(Thetae, kappa);
+	double L = GFAC*nu/(Bmag* w*kappa * w*kappa); 
 
 	if (L > LMAX) {
 		return 0.;
@@ -551,7 +565,7 @@ double G_eval(double Thetae, double Bmag, double nu)
 	  return 0.;
   } else {
 
-		return linear_interp_G(L);
+		return linear_interp_G(L, kappa);
 	}
 }
 
@@ -592,18 +606,35 @@ double linear_interp_F(double K)
 	return exp((1. - di) * _F[i] + di * _F[i + 1]);
 }
 
-double linear_interp_G(double L)
+double linear_interp_G(double L, double kappa)
 {
-	int i;
-	double di, lL;
-
-	lL = log(L);
-
-	di = (lL - lL_min)/dlL;
-	i = (int) di;
+  // get energy bin
+	double lL = log(L);
+	double di = (lL - lL_min)/dlL;
+	int i = (int) di;
 	di = di - i;
 
-	return exp((1. - di) * _G[i] + di * _G[i + 1]);
+#if MODEL_EDF==EDF_KAPPA_FIXED
+
+  return exp((1. - di) * _G[0][i] + di * _G[0][i + 1]);
+
+#elif MODEL_EDF==EDF_KAPPA_VARIABLE
+
+  // get kappa bin
+  double dj = (kappa - KAPPA_MIN)/DKAPPA;
+  int j = (int) dj;
+  dj = dj - j;
+
+  double v_below = exp((1. - di) * _G[j][i] + di * _G[j][i + 1]);
+  double v_above = exp((1. - di) * _G[j + 1][i] + di * _G[j + 1][i + 1]);
+
+  return (1. - dj) * v_below + dj * v_above;
+
+#endif
+
+  assert(1==0);  // shouldn't call into this table if not using a kappa model
+  return 0.;
+
 }
 
 double linear_interp_H(double L)
