@@ -89,7 +89,7 @@ void init_hotcross(void)
         }
       }
     }
-    write_table("hotcross_edf_kappa_var.h5", 1, table, 3, dims, start, dx);
+    write_table("hotcross_edf_kappa_var.h5", version, table, 3, dims, start, dx);
 
   } else {
     fprintf(stderr, "loading from file... ");
