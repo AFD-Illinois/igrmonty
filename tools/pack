@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+
+import click
+import h5py
+import numpy as np
+
+from tqdm   import tqdm
+from common import Parabase, load
+
+@click.command()
+@click.option('-o', '--output', default='pack.h5', help='Name of output dump.')
+@click.argument('path', nargs=1, required=True)
+def pack(path, output):
+    pb  = Parabase(path)
+    frm = np.unique(pb.frame)
+    knd = np.array([
+        "total",
+        "(synch) base", "(synch) once", "(synch) twice", "(synch) > twice",
+        "(brems) base", "(brems) once", "(brems) twice", "(brems) > twice",
+    ], dtype='a16')
+
+    avgs, errs = [], []
+    for f in tqdm(frm):
+        nu, avg, err = load(pb.filter(frame=f).path)
+        avgs += [avg]
+        errs += [err]
+    avg = np.array(avgs)
+    err = np.array(errs)
+
+    with h5py.File(output, 'w') as f:
+        f['frm'] = frm
+        f['nu']  = nu
+        f['knd'] = knd
+        f['avg'] = avg
+        f['err'] = err
+
+if __name__ == "__main__":
+    pack()
