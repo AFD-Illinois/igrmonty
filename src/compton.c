@@ -408,6 +408,7 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
 #endif
 }
 
+/*
 void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e) 
 {
   double sample_y_distr_kappa(double);
@@ -428,6 +429,7 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e)
 
   return;
 }
+ */
 
 void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
 {

@@ -122,9 +122,6 @@ extern double ***n2gens;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 
-/* radiation parameters */
-extern double KAPPA;
-
 /* some coordinate parameters */
 extern int METRIC_sphMINK, METRIC_esphMINK;
 
