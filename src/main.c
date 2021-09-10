@@ -102,11 +102,8 @@ int main(int argc, char *argv[])
 
     time_t starttime = time(NULL);
 
-    double lowerRatio  = params.targetRatio / M_SQRT2;
-    double targetRatio = params.targetRatio;
-    double upperRatio  = params.targetRatio * M_SQRT2;
-    
-    fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
+    int breakout_counter = 0;
+    double lastscale = 0.;
 
     while (1) {
 
@@ -123,7 +120,7 @@ int main(int argc, char *argv[])
       #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
       {
         struct of_photon ph = {0};
-	while(1) {
+  while(1) {
           make_super_photon(&ph, &quit_flag);
           if (global_quit_flag || quit_flag) break;
           
@@ -133,7 +130,7 @@ int main(int argc, char *argv[])
 
           if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
             if ((int)N_superph_made % 10000 == 0)
-	      fprintf(stderr, ".");
+        fprintf(stderr, ".");
             if (N_scatt / N_superph_made > 10.) {
               /* if effectiveness ratio (see below after the omp
                  block) becomes too big, jump to bias tuning */
@@ -151,18 +148,58 @@ int main(int argc, char *argv[])
         fprintf(stderr, "fit_bias_ns too small; SKIP\n");
         break;
       }
-      
+    
+
       // get effectiveness
       double ratio = N_scatt / N_superph_made;
       fprintf(stderr, "ratio = %g\n", ratio);
 
-      // continue if good
-      if (lowerRatio <= ratio && ratio < upperRatio &&
-          !global_quit_flag) /* all other threads should be good for this ratio
-                                range; it's probably fine to skip this check */
-        break;
+      if (ratio == 0) {
+        breakout_counter += 1;
+        if (breakout_counter > 10) {
+          fprintf(stderr, "couldn't do anything, despite my best efforts. farewell!\n");
+          exit(41);
+        }
+        fprintf(stderr, "something very wrong. attempting to increase ratio manually.\n");
+        biasTuning *= 5.;
+        exit(40);
+      }
 
-      biasTuning *= sqrt(targetRatio/ratio);
+      // continue if good
+      if ( ratio >= 3 ) {
+        if (lastscale <= 1.5) {
+          break;
+        } else {
+          biasTuning /= 1.5;
+          lastscale /= 1.5;
+        }
+      } else if ( ratio >= 1 ) {
+        if (global_quit_flag) {
+          if (lastscale <= 3) {
+            break;
+          } else {
+            biasTuning /= 3.;
+            lastscale /= 3.;
+          }
+        } else {
+          break;
+        }
+      } else {
+        if (ratio < 1.e-10) {
+          biasTuning *= 10.;
+          lastscale = 10.;
+        } else if (ratio < 0.01) {
+          biasTuning *= sqrt(1./ratio);
+          lastscale = sqrt(1./ratio);
+        } else if (ratio < 0.1) {
+          biasTuning *= 3.;
+          lastscale = 3.;
+        } else {
+          biasTuning *= 1.5;
+          lastscale = 1.5;
+        }
+      }
+
     }
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g\n", biasTuning);
