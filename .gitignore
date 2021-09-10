@@ -4,6 +4,7 @@ __pycache__/
 build_archive/
 *.o
 grmonty
+.DS_Store
 
 # Output
 out*.txt
