@@ -108,6 +108,155 @@ int main(int argc, char *argv[])
     
     fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
 
+    int breakout_counter = 0;
+
+    double last_bias = 0.;
+    double bias_above = 1.e10;
+    double bias_below = 1.e-10;
+    double value_above = 0., value_below = 0.;
+
+    double lastscale = 0.;
+
+    while (1) {
+
+      int global_quit_flag = 0;
+
+      // reset state
+      reset_state(0);
+      if (params.fitBiasNs < Ns)
+        Ns_scale *= params.fitBiasNs / Ns;
+
+      fprintf(stderr, "bias %g ", biasTuning);
+
+      // compute values
+      #pragma omp parallel firstprivate(quit_flag) shared(global_quit_flag)
+      {
+        struct of_photon ph = {0};
+  while(1) {
+          make_super_photon(&ph, &quit_flag);
+          if (global_quit_flag || quit_flag) break;
+          
+          track_super_photon(&ph);
+          #pragma omp atomic
+          N_superph_made += 1;
+
+          if ((int)N_superph_made % 1000 == 0 && N_superph_made > 0) {
+            if ((int)N_superph_made % 10000 == 0)
+        fprintf(stderr, ".");
+            if (N_scatt / N_superph_made > 10.) {
+              /* if effectiveness ratio (see below after the omp
+                 block) becomes too big, jump to bias tuning */
+              #pragma omp critical
+              {
+                global_quit_flag = 1;
+              }
+            }
+          }
+        }
+      }
+
+      // Check if bias tuning was actually run
+      if (N_superph_made < 1) {
+        fprintf(stderr, "fit_bias_ns too small; SKIP\n");
+        break;
+      }
+    
+
+      // get effectiveness
+      double ratio = N_scatt / N_superph_made;
+      fprintf(stderr, "ratio = %g\n", ratio);
+
+      if (ratio == 0) {
+        breakout_counter += 1;
+        if (breakout_counter > 10) {
+          fprintf(stderr, "couldn't do anything, despite my best efforts. farewell!\n");
+          exit(41);
+        }
+        fprintf(stderr, "something very wrong. attempting to increase ratio manually.\n");
+        biasTuning *= 5.;
+        exit(40);
+      }
+
+      // continue if good
+      if ( ratio >= 3 ) {
+        if (lastscale <= 1.5) {
+          break;
+        } else {
+          biasTuning /= 1.5;
+          lastscale /= 1.5;
+        }
+      } else if ( ratio >= 1 ) {
+        if (global_quit_flag) {
+          if (lastscale <= 3) {
+            break;
+          } else {
+            biasTuning /= 3.;
+            lastscale /= 3.;
+          }
+        } else {
+          break;
+        }
+      } else {
+        if (ratio < 1.e-10) {
+          biasTuning *= 10.;
+          lastscale = 10.;
+        } else if (ratio < 0.01) {
+          biasTuning *= sqrt(1./ratio);
+          lastscale = sqrt(1./ratio);
+        } else if (ratio < 0.1) {
+          biasTuning *= 3.;
+          lastscale = 3.;
+        } else {
+          biasTuning *= 1.5;
+          lastscale = 1.5;
+        }
+      }
+
+
+      /*
+      // continue if good
+      if (lowerRatio <= ratio && ratio < upperRatio &&
+          !global_quit_flag) // all other threads should be good for this ratio
+                             // range; it's probably fine to skip this check
+        break;
+
+      if (ratio > 1.4) {
+        bias_above = biasTuning;
+        value_above = ratio;
+      } else if (ratio < 0.5) {
+        bias_below = biasTuning;
+        value_below = ratio;
+      }
+
+      last_bias = biasTuning;
+
+      double prospective_new = sqrt(targetRatio/ratio);
+      if (prospective_new > bias_above) {
+        biasTuning = (last_bias + bias_above) / 2.;
+      } else {
+        biasTuning *= sqrt(targetRatio/ratio);
+      }
+       */
+
+    }
+    fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
+    fprintf(stderr, "biasTuning = %g\n", biasTuning);
+  }
+
+  /*
+  if ( COMPTON && (params.fitBias!=0) ) {
+    // find a good value for the bias tuning to make 
+    // Nscatt / Nmade >~ 1
+    fprintf(stderr, "Finding bias ");
+
+    time_t starttime = time(NULL);
+
+    double lowerRatio  = params.targetRatio / M_SQRT2;
+    double targetRatio = params.targetRatio;
+    double upperRatio  = params.targetRatio * M_SQRT2;
+    
+    fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
+
     while (1) {
 
       int global_quit_flag = 0;
@@ -135,8 +284,8 @@ int main(int argc, char *argv[])
             if ((int)N_superph_made % 10000 == 0)
 	      fprintf(stderr, ".");
             if (N_scatt / N_superph_made > 10.) {
-              /* if effectiveness ratio (see below after the omp
-                 block) becomes too big, jump to bias tuning */
+              // if effectiveness ratio (see below after the omp
+              //  block) becomes too big, jump to bias tuning 
               #pragma omp critical
               {
                 global_quit_flag = 1;
@@ -158,8 +307,8 @@ int main(int argc, char *argv[])
 
       // continue if good
       if (lowerRatio <= ratio && ratio < upperRatio &&
-          !global_quit_flag) /* all other threads should be good for this ratio
-                                range; it's probably fine to skip this check */
+          !global_quit_flag) // all other threads should be good for this ratio
+                             // range; it's probably fine to skip this check 
         break;
 
       biasTuning *= sqrt(targetRatio/ratio);
@@ -167,6 +316,7 @@ int main(int argc, char *argv[])
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g\n", biasTuning);
   }
+   */
 
   fprintf(stderr, "\nEntering main loop...\n");
   fprintf(stderr, "(aiming for Ns=%d)\n", Ns);
