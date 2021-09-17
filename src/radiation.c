@@ -22,6 +22,8 @@ model-independent radiation-related utilities.
 //
 
 double model_kappa = 4.;
+double variable_kappa_min = 3.1;
+double variable_kappa_max = 7.0;
 
 double powerlaw_gamma_cut = 1.e10;
 double powerlaw_gamma_min = 1.e2;
@@ -32,6 +34,9 @@ double kappa_es(double nu, double Thetae, radiation_params *rpars);
 
 void try_set_radiation_parameter(const char *line)
 {
+  read_param(line, "variable_kappa_min", &variable_kappa_min, TYPE_DBL);
+  read_param(line, "variable_kappa_max", &variable_kappa_max, TYPE_DBL);
+
   read_param(line, "powerlaw_gamma_cut", &powerlaw_gamma_cut, TYPE_DBL);
   read_param(line, "powerlaw_gamma_min", &powerlaw_gamma_min, TYPE_DBL);
   read_param(line, "powerlaw_gamma_max", &powerlaw_gamma_max, TYPE_DBL);
@@ -46,8 +51,12 @@ double get_model_kappa(const double X[NDIM])
 #elif MODEL_EDF==EDF_KAPPA_VARIABLE
   double sigma = get_model_sigma(X);
   double beta = get_model_beta(X);
-  return model_kappa;  // TODO: for testing purposes
-  return 2.8 + 0.7*pow(sigma,-0.5) + 3.7*pow(sigma,-0.19)*tanh(23.4*pow(sigma,0.26)*beta);
+  double kappa = 2.8 + 0.7*pow(sigma,-0.5) + 3.7*pow(sigma,-0.19)*tanh(23.4*pow(sigma,0.26)*beta);
+  if (kappa < variable_kappa_min) {
+    return variable_kappa_min;
+  } else {
+    return kappa;
+  }
 #else
   assert(1==0);  // unsupported kappa model
 #endif
@@ -59,6 +68,7 @@ radiation_params get_model_radiation_params(const double X[NDIM])
   radiation_params rpars;
 #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   rpars.kappa = get_model_kappa(X);
+  rpars.kappa_max = variable_kappa_max;
 #endif
   return rpars;
 }
@@ -116,6 +126,17 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 #endif
 
 #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+
+  // If kappa is greater than our fits cutoff (~7)
+  if (rpars->kappa > rpars->kappa_max) {
+    // then use thermal absorptivity taken from below
+    double j = jnu_inv(nu, Thetae, Ne, B, theta, rpars);
+    double bnu = Bnu_inv(nu, Thetae);
+    if (j > 0) {
+      return j / (bnu + 1.e-100);
+    }
+    return 0;
+  }
 
   // Pandya+ 2016 absorptivity
 
@@ -195,11 +216,11 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
 
-	double j = jnu_inv(nu, Thetae, Ne, B, theta);
-	double bnu = Bnu_inv(nu, Thetae);
+  double j = jnu_inv(nu, Thetae, Ne, B, theta, rpars);
+  double bnu = Bnu_inv(nu, Thetae);
 
   if (j > 0) {
-	  return j / (bnu + 1.e-100);
+    return j / (bnu + 1.e-100);
   }
 
   return 0;
