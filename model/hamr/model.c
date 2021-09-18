@@ -44,12 +44,23 @@ void readdata(hid_t file_id, const char *attr_name, hid_t mem_type_id, hid_t mem
 
 void report_bad_input(int argc)
 {
-  if (argc < 6) {
+  fprintf(stderr, "parameters are not from file but from default values in par.c and arguments!! \n");
+  #if(HAMR_READ)
+  #if(read_dscale)
+  if (argc < 3){
     fprintf(stderr, "usage: \n");
     fprintf(stderr, "  HAMR (read_dscale):   grmonty Ns fname \n");
+  #else
+  if (argc < 4){
+    fprintf(stderr, "usage: \n");
     fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname Rho_unit \n");
+  #endif
+  #else
+  if (argc < 6) {
+    fprintf(stderr, "usage: \n");
     fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
     fprintf(stderr, "  bhlight: grmonty Ns fname\n");
+  #endif
     exit(0);
   }
 }
@@ -560,8 +571,12 @@ void init_data(int argc, char *argv[], Params *params)
 
   if (params->loaded && strlen(params->dump) > 0) {
     fname = params->dump;
+	#if (Monika_Te)
     trat_small = params->trat_small;
     trat_large = params->trat_large;
+	#else
+	tp_over_te = params->TP_OVER_TE;
+	#endif
     beta_crit = params->beta_crit;
     biasTuning = params->biasTuning;
     Thetae_max = params->Thetae_max;
@@ -687,8 +702,8 @@ void init_data(int argc, char *argv[], Params *params)
     hdf5_read_single_val(&MBH, "Mbh", H5T_IEEE_F64LE);
     hdf5_read_single_val(&TP_OVER_TE, "tp_over_te", H5T_IEEE_F64LE);
   } else {    
-    if (! params->loaded) {    // perferrable condition for HAMR dataset
-      //report_bad_input(argc);
+    if (! params->loaded) {    
+      report_bad_input(argc);
       #if(read_dscale != 1)
 	  if (argc < 4) report_bad_input(argc);
 	  sscanf(argv[3], "%lf", &RHO_unit);
@@ -696,12 +711,14 @@ void init_data(int argc, char *argv[], Params *params)
 	  if (argc < 3) report_bad_input(argc);
 	  #endif
 
-	  M_unit = RHO_unit * pow(L_unit, 3);
+	  //M_unit = RHO_unit * pow(L_unit, 3);
 	  MBH = MBH_in;
       params->MBH = MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     } else {
-      M_unit = params->M_unit;
+      //M_unit = params->M_unit;
+	  RHO_unit = params->RHO_unit;
+	  //M_unit = RHO_unit * pow(L_unit, 3);
       MBH = params->MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     }
@@ -711,6 +728,7 @@ void init_data(int argc, char *argv[], Params *params)
   }
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
+  M_unit = RHO_unit * pow(L_unit, 3);
   Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value

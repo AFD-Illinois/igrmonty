@@ -18,7 +18,11 @@ typedef struct params_t {
 
   double Ns;
   double MBH;
+  #ifdef HAMR_READ
+  double RHO_unit;
+  #else
   double M_unit;
+  #endif
   const char dump[256];
   const char spectrum[256];
 

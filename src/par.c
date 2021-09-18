@@ -10,7 +10,7 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   params->seed        = -1; // will use time() to randomize seed if set to -1
 
   params->biasTuning  = 1.;
-  params->fitBias     = 0;
+  params->fitBias     = 1.;
   params->fitBiasNs   = 10000.;
   params->targetRatio = M_SQRT2;
 
@@ -19,6 +19,8 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   params->trat_small = 1.;
   params->trat_large = 10.;
   params->Thetae_max = 1.e100;
+
+  params->MBH = 4.1e6;   // MBH for Sgr A* is updated by Gravity Collaboration 2018,615,L15
 
   // Load parameters
   for (int i=0; i<argc-1; ++i) {
@@ -49,7 +51,11 @@ void load_par (const char *fname, Params *params) {
 
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
+    #ifdef HAMR_READ
+    read_param(line, "RHO_unit", &(params->RHO_unit), TYPE_DBL);
+    #else
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
+    #endif
     read_param(line, "dump", (void *)(params->dump), TYPE_STR);
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
 

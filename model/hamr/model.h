@@ -34,15 +34,19 @@
 #include "hdf5_utils.h"
 #include "h5io.h"
 
+#ifndef HAMR_READ
+#define HAMR_READ (1)
+#endif
+
 /* Temperature ratio (T_p/T_e) */
-#define Monika_Te (0)   /* electron temperature by plasma beta (Monika Moscibradzka) */
+#define Monika_Te (1)   /* electron temperature by plasma beta (Monika Moscibradzka) */
 #if (Monika_Te)
-#define Rhigh (20.)
+#define Rhigh (20.)     // Rhigh & Rlow would be overwritten by trat_large & trat_small in the parameter file if exists. 
 #define Rlow  (1.)
 #else
-#define TPoTE (3.33)   // Constant temperature ratio (Tp/Te)
+#define TPoTE (3.33)   // Constant temperature ratio (Tp/Te): overwritten by TP_OVER_TE in the parmeter file if exists.
 #endif
 
 #define read_dscale (0) /* read the density scale from GRMHD data set */
 
-#define MBH_in 4.1e6 // mass of black hole: overwrite the params->MBH in par.c (Sgr A* is updated by Gravity Collaboration 2018,615,L15)
+#define MBH_in 4.1e6  /* Sgr A* is updated by Gravity Collaboration 2018,615,L15). This will be overloaded by the value in the parameter file if it exists. */
