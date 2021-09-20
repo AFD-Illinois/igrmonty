@@ -1,0 +1,33 @@
+par.c:  params->seed        = -1; // will use time() to randomize seed if set to -1
+par.c:  params->biasTuning  = 1.;
+par.c:  params->fitBias     = 1.;
+par.c:  params->fitBiasNs   = 10000.;
+par.c:  params->targetRatio = M_SQRT2;
+par.c:  params->TP_OVER_TE = 3.;
+par.c:  params->beta_crit = 1.;
+par.c:  params->trat_small = 1.;
+par.c:  params->trat_large = 10.;
+par.c:  params->Thetae_max = 1.e100;
+par.c:  params->MBH = 4.1e6;   // MBH for Sgr A* is updated by Gravity Collaboration 2018,615,L15
+par.c:    read_param(line, "seed", &(params->seed), TYPE_DBL);
+par.c:    read_param(line, "Ns", &(params->Ns), TYPE_DBL);
+par.c:    read_param(line, "MBH", &(params->MBH), TYPE_DBL);
+par.c:    read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
+par.c:    read_param(line, "dump", (void *)(params->dump), TYPE_STR);
+par.c:    read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
+par.c:    read_param(line, "bias",        &(params->biasTuning),  TYPE_DBL);
+par.c:    read_param(line, "fit_bias",    &(params->fitBias),     TYPE_INT);
+par.c:    read_param(line, "fit_bias_ns", &(params->fitBiasNs),   TYPE_DBL);
+par.c:    read_param(line, "ratio",       &(params->targetRatio), TYPE_DBL);
+par.c:    read_param(line, "lnumin", &(params->lnumin), TYPE_DBL);
+par.c:    read_param(line, "lnumax", &(params->lnumax), TYPE_DBL);
+par.c:    read_param(line, "alpha_spec", &(params->alpha_spec), TYPE_DBL);    
+par.c:    read_param(line, "TP_OVER_TE", &(params->TP_OVER_TE), TYPE_DBL);
+par.c:    read_param(line, "beta_crit", &(params->beta_crit), TYPE_DBL);
+par.c:    read_param(line, "trat_small", &(params->trat_small), TYPE_DBL);
+par.c:    read_param(line, "trat_large", &(params->trat_large), TYPE_DBL);
+par.c:    read_param(line, "Thetae_max", &(params->Thetae_max), TYPE_DBL);
+par.c:  params->loaded = 1;
+utils.c:  if (params->loaded) {
+utils.c:    Ns = (int) params->Ns;
+utils.c:  init_monty_rand(params->seed);

@@ -262,7 +262,13 @@ static double jnu_kappa(double nu, double Ne, double Thetae, double B, double th
   }
   if (theta < SMALL || theta > M_PI-SMALL) {
     return 0.;
-  } 
+  }
+  // We previously limit kappa >= 3.1 (or configurable val) when calculating it
+  // Here we also "limit" kappa <= 7.0 (or configurable val), as the fits deteriorate higher
+  // Instead, we transparently return the (much more accurate) thermal fitting results
+  if (rpars->kappa > rpars->kappa_max) {
+    return jnu_thermal(nu, Ne, Thetae, B, theta);
+  }
 
   double kap = rpars->kappa;
 	double nuc = EE * B / (2. * M_PI * ME * CL);
@@ -375,6 +381,12 @@ static double int_jnu_kappa(double Ne, double Thetae, double B, double nu, radia
 {
 	if (Thetae < THETAE_MIN) {
 		return 0.;
+  }
+  // We previously limit kappa >= 3.1 (or configurable val) when calculating it
+  // Here we also "limit" kappa <= 7.0 (or configurable val), as the fits deteriorate higher.
+  // Instead, we transparently return the (much more accurate) thermal fitting results
+  if (rpars->kappa > rpars->kappa_max) {
+    return int_jnu_thermal(Ne, Thetae, B, nu);
   }
 
   double nuc = EE*B/(2.*M_PI*ME*CL);
