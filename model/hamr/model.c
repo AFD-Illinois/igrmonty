@@ -53,7 +53,7 @@ void report_bad_input(int argc)
   #else
   if (argc < 4){
     fprintf(stderr, "usage: \n");
-    fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname Rho_unit \n");
+    fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname M_unit \n");
   #endif
   #else
   if (argc < 6) {
@@ -706,7 +706,8 @@ void init_data(int argc, char *argv[], Params *params)
       report_bad_input(argc);
       #if(read_dscale != 1)
 	  if (argc < 4) report_bad_input(argc);
-	  sscanf(argv[3], "%lf", &RHO_unit);
+	  //sscanf(argv[3], "%lf", &RHO_unit);
+	  sscanf(argv[3], "%lf", &M_unit);
       #else
 	  if (argc < 3) report_bad_input(argc);
 	  #endif
@@ -716,8 +717,8 @@ void init_data(int argc, char *argv[], Params *params)
       params->MBH = MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     } else {
-      //M_unit = params->M_unit;
-	  RHO_unit = params->RHO_unit;
+      M_unit = params->M_unit;
+	  //RHO_unit = params->RHO_unit;
 	  //M_unit = RHO_unit * pow(L_unit, 3);
       MBH = params->MBH;
       TP_OVER_TE = params->TP_OVER_TE;
@@ -726,9 +727,10 @@ void init_data(int argc, char *argv[], Params *params)
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
   }
+  RHO_unit = M_unit * pow(L_unit, -3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  M_unit = RHO_unit * pow(L_unit, 3);
+  //M_unit = RHO_unit * pow(L_unit, 3);
   Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value

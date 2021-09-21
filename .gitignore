@@ -5,6 +5,8 @@ build_archive/
 *.o
 grmonty
 
+*~
+
 # Output
 out*.txt
 plot*.txt

@@ -51,11 +51,11 @@ void load_par (const char *fname, Params *params) {
 
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
-    #ifdef HAMR_READ
-    read_param(line, "RHO_unit", &(params->RHO_unit), TYPE_DBL);
-    #else
+    //#ifdef HAMR_READ
+    //read_param(line, "RHO_unit", &(params->RHO_unit), TYPE_DBL);
+    //#else
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
-    #endif
+    //#endif
     read_param(line, "dump", (void *)(params->dump), TYPE_STR);
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
 
