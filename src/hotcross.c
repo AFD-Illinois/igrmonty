@@ -139,6 +139,9 @@ double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars
 
   // in-bounds for table ... do bilinear interpolation
   if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT)) {
+#if MODEL_EDF==EDF_KAPPA_VARIABLE
+  if (rpars->kappa > KAPPA_MIN && rpars->kappa < KAPPA_MAX) {
+#endif
 
     lw = log10(w);
     lT = log10(thetae);
@@ -179,9 +182,12 @@ double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars
     }
 
     return pow(10., lcross);
+#if MODEL_EDF==EDF_KAPPA_VARIABLE
+  }
+#endif
   }
 
-  fprintf(stderr, "out of bounds: %g %g\n", w, thetae);
+  //fprintf(stderr, "out of bounds: %g %g\n", w, thetae);
 
   return total_compton_cross_num(w, thetae, getnorm_dNdg(thetae, rpars), rpars);
 
