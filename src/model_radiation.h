@@ -14,8 +14,8 @@
 // for variable kappa. also set behavior for how to
 // deal with out-of-bounds kappas in get_model_kappa(...)
 #define KAPPA_MIN (3.1)
-#define KAPPA_MAX (10.1)
-#define KAPPA_NSAMP (70)
+#define KAPPA_MAX (100.1)
+#define KAPPA_NSAMP (970)
 #define DKAPPA (((double)KAPPA_MAX - (double)KAPPA_MIN) / KAPPA_NSAMP)
 
 // used during par loading
