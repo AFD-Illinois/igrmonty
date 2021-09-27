@@ -52,11 +52,7 @@ double get_model_kappa(const double X[NDIM])
   double sigma = get_model_sigma(X);
   double beta = get_model_beta(X);
   double kappa = 2.8 + 0.7*pow(sigma,-0.5) + 3.7*pow(sigma,-0.19)*tanh(23.4*pow(sigma,0.26)*beta);
-  if (kappa < variable_kappa_min) {
-    return variable_kappa_min;
-  } else {
-    return kappa;
-  }
+  return fmax(variable_kappa_min, kappa);  // Beware this clips kappa of NaN -> kappa_min as well
 #else
   assert(1==0);  // unsupported kappa model
 #endif

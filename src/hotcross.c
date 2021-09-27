@@ -140,7 +140,7 @@ double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars
   // in-bounds for table ... do bilinear interpolation
   if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT)) {
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
-  if (rpars->kappa > KAPPA_MIN) {
+  if (rpars->kappa >= KAPPA_MIN) {
 #endif
 
     lw = log10(w);

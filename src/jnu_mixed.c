@@ -379,21 +379,23 @@ static double int_jnu_powerlaw(double Ne, double Thetae, double B, double nu)
 
 static double int_jnu_kappa(double Ne, double Thetae, double B, double nu, radiation_params *rpars)
 {
-	if (Thetae < THETAE_MIN) {
-		return 0.;
+  if (Thetae < THETAE_MIN) {
+    return 0.;
   }
   // We previously limit kappa >= 3.1 (or configurable val) when calculating it
   // Here we also "limit" kappa <= 7.0 (or configurable val), as the fits deteriorate higher.
   // Instead, we transparently return the (much more accurate) thermal fitting results
   if (rpars->kappa > rpars->kappa_max) {
+    //fprintf(stderr, "Thermal %g %g %g %g\n", Ne, Thetae, B, nu);
     return int_jnu_thermal(Ne, Thetae, B, nu);
   }
 
   double nuc = EE*B/(2.*M_PI*ME*CL);
-	double js = Ne*EE*EE*nuc/CL;
+  double js = Ne*EE*EE*nuc/CL;
   double cut = exp(-nu/NUCUT);
 
-	return js*G_eval(Thetae, B, nu, rpars->kappa)*cut;
+  //fprintf(stderr, "Kappa %g %g %g %g %g %g %g %g\n", Ne, Thetae, B, nu, nuc, js, cut, rpars->kappa);
+  return js*G_eval(Thetae, B, nu, rpars->kappa)*cut;
 }
 #undef JCST
 
