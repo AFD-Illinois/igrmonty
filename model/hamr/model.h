@@ -9,7 +9,7 @@
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
-#define BREMSSTRAHLUNG (1)
+#define BREMSSTRAHLUNG (0)
 #define COMPTON (1)
 
 #define NVAR (8)  // number of primitive variables
