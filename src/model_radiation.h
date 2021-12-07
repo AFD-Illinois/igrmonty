@@ -9,7 +9,7 @@
 #define EDF_KAPPA_VARIABLE (3)
 #define EDF_POWER_LAW (4)
 
-#define MODEL_EDF EDF_KAPPA_VARIABLE
+#define MODEL_EDF EDF_MAXWELL_JUTTNER
 
 // for variable kappa. also set behavior for how to
 // deal with out-of-bounds kappas in get_model_kappa(...)

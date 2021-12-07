@@ -5,7 +5,7 @@
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
 #define THETAE_MAX 1000.
-#define THETAE_MIN 0.3
+#define THETAE_MIN 0.001 //0.3
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
@@ -41,7 +41,7 @@
 /* Temperature ratio (T_p/T_e) */
 #define Monika_Te (1)   /* electron temperature by plasma beta (Monika Moscibradzka) */
 #if (Monika_Te)
-#define Rhigh (20.)     // Rhigh & Rlow would be overwritten by trat_large & trat_small in the parameter file if exists. 
+#define Rhigh (40.)     // Rhigh & Rlow would be overwritten by trat_large & trat_small in the parameter file if exists. 
 #define Rlow  (1.)
 #else
 #define TPoTE (3.33)   // Constant temperature ratio (Tp/Te): overwritten by TP_OVER_TE in the parmeter file if exists.

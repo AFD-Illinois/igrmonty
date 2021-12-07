@@ -69,6 +69,7 @@ double max_tau_scatt, Ladv, dMact, bias_norm;
 
 // Define default, should be set by problem
 double biasTuning = 1.;
+double biasTuningmin = 0., biasTuningmax = 999999.;  // secondary constraints to avoid diverging
 
 int main(int argc, char *argv[])
 {
@@ -162,7 +163,16 @@ int main(int argc, char *argv[])
                                 range; it's probably fine to skip this check */
         break;
 
-      biasTuning *= sqrt(targetRatio/ratio);
+	  // secondary constraints
+	  if (targetRatio > ratio) biasTuningmin = (biasTuningmin < biasTuning)? biasTuning : biasTuningmin;
+	  if (targetRatio < ratio) biasTuningmax = (biasTuningmax > biasTuning)? biasTuning : biasTuningmax;
+	  
+	  biasTuning *= sqrt(targetRatio/ratio);
+
+	  if ((biasTuning < biasTuningmin) || (biasTuning > biasTuningmax)) {
+		  fprintf(stderr,"bias tuning by secondary constraints (bias, min, max): %g %g %g \n", biasTuning, biasTuningmin, biasTuningmax);
+		  biasTuning = (biasTuningmin + biasTuningmax)/2.;
+      } 
     }
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g\n", biasTuning);

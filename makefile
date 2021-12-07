@@ -1,5 +1,5 @@
 # Problem to compile
-MODEL = iharm
+MODEL = hamr
 
 # Top directory of HDF5, or blank if using h5pcc
 HDF5_DIR =
@@ -10,11 +10,14 @@ GSL_DIR =
 SYSTEM_LIBDIR = /lib64
 
 # Try pointing this to h5pcc or h5cc on your machine, before hunting down libraries
-CC=h5cc
+#CC=h5cc
+CC=gcc
 # Example CFLAGS for going fast with GCC
 CFLAGS = -std=gnu99 -O3 -march=native -mtune=native -flto -fopenmp -funroll-loops
 MATH_LIB = -lm
 # ICC does not like -lm and uses different flags
+#CFLAGS = -Wall -O2 -qopenmp
+#CFLAGS = -Ofast -fstrict-aliasing -Wall -Wextra -Werror -qopenmp
 #CFLAGS = -xCORE-AVX2 -Ofast -fstrict-aliasing -Wall -Werror -ipo -qopenmp
 #MATH_LIB =
 
@@ -82,7 +85,7 @@ OBJ := $(addprefix $(ARC_DIR)/, $(notdir $(SRC:%.c=%.o)))
 
 INC = -I$(ARC_DIR)
 LIBDIR =
-LIB = $(MATH_LIB) $(GSL_LIB)
+LIB = $(MATH_LIB) $(GSL_LIB) $(HDF5_LIB)
 
 # Add HDF and MPI directories only if compiler doesn't
 ifneq ($(strip $(HDF5_DIR)),)

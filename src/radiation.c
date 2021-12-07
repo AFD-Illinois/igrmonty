@@ -59,6 +59,7 @@ double get_model_kappa(const double X[NDIM])
   }
 #else
   assert(1==0);  // unsupported kappa model
+  return 0;
 #endif
 }
 
@@ -69,6 +70,9 @@ radiation_params get_model_radiation_params(const double X[NDIM])
 #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   rpars.kappa = get_model_kappa(X);
   rpars.kappa_max = variable_kappa_max;
+#else
+  rpars.kappa = 0.;
+  rpars.kappa_max = 0.;
 #endif
   return rpars;
 }

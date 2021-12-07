@@ -9,8 +9,8 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   // set default values here
   params->seed        = -1; // will use time() to randomize seed if set to -1
 
-  params->biasTuning  = 1.;
-  params->fitBias     = 1.;
+  params->biasTuning  = 40.;
+  params->fitBias     = 1;
   params->fitBiasNs   = 10000.;
   params->targetRatio = M_SQRT2;
 
@@ -51,11 +51,11 @@ void load_par (const char *fname, Params *params) {
 
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
-    //#ifdef HAMR_READ
-    //read_param(line, "RHO_unit", &(params->RHO_unit), TYPE_DBL);
-    //#else
+    #ifdef HAMR_READ
+    read_param(line, "RHO_unit", &(params->RHO_unit), TYPE_DBL);
+    #else
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
-    //#endif
+    #endif
     read_param(line, "dump", (void *)(params->dump), TYPE_STR);
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
 

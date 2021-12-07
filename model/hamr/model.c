@@ -5,6 +5,8 @@
 #define USE_FIXED_TPTE (1)   // don't use for HAMR dataset
 #define USE_MIXED_TPTE (0)   // don't use for HAMR dataset
 
+char *find_model_name(const char *str);
+
 double interp_scalar(const double X[NDIM], double ***var);
 
 // electron model. these values will be overwritten by anything found in par.c
@@ -53,7 +55,7 @@ void report_bad_input(int argc)
   #else
   if (argc < 4){
     fprintf(stderr, "usage: \n");
-    fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname M_unit \n");
+    fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname Rho_unit \n");
   #endif
   #else
   if (argc < 6) {
@@ -177,6 +179,11 @@ void record_super_photon(struct of_photon *ph)
   N_superph_recorded++;
 
   double ratio_synch = 1. - ph->ratio_brems;
+
+  //if (ratio_synch > 0.0001) {
+	 // fprintf(stderr,"weird synchrotron %f %e \n", ratio_synch,  ph->w * ph->E);
+//	}
+  //ratio_synch = 0;
 
   // Add superphoton to synch spectrum
   spect[ic][ix2][iE].dNdlE += ph->w * ratio_synch;
@@ -336,11 +343,12 @@ double thetae_func(double uu, double rho, double B)
     double b2 = beta*beta / beta_crit/beta_crit;
     double trat = trat_large * b2/(1.+b2) + trat_small /(1.+b2);
     if (B == 0) trat = trat_large;
-    thetae = (MP/ME) * (gam-1.) * uu / rho / trat;
+    //thetae = (MP/ME) * (gam-1.) * uu / rho / trat;
+    thetae = ((2./3.)/(gam -1.))*(gam-1.)*uu/rho * (MP/ME) /(2.0+trat);
   }
 
-  //return 1./(1./thetae + 1./Thetae_max);
-  return thetae;
+  return 1./(1./thetae + 1./Thetae_max);
+  //return thetae;
 }
 
 /*
@@ -682,7 +690,7 @@ void init_data(int argc, char *argv[], Params *params)
     //Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
     Thetae_unit = MP/ME * (gam-1.) / tp_over_te;
   } else if (with_electrons == 2){
-    Thetae_unit = 2./3. * MP/ME / 5.;
+    Thetae_unit = 2./3. * MP/ME;  // / 5.;
     with_electrons = 2;
     fprintf(stderr, "using beta model with Rlow = %g and Rhigh = %g\n", trat_small, trat_large);
   } else {
@@ -706,8 +714,7 @@ void init_data(int argc, char *argv[], Params *params)
       report_bad_input(argc);
       #if(read_dscale != 1)
 	  if (argc < 4) report_bad_input(argc);
-	  //sscanf(argv[3], "%lf", &RHO_unit);
-	  sscanf(argv[3], "%lf", &M_unit);
+	  sscanf(argv[3], "%lf", &RHO_unit);
       #else
 	  if (argc < 3) report_bad_input(argc);
 	  #endif
@@ -717,8 +724,8 @@ void init_data(int argc, char *argv[], Params *params)
       params->MBH = MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     } else {
-      M_unit = params->M_unit;
-	  //RHO_unit = params->RHO_unit;
+      //M_unit = params->M_unit;
+	  RHO_unit = params->RHO_unit;
 	  //M_unit = RHO_unit * pow(L_unit, 3);
       MBH = params->MBH;
       TP_OVER_TE = params->TP_OVER_TE;
@@ -727,10 +734,9 @@ void init_data(int argc, char *argv[], Params *params)
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
   }
-  RHO_unit = M_unit * pow(L_unit, -3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  //M_unit = RHO_unit * pow(L_unit, 3);
+  M_unit = RHO_unit * pow(L_unit, 3);
   Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value
@@ -882,7 +888,7 @@ void init_data(int argc, char *argv[], Params *params)
       //bias_norm +=
       //   dV * gdet * pow(p[UU][i][j][z] / p[KRHO][i][j][z] *
       //         Thetae_unit, 2.);
-      V += dV * gdet;
+      //V += dV * gdet;
 
       /* check accretion rate */
       if (i == ieh)
@@ -988,10 +994,23 @@ void report_spectrum(int N_superph_made, Params *params)
 
   hid_t fid = -1;
 
+  //fprintf(stderr,"fname: %s",params->dump);
+
+  // find model name for specifying the output file format 
+  char* model_name = find_model_name(params->dump);
+  //fprintf(stderr, "model name: %s \n", model_name);
+  //exit(-1);
+
+  // dumpt output file with specific format with model name in EHT naming format. Note that inclination angle indicates the BHOSS model that has the same mass density unit. 
+  char output_filename[200]; 
+  //sprintf(output_filename, "Rh%d_Rl%d_sig1_i10_SgrA_Th_grmonty", (int)(round(trat_large)), (int)(round(trat_small)));
+  strcat(output_filename, model_name);
+  strcat(output_filename, ".h5");
+
   if (params->loaded && strlen(params->spectrum) > 0) {
     fid = H5Fcreate(params->spectrum, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   } else {
-    fid = H5Fcreate("spectrum.h5", H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
+    fid = H5Fcreate(output_filename, H5F_ACC_TRUNC, H5P_DEFAULT, H5P_DEFAULT);
   }
 
   if (fid < 0) {
@@ -1175,4 +1194,33 @@ void report_spectrum(int N_superph_made, Params *params)
 
   H5Fclose(fid);
 
+}
+
+char *find_model_name(const char *str)
+{ 
+  char *token;
+  char firstToken[]="";
+
+  strcpy(firstToken, str);
+
+  // split by "/" to remove name of folders
+  token = strtok(firstToken,"/");
+  char *lastToken;
+  while (token != NULL)
+  {
+    lastToken = token ;
+    token = strtok (NULL, "/");
+  }
+  //fprintf(stderr,"aa1: %s %i \n", lastToken, strlen(lastToken));
+
+  // remove prefix (e.g., here, remove "grmonty" in "grmonty_SA0_1010.hdf5")
+  token = strtok(lastToken,"grmonty");
+  lastToken = token;
+  //fprintf(stderr,"aa2: %s \n", lastToken);
+ 
+  // remove extension
+  token = strtok(lastToken,".");
+  lastToken = token;
+  //fprintf(stderr,"aa2: %s \n", lastToken);
+  return lastToken;
 }
