@@ -69,7 +69,6 @@ double max_tau_scatt, Ladv, dMact, bias_norm;
 
 // Define default, should be set by problem
 double biasTuning = 1.;
-double biasTuningmin = 0., biasTuningmax = 999999.;  // secondary constraints to avoid diverging
 
 int main(int argc, char *argv[])
 {
@@ -108,6 +107,10 @@ int main(int argc, char *argv[])
     double upperRatio  = params.targetRatio * M_SQRT2;
     
     fprintf(stderr, "(target effectiveness ratio %g)...\n", targetRatio);
+
+
+    double biasTuningmin = 0., biasTuningmax = 999999.;  // secondary constraints to avoid diverging
+    int istall = 0;
 
     while (1) {
 
@@ -166,13 +169,22 @@ int main(int argc, char *argv[])
 	  // secondary constraints
 	  if (targetRatio > ratio) biasTuningmin = (biasTuningmin < biasTuning)? biasTuning : biasTuningmin;
 	  if (targetRatio < ratio) biasTuningmax = (biasTuningmax > biasTuning)? biasTuning : biasTuningmax;
+
+	  if ((1.-biasTuningmin/biasTuningmax) < 0.01) istall++;
 	  
 	  biasTuning *= sqrt(targetRatio/ratio);
 
+        
+	  if (istall < 3){
 	  if ((biasTuning < biasTuningmin) || (biasTuning > biasTuningmax)) {
 		  fprintf(stderr,"bias tuning by secondary constraints (bias, min, max): %g %g %g \n", biasTuning, biasTuningmin, biasTuningmax);
 		  biasTuning = (biasTuningmin + biasTuningmax)/2.;
-      } 
+         }}
+	 else{
+	 istall = 0;   // initialize the secondary constraint
+	 biasTuningmin = 0.;
+	 biasTuningmax = 99999.;
+	 }
     }
     fprintf(stderr, "tuning time %gs\n", (double)(time(NULL) - starttime));
     fprintf(stderr, "biasTuning = %g\n", biasTuning);
