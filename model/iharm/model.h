@@ -5,7 +5,7 @@
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
 #define THETAE_MAX 1000.
-#define THETAE_MIN 0.3
+#define THETAE_MIN 0.001
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)

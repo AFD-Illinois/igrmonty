@@ -5,7 +5,7 @@ fit_bias_ns   10000 # Ns used for bias tuning (smaller -> fast, less accurate)
 bias	      0.5   # initial guess of bias scaling (>1 for thin, <1 for thick)
 
 Ns            100000 # number of superphotons in the spectrum
-MBH           4.6e+6 # central black hole mass
+MBH           4.14e+6 # central black hole mass
 M_unit        1e+16  # mass unit for the plasma in the accretion flow
 TP_OVER_TE    3.     # proton-electron temperature ratio
 

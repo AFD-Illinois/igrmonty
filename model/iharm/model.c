@@ -527,7 +527,7 @@ void init_data(int argc, char *argv[], Params *params)
   char metric_name[20];
   hid_t string_type = hdf5_make_str_type(20);
   hdf5_read_single_val(&metric_name, "metric", string_type);
-  if ( strncmp(metric_name, "MMKS", 19) == 0 ) {
+  if ( strncmp(metric_name, "MMKS", 19) == 0 || strncmp(metric_name, "FMKS", 19) == 0 ) {
     with_derefine_poles = 1;
   } else if ( strncmp(metric_name, "MKS3", 19) == 0 ) {
     METRIC_eKS = 1;

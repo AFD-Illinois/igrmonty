@@ -418,6 +418,7 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiati
   double y = 0.;
 
   double sample_y_distr_kappa(double, double);
+
 #if MODEL_EDF==EDF_KAPPA_FIXED
   y = sample_y_distr_kappa(Thetae, rpars->kappa);
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
