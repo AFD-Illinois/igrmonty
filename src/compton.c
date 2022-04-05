@@ -413,10 +413,9 @@ void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e, radiation
 #endif
 }
 
+/*
 void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars) 
-{ 
-  double y = 0.;
-
+{
   double sample_y_distr_kappa(double, double);
 #if MODEL_EDF==EDF_KAPPA_FIXED
   y = sample_y_distr_kappa(Thetae, rpars->kappa);
@@ -434,6 +433,7 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiati
 
   return;
 }
+ */
 
 void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars)
 {
