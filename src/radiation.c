@@ -82,7 +82,7 @@ double alpha_inv_abs(double nu, double Thetae, double Ne, double B,
 		     double theta)
 {
 
-#if BRESMSSTRAHLUNG && (MODEL_EDF==EDF_KAPPA_FIXED)
+#if ( ( BREMSSTRAHLUNG != 0 ) && (MODEL_EDF==EDF_KAPPA_FIXED) )
   fprintf(stderr, "ERROR absorptivities not set up for bremss and kappa!\n");
   exit(-1);
 #endif
