@@ -24,6 +24,18 @@ cfg 18 Apr 2020
 
 ... can be found [here](https://github.com/AFD-Illinois/igrmonty/blob/master/docs/tutorial.pdf).
 
+## tests
+
+Tests of the bremsstrahlung emission functions can be built and run with cmake:
+
+```bash
+$ mkdir build && cd build
+$ cmake ..
+$ make
+$ make test
+```
+
+This also builds the code.  YMMV using this build system vs the standard `make` solution.
 
 ## adding new electron distribution functions
 
