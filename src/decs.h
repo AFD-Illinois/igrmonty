@@ -19,6 +19,11 @@
 #include <time.h>
 #include "constants.h"
 #include "model.h"
+#if BREMSSTRAHLUNG == 3
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
+#include <gsl/gsl_sf_expint.h>
+#endif
 #include "par.h"
 
 #define NUCUT (5.e13)
@@ -236,6 +241,17 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta);
 double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta);
 double int_jnu(double Ne, double Thetae, double Bmag, double nu);
 void init_emiss_tables(void);
+
+/* bremsstrahlung */
+#if BREMSSTRAHLUNG == 3
+double gffee(double Te, double nu);
+double gffei(double Te, double nu);
+
+void init_bremss_spline(void);
+extern gsl_spline2d *bremss_spline;
+extern gsl_interp_accel *bremss_xacc;
+extern gsl_interp_accel *bremss_yacc;
+#endif
 
   /* compton scattering */
 void init_hotcross(void);
