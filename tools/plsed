@@ -1,0 +1,27 @@
+#!/usr/bin/env python3
+
+import click
+
+import matplotlib; matplotlib.use('agg')
+import matplotlib.pyplot as plt
+
+from common import load, step
+
+@click.command()
+@click.option('-i', '--i',      default=70.0,      help='Inclination (deg).')
+@click.option('-d', '--di',     default=15.0,      help='theta bin size (deg).')
+@click.option('-o', '--output', default='sed.pdf', help='Name of output plot.')
+@click.argument('files', nargs=-1, required=True)
+def plsed(i, di, output, files):
+    fig, ax = plt.subplots(1,1, figsize=(4.267,4.267), dpi=240)
+    step(ax, *load(files, i=i, di=di))
+    ax.set_xlim(1e9, 1e23)
+    ax.set_ylim(1e26,1e36)
+    ax.set_xlabel(r'Frequency $\nu$ (Hz)')
+    ax.set_ylabel(r'$\nu L_\nu$ (erg/s)')
+    ax.set_title('Spectral Energy Distribution')
+    fig.tight_layout()
+    fig.savefig(output)
+
+if __name__ == "__main__":
+    plsed()
