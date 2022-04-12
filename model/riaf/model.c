@@ -2,6 +2,7 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 
+#include <assert.h>
 
 static double Rmax_record = 1.e4;
 
@@ -290,6 +291,38 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   get_fluid_params(X, gcov, Ne, Thetae, B, Ucon, Ucov, Bcon, Bcov);
 }
 
+double _get_model_Ne(double r, double th)
+{
+  double zc=r*cos(th);
+  double rc=r*sin(th);
+  return nth0 * exp(-zc*zc/2./rc/rc/disk_h/disk_h) * pow(r,pow_nth) * Ne_unit;
+}
+
+double _get_model_Bmag(double r, double th, double Ne)
+{
+  double eps = 0.1;
+  double B = sqrt(8. * M_PI * eps * Ne * MP * CL * CL / 6. / r);
+  if (B == 0) B = 1.e-6;
+  return B;
+}
+
+double get_model_sigma(const double X[NDIM])
+{
+  double r, th;
+  bl_coord(X, &r, &th);
+
+  double Ne = _get_model_Ne(r, th);
+  double Bmag = _get_model_Bmag(r, th, Ne);
+
+  return Bmag*Bmag / Ne / (4. * M_PI * CL * (MP + ME));
+}
+
+double get_model_beta(const double X[NDIM])
+{
+  assert(1 == 0);  // unimplemented since we don't know fluid temperature assumptions
+  return 0;
+}
+
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
@@ -304,11 +337,9 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   }
 
   // set scalars 
-  double zc=r*cos(th);
-  double rc=r*sin(th);
-  *Ne = nth0 * exp(-zc*zc/2./rc/rc/disk_h/disk_h) * pow(r,pow_nth) * Ne_unit;
-
+  *Ne = _get_model_Ne(r, th);
   *Thetae = Te0 * pow(r, pow_T) * Te_unit * KBOL / (ME*CL*CL);
+  *B = _get_model_Bmag(r, th, *Ne);
 
   double eps = 0.1;
   *B = sqrt(8. * M_PI * eps * (*Ne) * MP * CL * CL / 6. / r);

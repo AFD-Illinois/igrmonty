@@ -1,0 +1,15 @@
+# template parameter file
+
+fit_bias      1     # 1 to enable bias tuning, 0 to disable
+fit_bias_ns   10000 # Ns used for bias tuning (smaller -> fast, less accurate)
+bias	      0.5   # initial guess of bias scaling (>1 for thin, <1 for thick)
+
+Ns            100000 # number of superphotons in the spectrum
+MBH           4.6e+6 # central black hole mass
+RHO_unit      8e-18  # mass density unit for the plasma in the accretion flow
+TP_OVER_TE    3.     # proton-electron temperature ratio
+trat_samll    1.     # Rlow  in Monika's beta prescription  (check the temperature model in model.h)
+trat_large    10.    # Rhigh in Monika's beta prescription 
+
+dump          /gpfs/alpine/proj-shared/phy129/NC3R256/RT/grmonty_193.hdf5 # input GRMHD snapshot
+spectrum      spectrum.h5      # output spectral data

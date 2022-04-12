@@ -7,6 +7,8 @@ grmonty
 .DS_Store
 build/
 
+*~
+
 # Output
 out*.txt
 plot*.txt
