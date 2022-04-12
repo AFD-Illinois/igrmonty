@@ -41,6 +41,11 @@ void init_model(int argc, char *argv[], Params *params)
   // Read dumpfile
   init_data(argc, argv, params);
 
+  // If using van Hoof 2015, initialize the electron-ion Gaunt factor spline
+  #if ( BREMSSTRAHLUNG == 3 )
+  init_bremss_spline();
+  #endif
+
   // make look-up table for hot cross sections
 #if COMPTON
   init_hotcross();

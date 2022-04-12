@@ -65,7 +65,7 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta, radiatio
  #endif
 #endif
 
-  #if BREMSSTRAHLUNG
+  #if BREMSSTRAHLUNG != 0
   j += jnu_bremss(nu, Ne, Thetae);
   #endif
   
@@ -90,7 +90,7 @@ double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double the
  #endif  // MODEL_EDF
 #endif  // SYNCHROTRON
 
-  #if BREMSSTRAHLUNG
+  #if BREMSSTRAHLUNG != 0
   brems = jnu_bremss(nu, Ne, Thetae);
   #endif // BREMSSTRAHLUNG
 
@@ -122,7 +122,7 @@ double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *
  #endif  // MODEL_EDF
 #endif  // SYNCHROTRON
 
-#if BREMSSTRAHLUNG
+#if BREMSSTRAHLUNG != 0
   intj += int_jnu_bremss(Ne, Thetae, nu);
 #endif
   
@@ -142,8 +142,7 @@ static double jnu_bremss(double nu, double Ne, double Thetae)
 
   double Te = Thetae * ME * CL * CL / KBOL;
   double x = HPL*nu/(KBOL*Te);
-  double efac = 0.;
-  double gff = 1.2;
+  double efac, gff, jv;
   
   if (x < 1.e-3) {
     efac = (24. - 24.*x + 12.*x*x - 4.*x*x*x + x*x*x*x) / 24.;
@@ -151,15 +150,25 @@ static double jnu_bremss(double nu, double Ne, double Thetae)
     efac = exp(-x);
   }
 
-#if 1   // following Straub+ 2012
+#if BREMSSTRAHLUNG == 1
+//Method from Rybicki & Lightman, ultimately from Novikov & Thorne
+  double rel = (1. + 4.4e-10*Te);
+  gff = 1.2;
+
+  jv = 1./(4.*M_PI)*pow(2,5)*M_PI*pow(EE,6)/(3.*ME*pow(CL,3));
+  jv *= pow(2.*M_PI/(3.*KBOL*ME),1./2.);
+  jv *= pow(Te,-1./2.)*Ne*Ne;
+  jv *= efac*rel*gff;
+
+#elif BREMSSTRAHLUNG == 2   // following Straub+ 2012
   double Fei=0., Fee=0., fei=0., fee=0.;
 
   double SOMMERFELD_ALPHA = 1. / 137.036;
   double eta = 0.5616;
-  double e_charge = 4.80e-10; // in esu
-  double re = e_charge * e_charge / ME / CL / CL;
+  double re = EE * EE / ME / CL / CL;
   double gammaE = 0.577; // = - Log[0.5616] 
 
+//Piecewise Gaunt factor
   if (x > 1) {
     gff = sqrt(3. / M_PI / x);
   } else {
@@ -179,18 +188,14 @@ static double jnu_bremss(double nu, double Ne, double Thetae)
 
   return (fei+fee) / (4.*M_PI) * HPL/KBOL/Te * efac * gff;
  
-#else 
-  // Method from Rybicki & Lightman, ultimately from Novikov & Thorne
-
-  double rel = (1. + 4.4e-10*Te);
-
-  double jv = 1./(4.*M_PI)*pow(2,5)*M_PI*pow(EE,6)/(3.*ME*pow(CL,3));
-  jv *= pow(2.*M_PI/(3.*KBOL*ME),1./2.);
-  jv *= pow(Te,-1./2.)*Ne*Ne;
-  jv *= efac*rel*gff;
-
-  return jv;
+#elif BREMSSTRAHLUNG == 3
+#define NOZAWA_CONST ( 4. * M_PI * pow(EE, 6.) / 3. / ME / ME / pow(CL, 4.) )
+#define VANHOOF_CONST ( 8. * pow(EE, 6.) * pow(2. * M_PI / 3., 1./2.) / 3. / ME / ME / pow(CL, 4.) )
+  jv  = NOZAWA_CONST * Ne * Ne * efac * gffee(Te, nu) * sqrt(Thetae);
+//van Hoof 2015 - electron-ion
+  jv += VANHOOF_CONST * Ne * Ne * efac * gffei(Te, nu) / sqrt(Thetae);
 #endif 
+  return jv;
 
 }
 
