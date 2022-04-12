@@ -1,13 +1,15 @@
 #include <stdio.h>
 #include <math.h>
 #include <stdlib.h>
-#include "../../src/constants.h"
 #include <gsl/gsl_interp2d.h>
 #include <gsl/gsl_spline2d.h>
 #include <gsl/gsl_sf_expint.h>
 #include <gsl/gsl_matrix.h>
 #include <gsl/gsl_vector.h>
-#include "../../build_archive/bremss.c"
+
+#include "constants.h"
+#define BREMSSTRAHLUNG (3)
+#include "bremss.c"
 
 gsl_spline2d *bremss_spline;
 gsl_interp_accel *bremss_xacc;
