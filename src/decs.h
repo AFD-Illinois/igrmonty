@@ -19,7 +19,13 @@
 #include <time.h>
 #include "constants.h"
 #include "model.h"
+#if BREMSSTRAHLUNG == 3
+#include <gsl/gsl_interp2d.h>
+#include <gsl/gsl_spline2d.h>
+#include <gsl/gsl_sf_expint.h>
+#endif
 #include "par.h"
+#include "model_radiation.h"
 
 #define NUCUT (5.e13)
 #define GAMMACUT (1000.)
@@ -176,7 +182,7 @@ void record_super_photon(struct of_photon *ph);
 void report_spectrum(int N_superph_made, Params *params);
 void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   double Ne, double Thetae, double B, double Ucon[NDIM], double Bcon[NDIM],
-  double Gcov[NDIM][NDIM]);
+  double Gcov[NDIM][NDIM], radiation_params *rpars);
 
 void report_bad_input(int argc);
 
@@ -224,26 +230,36 @@ void make_tetrad(double Ucon[NDIM], double Bhatcon[NDIM],
 double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM]);
 double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
         double Bcov[NDIM], double B);
-double alpha_inv_scatt(double nu, double thetae, double Ne);
+double alpha_inv_scatt(double nu, double thetae, double Ne, radiation_params *rpars);
 double alpha_inv_abs(double nu, double thetae, double Ne, double B,
-         double theta);
+         double theta, radiation_params *rpars);
 double Bnu_inv(double nu, double thetae);
 double jnu_inv(double nu, double thetae, double ne, double B,
-         double theta);
+         double theta, radiation_params *rpars);
 
   /* emissivity */
-double jnu(double nu, double Ne, double Thetae, double B, double theta);
-double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta);
-double int_jnu(double Ne, double Thetae, double Bmag, double nu);
+double jnu(double nu, double Ne, double Thetae, double B, double theta, radiation_params *rpars);
+double jnu_ratio_brems(double nu, double Ne, double Thetae, double B, double theta, radiation_params *rpars);
+double int_jnu(double Ne, double Thetae, double Bmag, double nu, radiation_params *rpars);
 void init_emiss_tables(void);
+
+/* bremsstrahlung */
+#if BREMSSTRAHLUNG == 3
+double gffee(double Te, double nu);
+double gffei(double Te, double nu);
+
+void init_bremss_spline(void);
+extern gsl_spline2d *bremss_spline;
+extern gsl_interp_accel *bremss_xacc;
+extern gsl_interp_accel *bremss_yacc;
+#endif
 
   /* compton scattering */
 void init_hotcross(void);
-double total_compton_cross_lkup(double nu, double theta);
+double total_compton_cross_lkup(double nu, double theta, radiation_params *rpars);
 double klein_nishina(double a, double ap);
-double kappa_es(double nu, double theta);
-void sample_electron_distr_p(double k[NDIM], double p[NDIM], double theta);
-void sample_beta_distr(double theta, double *gamma_e, double *beta_e);
+void sample_electron_distr_p(double k[NDIM], double p[NDIM], double theta, radiation_params *rpars);
+void sample_beta_distr(double theta, double *gamma_e, double *beta_e, radiation_params *rpars);
 double sample_klein_nishina(double k0);
 double sample_thomson(void);
 double sample_mu_distr(double beta_e);
@@ -263,6 +279,8 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
           double Bcov[NDIM]);
+double get_model_sigma(const double X[NDIM]);  // should be defined in model.c
+double get_model_beta(const double X[NDIM]);
 int stop_criterion(struct of_photon *ph);
 int record_criterion(struct of_photon *ph);
 double kappa_w(double Thetae, double kappa);

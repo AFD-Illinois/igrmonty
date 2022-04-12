@@ -18,6 +18,11 @@ Canfield, Howard, and Liang, 1987, ApJ 323, 565.
    
 */
 
+typedef struct root_rpars_struct {
+  double Thetae;
+  radiation_params *rpars;
+} root_rpars;
+
 void sample_scattered_photon(double k[4], double p[4], double kp[4])
 {
 	double ke[4], kpe[4];
@@ -234,7 +239,7 @@ double klein_nishina(double a, double ap)
 
 */
 
-void sample_electron_distr_p(double k[4], double p[4], double Thetae)
+void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_params *rpars)
 {
 	double beta_e, mu, phi, cphi, sphi, gamma_e, sigma_KN;
 	double K, sth, cth, x1, n0dotv0, v0, v1;
@@ -245,7 +250,7 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 	int sample_cnt = 0;
 
 	do {
-		sample_beta_distr(Thetae, &gamma_e, &beta_e);
+		sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
 		mu = sample_mu_distr(beta_e);
 		// sometimes |mu| > 1 from roundoff error, fix it
 		if (mu > 1.)
@@ -344,10 +349,11 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae)
 // Function that, when zero, gives gamma for which dN/d log gam is maximized
 double dfdgam(double ge, void *params)
 {
-  double Thetae = *(double *)params;
+  root_rpars *rpars = (root_rpars *)params;
+  double Thetae = rpars->Thetae;
 
-#if MODEL_EDF==EDF_KAPPA_FIXED
-  double kap = model_kappa;
+#if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  double kap = rpars->rpars->kappa;
   double w = kappa_w(Thetae, kap);
   return 2. + ge * ( ge / ( ge*ge - 1 ) - 1. / GAMMACUT - (kap+1)/kap/w / (1. + (ge-1.)/kap/w) );
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
@@ -364,12 +370,11 @@ double dfdgam(double ge, void *params)
 
 // electron distribution function (Maxwell-Juettner or kappa below)
 // dN / d log gamma
-double fdist(double ge, double Thetae)
+double fdist(double ge, double Thetae, double kappa)
 {
-#if MODEL_EDF==EDF_KAPPA_FIXED
-  double kap = model_kappa;
-  double w = kappa_w(Thetae, kap);
-  return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kap * w), - kap - 1.)*exp(-ge/GAMMACUT);
+#if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
+  double w = kappa_w(Thetae, kappa);
+  return ge*ge*sqrt(ge*ge - 1.)*pow(1. + (ge - 1.)/(kappa * w), - kappa - 1.)*exp(-ge/GAMMACUT);
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   return ge*ge*sqrt(ge*ge-1.)*exp(-ge/Thetae);
 #elif MODEL_EDF==EDF_POWER_LAW
@@ -399,25 +404,24 @@ void sample_powerlaw_distr(double *gamma_e, double *beta_e)
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_math.h>
 #include <gsl/gsl_roots.h>
-void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e)
+void sample_beta_distr(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars)
 {
 #if MODEL_EDF==EDF_POWER_LAW
-  sample_powerlaw_distr(gamma_e, beta_e);
+  sample_powerlaw_distr(gamma_e, beta_e, rpars);
 #else
-  sample_beta_distr_num(Thetae, gamma_e, beta_e);
+  sample_beta_distr_num(Thetae, gamma_e, beta_e, rpars);
 #endif
 }
 
 /*
-void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e) 
+void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars) 
 {
-  double sample_y_distr_kappa(double);
+  double sample_y_distr_kappa(double, double);
 #if MODEL_EDF==EDF_KAPPA_FIXED
-  double y = sample_y_distr_kappa(Thetae);
+  y = sample_y_distr_kappa(Thetae, rpars->kappa);
 #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
-  double y = sample_y_distr(Thetae);
+  y = sample_y_distr(Thetae);
 #elif MODEL_EDF==EDF_POWER_LAW
-  double y = 0.;
   fprintf(stderr, "power law EDF not supported with sample_beta_distr_y\n");
   exit(3);
 #else
@@ -431,7 +435,7 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e)
 }
  */
 
-void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
+void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars)
 {
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
   if (Thetae < 0.01) {
@@ -448,12 +452,13 @@ void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
   double ge_lo = GSL_MAX(1.000001, 0.01*Thetae); // dfdgam -> +inf as ge -> 1+
   double ge_hi = GSL_MAX(100., 1000.*Thetae);
 
-  //printf("Thetae = %e ge_lo = %e ge_hi = %e\n", Thetae, ge_lo, ge_hi);
   gsl_function F;
+  root_rpars rrpars;
+  rrpars.rpars = rpars;
+  rrpars.Thetae = Thetae;
 
-  //printf("%e %e\n", dfdgam(ge_lo, &params), dfdgam(ge_hi, &params));
   F.function = &dfdgam;
-  F.params = &Thetae;
+  F.params = &rrpars;
   T = gsl_root_fsolver_brent;
   s = gsl_root_fsolver_alloc(T);
   gsl_root_fsolver_set(s, &F, ge_lo, ge_hi);
@@ -466,9 +471,9 @@ void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
     status = gsl_root_test_interval(ge_lo, ge_hi, 0, 0.001);
   } while (status == GSL_CONTINUE && iter < max_iter);
 
-  double f_max = fdist(ge_max, Thetae);
+  double f_max = fdist(ge_max, Thetae, rpars->kappa);
   gsl_root_fsolver_free(s);
-  //fprintf(stderr, "max is %g at %g for %g\n", f_max, ge_max, Thetae);
+  //fprintf(stderr, "max is %g at %g for %g, %g\n", f_max, ge_max, Thetae, rpars->kappa);
   
   // Sample electron gamma
   double ge_samp;
@@ -476,7 +481,7 @@ void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e)
     double lge_min = log(GSL_MAX(1., 0.01*Thetae));
     double lge_max = log(GSL_MAX(100., 1000.*Thetae));
     ge_samp = exp(lge_min + (lge_max - lge_min)*monty_rand()); 
-  } while (fdist(ge_samp, Thetae)/f_max < monty_rand());
+  } while (fdist(ge_samp, Thetae, rpars->kappa)/f_max < monty_rand());
 
   *gamma_e = ge_samp;                                                
   *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));

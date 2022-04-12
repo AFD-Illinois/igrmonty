@@ -15,6 +15,17 @@ Ben Ryan
 George Wong
 Ricardo Castro-Yarza
 Chi-kwan Chan
+Ben S Prather
+Doosoo Yoon
+
+usage: 
+  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te
+  bhlight: grmonty Ns fname
+
+  HAMR:    grmonty Ns fname RHO_unit
+           grmonty Ns fname          (when read_dscale is set to 1; RHO_unit would be read from the dataset directly for the case of non scale-free simulations (e.g., radiation or 2 temperature models)
+
+  ## note: For reading HAMR dataset, one needs to set RHO_unit (mass density unit conversion) instead of M_unit.  (for using parameter file, see the example template "template_hamr.par")
 
 prepped for public release
 cfg 18 Apr 2020
@@ -24,6 +35,18 @@ cfg 18 Apr 2020
 
 ... can be found [here](https://github.com/AFD-Illinois/igrmonty/blob/master/docs/tutorial.pdf).
 
+## tests
+
+Tests of the bremsstrahlung emission functions can be built and run with cmake:
+
+```bash
+$ mkdir build && cd build
+$ cmake ..
+$ make
+$ make test
+```
+
+This also builds the code.  YMMV using this build system vs the standard `make` solution.
 
 ## adding new electron distribution functions
 
