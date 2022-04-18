@@ -19,6 +19,7 @@ typedef struct params_t {
   double Ns;
   double MBH;
   double M_unit;
+  double mdot;  // in units of MdotEddington
   const char dump[256];
   const char spectrum[256];
 

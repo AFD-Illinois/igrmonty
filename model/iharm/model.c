@@ -19,6 +19,8 @@ static double beta_crit = 1.;
 static double Thetae_max = 1.e100;
 static int with_electrons;
 
+double target_mdot = 0;
+
 // fluid data
 double ****bcon;
 double ****bcov;
@@ -475,6 +477,15 @@ double dOmega_func(int j)
 #include <hdf5.h>
 #include <hdf5_hl.h>
 
+void set_physical_units()
+{
+  // Assumes M_unit and L_unit are set
+  RHO_unit = M_unit/pow(L_unit,3);
+  U_unit = RHO_unit*CL*CL;
+  B_unit = CL*sqrt(4.*M_PI*RHO_unit);
+  Ne_unit = RHO_unit/(MP + ME);
+}
+
 void init_data(int argc, char *argv[], Params *params)
 {
   const char *fname = NULL;
@@ -584,6 +595,7 @@ void init_data(int argc, char *argv[], Params *params)
       sscanf(argv[5], "%lf", &TP_OVER_TE);
     } else {
       M_unit = params->M_unit;
+      target_mdot = params->mdot;
       MBH = params->MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     }
@@ -637,10 +649,7 @@ void init_data(int argc, char *argv[], Params *params)
   stopx[3] = startx[3]+N3*dx[3];
 
   // Set remaining units and constants
-  RHO_unit = M_unit/pow(L_unit,3);
-  U_unit = RHO_unit*CL*CL;
-  B_unit = CL*sqrt(4.*M_PI*RHO_unit);
-  Ne_unit = RHO_unit/(MP + ME);
+  set_physical_units();
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value
 
@@ -720,6 +729,25 @@ void init_data(int argc, char *argv[], Params *params)
   }
 
   dMact /= 11.;
+
+  if (target_mdot > 0) {
+    fprintf(stderr, "Resetting M_unit to match target Mdot/MdotEdd = %g\n", target_mdot);
+
+    double MdotEdd = 4. * M_PI * GNEWT * MBH * MP / ( SIGMA_THOMSON * CL * 0.1 );
+    double Mdot = dMact * M_unit / T_unit;
+    double mdot = Mdot / MdotEdd;
+
+    fprintf(stderr, "... was %g  is now %g\n", M_unit, fabs(M_unit * target_mdot / mdot));
+
+    M_unit *= fabs(target_mdot / mdot);
+
+    set_physical_units();
+  }
+
+  fprintf(stderr, "L_unit, T_unit, M_unit = %g %g %g\n", L_unit, T_unit, M_unit);
+  fprintf(stderr, "B_unit, Ne_unit, RHO_unit = %g %g %g\n", B_unit, Ne_unit, RHO_unit);
+  fprintf(stderr, "Thetae_unit = %g\n", Thetae_unit);
+
   Ladv /= 1.;
   bias_norm /= V;
   fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
