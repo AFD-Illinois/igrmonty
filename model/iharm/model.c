@@ -720,7 +720,8 @@ void init_data(int argc, char *argv[], Params *params)
 
     bias_norm += dV*geom[i][j].gzone * Thetae*Thetae;
 
-    if (10 <= i && i <= 20) {
+    //if (10 <= i && i <= 20) {  // legacy code, removed to make ipole and igrmonty match
+    if (i <= 20) {
       lower(Ucon, geom[i][j].gcov, Ucov);
       dMact += geom[i][j].gzone*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
       Ladv += geom[i][j].gzone*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
@@ -728,16 +729,16 @@ void init_data(int argc, char *argv[], Params *params)
 
   }
 
-  dMact /= 11.;
+  dMact /= 21.;
 
   if (target_mdot > 0) {
-    fprintf(stderr, "Resetting M_unit to match target Mdot/MdotEdd = %g\n", target_mdot);
+    fprintf(stderr, "Resetting M_unit to match target Mdot/MdotEdd = %g ", target_mdot);
 
     double MdotEdd = 4. * M_PI * GNEWT * MBH * MP / ( SIGMA_THOMSON * CL * 0.1 );
     double Mdot = dMact * M_unit / T_unit;
     double mdot = Mdot / MdotEdd;
 
-    fprintf(stderr, "... was %g  is now %g\n", M_unit, fabs(M_unit * target_mdot / mdot));
+    fprintf(stderr, "... is now %g\n", fabs(M_unit * target_mdot / mdot));
 
     M_unit *= fabs(target_mdot / mdot);
 

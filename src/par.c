@@ -28,6 +28,11 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
       load_par(argv[i+1], params);
     }
   }
+
+  // override parameters based on what has been loaded
+  if (params->mdot > 0) {
+    params->M_unit = 1.;
+  }
 }
 
 // sets default values for elements of params (if desired) and loads
