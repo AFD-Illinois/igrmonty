@@ -20,11 +20,18 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   params->trat_large = 10.;
   params->Thetae_max = 1.e100;
 
+  params->mdot = 0;  // zero default value means ignore
+
   // Load parameters
   for (int i=0; i<argc-1; ++i) {
     if ( strcmp(argv[i], "-par") == 0 ) {
       load_par(argv[i+1], params);
     }
+  }
+
+  // override parameters based on what has been loaded
+  if (params->mdot > 0) {
+    params->M_unit = 1.;
   }
 }
 
@@ -50,6 +57,7 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "Ns", &(params->Ns), TYPE_DBL);
     read_param(line, "MBH", &(params->MBH), TYPE_DBL);
     read_param(line, "M_unit", &(params->M_unit), TYPE_DBL);
+    read_param(line, "mdot", &(params->mdot), TYPE_DBL);
     read_param(line, "dump", (void *)(params->dump), TYPE_STR);
     read_param(line, "spectrum", (void *)(params->spectrum), TYPE_STR);
 
