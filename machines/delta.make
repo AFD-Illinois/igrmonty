@@ -27,5 +27,5 @@
 
 CC=h5cc
 GSL_DIR=/sw/spack/deltas11-2023-03/apps/linux-rhel8-zen3/gcc-11.4.0/gsl-2.7.1-ytg74v2
-HDF5_DIR=/u/vdhruv2/software/hdf5/install
+HDF5_DIR=$(HOME)/software/hdf5/install
 CFLAGS = -march=native -mtune=native -std=gnu11 -O3 -flto -fopenmp -funroll-loops
