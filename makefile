@@ -1,5 +1,5 @@
 # Problem to compile
-MODEL = iharm
+MODEL = sphere
 
 # Top directory of HDF5, or blank if using h5pcc
 HDF5_DIR =
@@ -8,6 +8,7 @@ GSL_DIR =
 # System /lib equivalent (can be /usr/lib, /lib64, /usr/lib64)
 # Can leave this blank if it's included automatically by GCC
 SYSTEM_LIBDIR = /lib64
+LIBDIR = 
 
 # Try pointing this to h5pcc or h5cc on your machine, before hunting down libraries
 CC=h5cc
@@ -47,6 +48,9 @@ endif
 # Hack to check only whether host begins with bh*
 ifneq (,$(findstring beginsbh,begins$(HOST)))
         -include $(MAKEFILE_PATH)/machines/bh-cluster.make
+endif
+ifneq (,$(findstring delta,$(HOST)))
+	-include $(MAKEFILE_PATH)/machines/delta.make
 endif
 -include $(MAKEFILE_PATH)/machines/$(HOST).make
 
