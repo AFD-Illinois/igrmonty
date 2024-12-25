@@ -28,15 +28,14 @@ def mkplot(nu, nuLnu, fname):
   ax = plt.subplot(1,1,1)
   print(nuLnu.shape)
   if MANY_SPEC:
-    ax.step(nu, nuLnu.sum(axis=0), "k", label="total")
-    ax.step(nu, nuLnu[0,:], label="(synch) base")
+    ax.step(nu, nuLnu.sum(axis=0), "k", label="grmonty") 
     ax.step(nu, nuLnu[1,:], label="(synch) once")
     ax.step(nu, nuLnu[2,:], label="(synch) twice")
-    ax.step(nu, nuLnu[3,:], label="(synch) > twice")
+    ax.step(nu, nuLnu[3,:], label="(synch)"+r"$>$"+" twice")
     ax.step(nu, nuLnu[4,:], label="(brems) base")
     ax.step(nu, nuLnu[5,:], label="(brems) once")
     ax.step(nu, nuLnu[6,:], label="(brems) twice")
-    ax.step(nu, nuLnu[7,:], label="(brems) > twice")
+    ax.step(nu, nuLnu[7,:], label="(brems)"+r"$>$"+" twice")
   else:
     ax.step(nu, nuLnu, "k", label="total")
 
@@ -44,7 +43,7 @@ def mkplot(nu, nuLnu, fname):
   nuLnu_max = nuLnu.max()
   ax.set_xscale("log")
   ax.set_yscale("log")
-  ax.set_xlim([1.e8, 1.e24])
+  ax.set_xlim([1.e8, 1.e22])
   ax.set_ylim([1.e-10 * nuLnu_max, 1.e1 * nuLnu_max])
   ax.set_xlabel(r"$\nu$ (Hz)", fontsize=16)
   ax.set_ylabel(r"$\nu L_\nu$ (erg s$^{-1}$)", fontsize=16)

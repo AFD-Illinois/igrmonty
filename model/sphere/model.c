@@ -115,7 +115,11 @@ void record_super_photon(struct of_photon *ph)
   } else {
     ix2 = (int)( th / dx2 );
   }
-  if (ix2 < 0 || ix2 >= N_THBINS) return;
+  // printf("ix2 %d \n",ix2);
+  if (ix2 < 0 || ix2 >= N_THBINS) {
+    // printf("invalid theta index?\n");
+    return;
+  }
 
   #if CUSTOM_AVG==1
   double nu = ph->E * ME*CL*CL / HPL;
@@ -251,33 +255,36 @@ void omp_reduce_spect()
 double bias_func(double Te, double w)
 {
   double bias, max;
+  // return 1;
 
   max = 0.5 * w / WEIGHT_MIN;
 
-  bias = Te * Te / (5. * max_tau_scatt);
-  // bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
+  // bias = Te * Te / (5. * max_tau_scatt);
+  // // bias = 100. * Te * Te / (bias_norm * max_tau_scatt);
 
-  if (bias > max)
-    bias = max;
-
-  return  bias * biasTuning;
+  // if (bias > max)
+  //   bias = max;
+  bias = fmax(1/MODEL_TAU_0,1);
+  return bias > max? max : bias;
+  // return 10;
+  // // return  bias * biasTuning;
 
 
   // TODO maybe swap this out with something in sphere_old or simplesphere ?
 
   // use old method with bias tuning parameter ?
-  /*
-  double bias, max;
+  
+  // double bias, max;
 
   max = 0.5 * w / WEIGHT_MIN;
 
   if (Te > SCATTERING_THETAE_MAX) Te = SCATTERING_THETAE_MAX;
-  bias = 16. * Te * Te / (5. * max_tau_scatt);
+  // bias = 16. * Te * Te / (5. * max_tau_scatt);
+  bias = 10. * Te * Te / (1 * max_tau_scatt);
 
   if (bias > max) bias = max;
-
-  return bias * biasTuning;
-   */
+  return bias;
+  
 }
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
@@ -338,12 +345,13 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
     *Ne = 0.;
     *Thetae = 0;
     *B = 0;
-    return;
+    // return;
   }
-
-  *Ne = _get_model_Ne();
-  *Thetae = MODEL_THETAE_0;
-  *B = _get_model_Bmag();
+  else{
+    *Ne = _get_model_Ne();
+    *Thetae = MODEL_THETAE_0;
+    *B = _get_model_Bmag();
+  }
 
   Ucon[0] = 1;
   Ucon[1] = 0.;
@@ -413,9 +421,9 @@ void init_data(int argc, char *argv[], Params *params)
 
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 100.;
-  MODEL_TAU_0 = 1.e-5;
   MODEL_BETA_0 = 20.;
-  MODEL_THETAE_0 = 10.;
+  MODEL_TAU_0 = 1e-8;
+  MODEL_THETAE_0 = 4.;
   MODEL_TP_OVER_TE = 3.;
   MODEL_GAM = 13./9;  
   MODEL_MBH = 4.1e6;
@@ -446,9 +454,10 @@ void init_data(int argc, char *argv[], Params *params)
   model_B0 = CL * sqrt(8 * M_PI * (gam-1.) * (MP+ME) / MODEL_BETA_0) * sqrt( model_Ne0 * MODEL_THETAE_0 ) / sqrt( THETAE_UNIT );
 
   // domain parameters
-  Rin = 0.01;
+  Rin = 1e-6;
   Rmax = fmax(120., MODEL_R_0);
-  Rmax_record = 1.e4;  // this should be large enough that the source looks small
+  Rmax_record = 100*Rmax ;  // this should be large enough that the source looks small
+  // Rmax_record = 1e4 ;  // this should be large enough that the source looks small
 
   fprintf(stderr, "Running with isothermal sphere model.\n");
   fprintf(stderr, "MBH, L_unit: %g [Msun], %g\n", MODEL_MBH, L_unit);
@@ -457,6 +466,7 @@ void init_data(int argc, char *argv[], Params *params)
 
   // domain parameters (supports sphMINK and esphMINK, but esph is much faster)
   METRIC_esphMINK = 1;
+	METRIC_sphMINK = 0;
 
   if (METRIC_esphMINK) {
     fprintf(stderr, "Using exponential spherical coordinates.\n");
@@ -499,14 +509,16 @@ void init_data(int argc, char *argv[], Params *params)
   Thetae_unit = 1.;
    */
 
-  M_unit = 1.;
+  M_unit = 1.e19;
 
   // Set remaining units and constants
   RHO_unit = M_unit/pow(L_unit,3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
   Ne_unit = RHO_unit/(MP + ME);
+  // unsure where this definition of max_tau_scatt comes from. For a isothermal sphere model it should simply be 2*MODEL_TAU_0?
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
+  // max_tau_scatt = 2*MODEL_TAU_0;
 
   fprintf(stderr, "B_unit: %g\n", B_unit);
 
@@ -516,6 +528,11 @@ void init_data(int argc, char *argv[], Params *params)
   tetrads = (struct of_tetrads***)malloc_rank3(N1, N2, N3, sizeof(struct of_tetrads));
   init_tetrads();
 
+  #ifdef EMIT_ORIGIN
+    n2gen = Ns;
+  #else
+    n2gen = -1;
+  #endif
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
 }
 

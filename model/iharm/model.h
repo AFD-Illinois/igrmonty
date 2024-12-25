@@ -5,7 +5,7 @@
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
 #define THETAE_MAX 1000.
-#define THETAE_MIN 0.001
+#define THETAE_MIN 1e-3
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
@@ -33,7 +33,7 @@
 
 #define N_ESAMP 200
 #define N_EBINS 200
-#define N_THBINS 6
+#define N_THBINS 18
 
 #include "hdf5_utils.h"
 #include "h5io.h"

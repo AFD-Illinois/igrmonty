@@ -61,20 +61,20 @@ void init_model(int argc, char *argv[], Params *params)
   init_monty_rand(params->seed);
 }
 
-int n2gen = -1;
+// int n2gen = -1;
 double dnmax;
 int zone_i, zone_j, zone_k;
 void make_super_photon(struct of_photon *ph, int *quit_flag)
 {
 #ifdef EMIT_ORIGIN
-  if (n2gen < 0) {
-    n2gen = Ns;
-  }
+  // if (n2gen < 0) {
+  //   n2gen = Ns;
+  // }
+  #pragma omp atomic
   n2gen--;
   if (n2gen < 0) {
     *quit_flag = 1;
   }
-
   sample_origin_photon(ph);
 #else
 
@@ -284,15 +284,31 @@ void sample_origin_photon(struct of_photon *ph)
   //double Ne, Thetae, Bmag;//Ucon[NDIM], Bcon[NDIM], bhat[NDIM];
   static double Econ[NDIM][NDIM], Ecov[NDIM][NDIM];
 
-  // Assume spherical coordinates
-  ph->X[0] = 0.;
-  ph->X[1] = 1.e-5;
-  ph->X[2] = M_PI/2.;
-  ph->X[3] = 0.;
+  if (METRIC_esphMINK){
+    // Assume spherical coordinates
+    ph->X[0] = 0.;
+    // ph->X[1] = 2.e-5;
+    ph->X[1] = log(0.1);
+    ph->X[2] = M_PI/2.;
+    ph->X[3] = 0.;
+  }
+  else{
+    // Assume spherical coordinates
+    ph->X[0] = 0.;
+    // ph->X[1] = 2.e-5;
+    ph->X[1] = 0.1;
+    ph->X[2] = M_PI/2.;
+    ph->X[3] = 0.;
+  }
 
   // Sample intensity uniformly in frequency
-  nu = exp(monty_rand()*(LNUMAX - LNUMIN) + LNUMIN);
-  weight = get_Inu(nu)/get_Imax();
+  nu = exp(monty_rand()*(log(1e14) - log(1e9)) + log(1e9));
+	//nu = 5e12;
+	double thetae_core = 1e-8;
+  double numax = Bnu_inv_maxfreq(thetae_core);
+	weight = 1e26*Bnu_inv(nu,thetae_core)/Bnu_inv(numax,thetae_core) * pow(nu/numax,3);
+	//weight = Bnu_inv(nu,thetae_core);
+	//weight = get_Inu(nu)/get_Imax();
 
   ph->w = weight;
 
@@ -303,12 +319,12 @@ void sample_origin_photon(struct of_photon *ph)
   cphi = cos(phi);
   sphi = sin(phi);
 
-  double th = 0.;
-  phi = 0.;
-  sth = sin(th);
-  cth = cos(th);
-  cphi = cos(phi);
-  sphi = sin(phi);
+  // double th = 0.;
+  // phi = 0.;
+  // sth = sin(th);
+  // cth = cos(th);
+  // cphi = cos(phi);
+  // sphi = sin(phi);
 
   E = nu*HPL/(ME*CL*CL);
   K_tetrad[0] = E;
@@ -323,6 +339,9 @@ void sample_origin_photon(struct of_photon *ph)
   make_tetrad(Ucon, ehat, gcov, Econ, Ecov);
 
   tetrad_to_coordinate(Econ, K_tetrad, ph->K);
+	//printf("printing ph->K\n");
+	//MULOOP printf("%g ",mu,ph->K[mu]);
+	//printf("\n");
 
   K_tetrad[0] *= -1.;
   tetrad_to_coordinate(Ecov, K_tetrad, tmpK);
@@ -337,6 +356,9 @@ void sample_origin_photon(struct of_photon *ph)
   ph->ne0 = 0.;
   ph->b0 = 0.;
   ph->thetae0 = 0.;
+// 	printf("created photon at r=%e, w=%e printing K:\n",ph->X[1],ph->w);
+// 	for (int ii=0;ii<4;ii++)	printf("%e\t",ph->K[ii]);
+// 	printf("\n");
 }
 #endif // EMIT_ORIGIN
 
@@ -377,18 +399,18 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
 #ifdef MODEL_TRANSPARENT
 
   // monochromatic
-  if (lnumin == lnumax) {
-    nu = pow(10., lnumin);
+  if (LNUMIN == LNUMAX) {
+    nu = pow(10., LNUMIN);
     ph->w = 1.e+40;
   }
 
-  // power law spectrum
-  else {
-    double lnu = monty_rand() * (lnumax - lnumin) + lnumin;
-    nu = pow(10., lnu);
-    double numin = pow(10., lnumin);
-    ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec);
-  }
+  //// power law spectrum
+  //else {
+  //  double lnu = monty_rand() * (LNUMAX - LNUMIN) + LNUMIN;
+  //  nu = pow(10., lnu);
+  //  double numin = pow(10., LNUMIN);
+  //  ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec);
+  //}
 
   // isotropic emission
   cth = 2. * monty_rand() - 1.;
@@ -542,9 +564,10 @@ void summary(FILE *file, const char *prefix)
     fprintf(stderr,
             "%stime %gs, "
             "ph made %.3g%s, rate %.3gk/s, "
-            "scatter %.3g%s, ratio %.3g\n",
+            "scatter %.3g%s, ratio %.3g "
+            "recorded %d\n",
             prefix ? prefix : "", deltatime,
             nmade,  umade,  N_superph_made / deltatime / 1e3,
-            nscatt, uscatt, N_scatt / N_superph_made);
+            nscatt, uscatt, N_scatt / N_superph_made, N_superph_recorded);
   }  
 }

@@ -46,6 +46,7 @@ Params params = { 0 };
 struct of_geom **geom;
 struct of_tetrads ***tetrads;
 double ***n2gens;
+int n2gen;
 int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
@@ -210,8 +211,8 @@ int main(int argc, char *argv[])
   summary(NULL, NULL); /* initialize main loop timer */
   
   reset_state(1);
- 
   #pragma omp parallel firstprivate(quit_flag)
+  // for(int ii =0; ii<Ns; ii++){
   {
     struct of_photon ph = {0};
     while (1) {
@@ -219,9 +220,11 @@ int main(int argc, char *argv[])
       // get pseudo-quanta 
       if (!quit_flag)
         make_super_photon(&ph, &quit_flag);
-      if (quit_flag)
+      if (quit_flag){
+        // printf("quitting immediately!\n");
+        // continue;
         break;
-      
+      }
       // push them around 
       track_super_photon(&ph);
 
@@ -234,10 +237,12 @@ int main(int argc, char *argv[])
         summary(stderr, NULL);
 
       // avoid too much scattering; break for all threads immediately
-      if (N_scatt > 10000 && N_scatt / N_superph_made > 10.)
-	bad_bias = 1;
-      if (bad_bias)
+      if (N_scatt > 10000 && N_scatt / N_superph_made > 1000)
+	      bad_bias = 1;
+      if (bad_bias || (N_superph_recorded == Ns)){
+        // continue;
         break;
+      }
     }
   }
 

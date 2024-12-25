@@ -89,6 +89,12 @@ double Bnu_inv(double nu, double Thetae)
 	return (2. * HPL / (CL * CL)) / (exp(x) - 1.);
 }
 
+//frequency maxima of planck function
+double Bnu_inv_maxfreq(double Thetae)
+{
+	return 2.8214391 / HPL * Thetae * ME * CL * CL;
+}
+
 // return j_\nu/\nu^2, the invariant emissivity
 double jnu_inv(double nu, double Thetae, double Ne, double B, double theta, radiation_params *rpars)
 {

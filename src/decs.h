@@ -125,6 +125,7 @@ extern double Ns_scale, N_superph_made;
 extern struct of_geom **geom;
 extern struct of_tetrads ***tetrads;
 extern double ***n2gens;
+extern int n2gen;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 
@@ -234,6 +235,7 @@ double alpha_inv_scatt(double nu, double thetae, double Ne, radiation_params *rp
 double alpha_inv_abs(double nu, double thetae, double Ne, double B,
          double theta, radiation_params *rpars);
 double Bnu_inv(double nu, double thetae);
+double Bnu_inv_maxfreq(double thetae);
 double jnu_inv(double nu, double thetae, double ne, double B,
          double theta, radiation_params *rpars);
 

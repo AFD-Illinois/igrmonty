@@ -19,7 +19,7 @@ void track_super_photon(struct of_photon *ph)
   int nstep = 0;
   
   // Don't track zero-weight photons
-  if (ph->w < 1) {
+  if (ph->w < WEIGHT_MIN) {
     return;
   }
 
@@ -46,7 +46,6 @@ void track_super_photon(struct of_photon *ph)
   alpha_scatti = alpha_inv_scatt(nu, Thetae, Ne, &rpars);
   alpha_absi = alpha_inv_abs(nu, Thetae, Ne, B, theta, &rpars);
   bi = bias_func(Thetae, ph->w);
-
   init_dKdlam(ph->X, ph->K, ph->dKdlam);
   while (!stop_criterion(ph)) {
     // Save initial position/wave vector
@@ -125,7 +124,7 @@ void track_super_photon(struct of_photon *ph)
           fprintf(stderr, "w isnan in track_super_photon: Ne, bias, ph->w, php.w  %g, %g, %g, %g\n",
             Ne, bias, ph->w, php.w);
         }
-
+ 
         frac = x1 / (bias * dtau_scatt);
 
         // Apply absorption until scattering event
@@ -164,12 +163,12 @@ void track_super_photon(struct of_photon *ph)
 
         // Actually about to scatter photon
         if (Ne > 0.) { 
-          if (bias < 1.0) { // Ensure bias >= 1
-	    #pragma omp atomic
-            ++invalid_bias; // count invalid_bias
-            fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
-            return;
-          }
+      //     if (bias < 1.0) { // Ensure bias >= 1
+	    // #pragma omp atomic
+      //       ++invalid_bias; // count invalid_bias
+      //       fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
+      //       return;
+      //     }
           scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov, &rparsp);
 
           if (ph->w < 1.e-100) {  // Possible problem while enforcing k.k = 0
@@ -218,7 +217,6 @@ void track_super_photon(struct of_photon *ph)
       break;
     }
   }
-
   // Accumulate result in spectrum on escape
   if (record_criterion(ph) && nstep < MAXNSTEP) {
     #pragma omp atomic
@@ -229,7 +227,6 @@ void track_super_photon(struct of_photon *ph)
       if (ph->tau_scatt > max_tau_scatt)
         max_tau_scatt = ph->tau_scatt;
     }
-
     if (record_photons) record_super_photon(ph);
   }
 }
