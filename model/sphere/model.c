@@ -422,7 +422,7 @@ void init_data(int argc, char *argv[], Params *params)
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 100.;
   MODEL_BETA_0 = 20.;
-  MODEL_TAU_0 = 1e-8;
+  MODEL_TAU_0 = 1e-4;
   MODEL_THETAE_0 = 4.;
   MODEL_TP_OVER_TE = 3.;
   MODEL_GAM = 13./9;  

@@ -6,7 +6,7 @@
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
 #define THETAE_MAX 1000.
 #define THETAE_MIN 1e-3
-#define WEIGHT_MIN (1.e8)
+#define WEIGHT_MIN (1)
 
 #define SYNCHROTRON (0)
 #define EMIT_ORIGIN (1)
