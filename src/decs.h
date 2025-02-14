@@ -17,7 +17,6 @@
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_hyperg.h>
 #include <gsl/gsl_monte.h>
-#include <gsl/gsl_monte_vegas.h>
 #include <omp.h>
 #include <time.h>
 #include "constants.h"
