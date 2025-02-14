@@ -1,4 +1,5 @@
-
+#ifndef DECS_H
+#define DECS_H
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -15,6 +16,8 @@
 #include <gsl/gsl_integration.h>
 #include <gsl/gsl_sf_gamma.h>
 #include <gsl/gsl_sf_hyperg.h>
+#include <gsl/gsl_monte.h>
+#include <gsl/gsl_monte_vegas.h>
 #include <omp.h>
 #include <time.h>
 #include "constants.h"
@@ -325,3 +328,4 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
 
 void reset_state(int);
 void summary(FILE *, const char *);
+#endif // DECS_H

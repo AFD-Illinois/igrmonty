@@ -1,0 +1,33 @@
+#include "electron_distribution.h"
+
+/**
+ * Compute normalized anisotropic distribution function value for a given 
+ * electron momentum, anisotropy value, and perpendicular temperature.
+ *
+ * Parameters:
+ *   A            - Anisotropy parameter, defined as T_perp/T_parallel
+ *   p            - Momentum of electron (units of momentum/mc)
+ *   theta        - Angle the momentum makes with respect to T_parallel (or B field)
+ *   ne          - Number density, in cgs units
+ *   thetae_perp  - Temperature of the perpendicular component, in dimensionless units
+ *
+ * Returns:
+ *   dne_d3p - The normalized distribution function (dne/d^3p), see Treumann et al. 2016
+ */
+double dnd3p_bimaxwell(double A, double p, double ne, double thetae_perp, double p_par, double p_perp)
+{
+    double psq_perp = p_perp*p_perp;
+    double psq_par = p_par*p_par;
+
+    // multiply K2(1/Thetae) by e^(1/Thetae) for numerical purposes
+    double K2f;
+    if (thetae_perp > 1.e-2) {
+        K2f = gsl_sf_bessel_Kn(2, 1. / thetae_perp) * exp(1. / thetae_perp);
+    } else {
+        K2f = sqrt(M_PI * thetae_perp / 2.);
+    }
+
+    double prefactor = ne * sqrt(A) / (4 * M_PI) / (thetae_perp*K2f);
+
+    return prefactor * exp(-(sqrt(1 + psq_perp + A*psq_par)-1)/(thetae_perp));
+}
