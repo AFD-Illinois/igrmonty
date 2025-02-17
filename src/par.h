@@ -15,6 +15,8 @@
 // feel free to change any part of this structure
 typedef struct params_t {
   int seed;
+  
+  int debug;
 
   double Ns;
   double MBH;

@@ -178,6 +178,8 @@ extern int anisotropy;
 void print_matrix(char *name, double g[NDIM][NDIM]);
 void print_vector(const char *name, const double v[NDIM]);
 void dump_at_X(double X[NDIM]);
+// debug flag variable
+extern int debug;
 
 /* testing */
 void run_all_tests();
@@ -264,6 +266,7 @@ extern gsl_interp_accel *bremss_yacc;
   /* compton scattering */
 void init_hotcross(void);
 double total_compton_cross_lkup(double nu, double theta, radiation_params *rpars);
+double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, double xi);
 double klein_nishina(double a, double ap);
 void sample_electron_distr_p(double k[NDIM], double p[NDIM], double theta, radiation_params *rpars);
 void sample_beta_distr(double theta, double *gamma_e, double *beta_e, radiation_params *rpars);

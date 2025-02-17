@@ -28,6 +28,7 @@ void init_model(int argc, char *argv[], Params *params)
 
     Ns = (int) params->Ns;
     anisotropy = (int) params->param_anisotropy;
+    debug = (int) params->debug;
 
   } else {
 

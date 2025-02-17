@@ -553,3 +553,23 @@ double sample_mu_distr(double beta_e)
 	mu = (1. - sqrt(det)) / beta_e;
 	return (mu);
 }
+
+// samples electron gamma_e and direction mu from an anisotropic thermal distribution function by sampling a thermal distribution and then transforming to an anisotropic one
+// parts copied over from isotropic version
+void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *mu, double A, double xi, radiation_params *rpars){
+	// Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
+	double *beta_e;
+
+	sample_beta_distr(Thetae_perp, gamma_e, beta_e,rpars);
+	*mu = sample_mu_distr(*beta_e);
+
+	double sth = sqrt(1-(*mu)*(*mu));
+	double phi = 2*M_PI*monty_rand();
+
+	double psq = (*gamma_e)*(*gamma_e) - 1;
+	double psq_shifted = psq*(*mu)*(*mu)/A + psq*sth*sth;
+
+	*gamma_e = sqrt(psq_shifted + 1);
+	*mu = atan2(abs(sth),(*mu)/sqrt(A));
+	return;
+}

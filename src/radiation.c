@@ -31,6 +31,7 @@ double powerlaw_gamma_max = 1.e5;
 double powerlaw_p = 3.25;
 
 double kappa_es(double nu, double Thetae, radiation_params *rpars);
+double kappa_es_anisotropic(double nu, double Thetae, double A, double xi);
 
 void try_set_radiation_parameter(const char *line)
 {
@@ -107,9 +108,14 @@ double jnu_inv(double nu, double Thetae, double Ne, double B, double theta, radi
 double alpha_inv_scatt(double nu, double Thetae, double Ne, radiation_params *rpars)
 {
   #if COMPTON
-
-	return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;
-
+  if(anisotropy){
+    double A = 1.0;
+    double xi = 0.0;
+    return nu* kappa_es_anisotropic(nu, Thetae, A, xi) * Ne * MP;
+  }
+  else{
+    return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;  
+  }
   #else
 
   return 0.;
@@ -250,6 +256,15 @@ double kappa_es(double nu, double Thetae, radiation_params *rpars)
   }
 
 	return total_compton_cross_lkup(Eg, Thetae, rpars) / MP;
+}
+
+// return electron scattering opacity for anisotropic edf in cgs
+double kappa_es_anisotropic(double nu, double Thetae, double A, double xi){
+  double Eg = HPL * nu / (ME * CL * CL);
+  if (Eg > 1.e75) {
+    fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
+  }
+  return total_compton_cross_lkup_anisotropic(Eg, Thetae, A, xi) / MP;
 }
 
 // get frequency in fluid frame, in Hz

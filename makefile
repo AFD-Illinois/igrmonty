@@ -1,5 +1,5 @@
 # Problem to compile
-MODEL = sphere
+MODEL = sphere_anisotropic
 
 # Top directory of HDF5, or blank if using h5pcc
 HDF5_DIR =

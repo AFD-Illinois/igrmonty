@@ -81,6 +81,9 @@ void load_par (const char *fname, Params *params) {
     //anisotropy flag, 0 for isotropic, 1 for anisotropic
     read_param(line, "anisotropy", &(params->param_anisotropy), TYPE_INT);
 
+    // debug flag
+    read_param(line, "debug", &(params->debug), TYPE_INT);
+
     // set model parameters
     try_set_radiation_parameter(line);
   }

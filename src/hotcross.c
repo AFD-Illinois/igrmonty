@@ -27,15 +27,17 @@
 #define MINT  0.0001
 #define MAXT  1.e4
 #define NW  220
-#define NT  80
+#define NT 80
 #define NA 60
-#define NXI 60
+#define NXI 10
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 double table[KAPPA_NSAMP][NW + 1][NT + 1];
 #else
 double table[1][NW + 1][NT + 1];
 #endif
+
+double ani_table[NW + 1][NT + 1][NA + 1][NXI + 1];
 
 double dlw, dlT, lminw, lmint;
 double lminA, lmaxA, dlA, minxi, maxxi, dxi;
@@ -61,6 +63,23 @@ void init_hotcross(void)
 {
   // do the entire table in 4 D for the anisotropic case if anisotropy is enabled. Only for thermal models for now.
   if(anisotropy){
+
+    if (debug){
+      double photon_energy = 1.000000e-12;
+      double A = 1.000000e-03;
+      double xi = 1.361357e+00;
+      double thetae_perp = 3.162278e-03;
+      double ne = 1.000000e+00;
+      double cross= compute_hotcross_anisotropic(photon_energy, A, xi, thetae_perp, ne);
+      fprintf(stderr,"hotcross for photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, A, xi, thetae_perp, ne, cross);
+      exit(0);
+    }
+
+    size_t rank=4;
+    size_t dims[4] = {NW + 1, NT + 1, NA + 1, NXI + 1};
+    double start[4] = {lminw, lmint, lminA, minxi};
+    double dx[4] = {dlw, dlT, dlA, dxi};
+
     dlw = log10(MAXW / MINW) / NW;
     dlT = log10(MAXT / MINT) / NT;
     lminw = log10(MINW);
@@ -70,29 +89,38 @@ void init_hotcross(void)
     lmaxA = 3;
     dlA = (lmaxA - lminA) / NA;
     minxi = 0;
-    maxxi = M_PI;
+    maxxi = M_PI-1e-4;
     dxi = (maxxi - minxi) / NXI;
     fprintf(stderr, "table for anisotropic compton cross section... ");
-    #pragma omp parallel for
-    for (int j = 0; j <= NT; j++) {
-      double lT = lmint + j * dlT;
-      for (int i = 0; i <= NW; i++) {
-        for (int k = 0; k <= NA; k++) {
-          for (int l = 0; l <= NXI; l++) {
-            double lw = lminw + i * dlw;
-            double lA = lminA + k * dlA;
-            double xi = minxi + l * dxi;
-            double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
-            // note: this table is in w and *thetae*
-            table[0][i][j] = log10(value);
-            if (isnan(table[0][i][j])) {
-              fprintf(stderr, "%d %d %g %g\n", i, j, lw, lT);
-              exit(0);
+    if(load_table("hotcross_anisotropic.h5", 1, ani_table, rank, dims, start, dx) != 0){
+      fprintf(stderr, "generating table...\n");
+      #pragma omp parallel for collapse(2)
+      for (int i = 0; i <= NT; i++) {
+        for (int j = 0; j <= NW; j++) {
+          for (int k = NA; k <= NA; k++) {
+            for (int l = NXI; l <= NXI; l++) {
+              double lT = lmint + i * dlT;
+              double lw = lminw + j * dlw;
+              double lA = lminA + k * dlA;
+              double xi = minxi + l * dxi;
+              double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
+              // note: this table is in w, *thetae*, A and xi
+              ani_table[i][j][k][l] = log10(value);
+              if (isnan(ani_table[i][j][k][l])) {
+                fprintf(stderr, "lw%g lT%g lA%g xi%g\n", lw, lT, lA, xi);
+                exit(0);
+              }
             }
           }
         }
       }
+      write_table("hotcross_anisotropic.h5", 1, ani_table, rank, dims, start, dx);
     }
+    else{
+      fprintf(stderr, "loading from file... ");
+    }
+    fprintf(stderr, "done.\n");
+    exit(0);
     return;
   }
   dlw = log10(MAXW / MINW) / NW;
@@ -165,7 +193,56 @@ void init_hotcross(void)
   fprintf(stderr, "done.\n");
 }
 
+double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, double xi)
+{
+  int i, j, k, l;
+  double lw, lT, lA, di, dj, dk, dl;
 
+  double lc1;
+
+  // cold/low-energy: just use thomson cross section
+  if (w * thetae < 1.e-6) {
+    return SIGMA_THOMSON;
+  }
+
+  // cold, but possible high energy photon: use klein-nishina
+  if (thetae < MINT) {
+    return hc_klein_nishina(w) * SIGMA_THOMSON;
+  }
+
+  // in-bounds for table ... do linear interpolation
+  if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT) && (A > pow(10., lminA) && A < pow(10., lmaxA)) && (xi > minxi && xi < maxxi)) {
+    lw = log10(w);
+    lT = log10(thetae);
+    lA = log10(A);
+    i = (int) ((lw - lminw) / dlw);
+    j = (int) ((lT - lmint) / dlT);
+    k = (int) ((lA - lminA) / dlA);
+    l = (int) ((xi - minxi) / dxi);
+    di = (lw - lminw) / dlw - i;
+    dj = (lT - lmint) / dlT - j;
+    dk = (lA - lminA) / dlA - k;
+    dl = (xi - minxi) / dxi - l;
+
+    lc1 = (1.-di) * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i][j][k][l]
+           + di * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i+1][j][k][l]
+           + (1.-di) * dj * (1.-dk) * (1.-dl) * ani_table[i][j+1][k][l]
+           + di * dj * (1.-dk) * (1.-dl) * ani_table[i+1][j+1][k][l]
+           + (1.-di) * (1.-dj) * dk * (1.-dl) * ani_table[i][j][k+1][l]
+           + di * (1.-dj) * dk * (1.-dl) * ani_table[i+1][j][k+1][l]
+           + (1.-di) * dj * dk * (1.-dl) * ani_table[i][j+1][k+1][l]
+           + di * dj * dk * (1.-dl) * ani_table[i+1][j+1][k+1][l]
+           + (1.-di) * (1.-dj) * (1.-dk) * dl * ani_table[i][j][k][l+1]
+           + di * (1.-dj) * (1.-dk) * dl * ani_table[i+1][j][k][l+1]
+           + (1.-di) * dj * (1.-dk) * dl * ani_table[i][j+1][k][l+1]
+           + di * dj * (1.-dk) * dl * ani_table[i+1][j+1][k][l+1]
+           + (1.-di) * (1.-dj) * dk * dl * ani_table[i][j][k+1][l+1]
+           + di * (1.-dj) * dk * dl * ani_table[i+1][j][k+1][l+1]
+           + (1.-di) * dj * dk * dl * ani_table[i][j+1][k+1][l+1]
+           + di * dj * dk * dl * ani_table[i+1][j+1][k+1][l+1];
+  }
+  return pow(10., lc1);
+}
 
 double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars)
 {
@@ -556,14 +633,15 @@ double compute_hotcross_anisotropic(double photon_energy, double A, double xi, d
 
     double p_perp_max = sqrt((1+MAXGAMMA*thetae_perp)*(1+MAXGAMMA*thetae_perp) - 1);
     double p_par_max = sqrt((1+MAXGAMMA*thetae_perp/A)*(1+MAXGAMMA*thetae_perp/A) - 1);
-    // double p_perp_max = sqrt(MAXGAMMA);
-    // double p_par_max = sqrt(MAXGAMMA);
-    fprintf(stderr,"p_perp_max: %f, p_par_max: %f\n", p_perp_max, p_par_max);
-    clock_t t1 = clock();
+    // double p_perp_max = sqrt(MAXGAMMA*thetae_perp);
+    // double p_par_max = sqrt(MAXGAMMA*thetae_perp/A);
+    // fprintf(stderr,"p_perp_max: %f, p_par_max: %f\n", p_perp_max, p_par_max);
+    // fprintf(stderr,"photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e\n", photon_energy, A, xi, thetae_perp, ne);
+    // clock_t t1 = clock();
     // double result = tpltrap(photon_energy, A, xi, thetae_perp, ne, p_perp_max, p_par_max) * SIGMA_THOMSON;
     double result = integrate_3D(0,2*M_PI,0,p_perp_max,-p_par_max,p_par_max,photon_energy,A,xi,thetae_perp,ne)*SIGMA_THOMSON;
-    clock_t t2 = clock();
-    printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
+    // clock_t t2 = clock();
+    // printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
     return result;
 }
 
@@ -598,7 +676,7 @@ double integral_y(double y, void *params) {
     F.function = &integral_z;
     F.params = data;
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_y[3], params_y[4], params_y[5], params_y[6], params_y[7]);exit(0);
-    gsl_integration_qag(&F, params_y[1], params_y[2], 0, 1e-4, 1000, 6, w, &result, &error);
+    gsl_integration_qag(&F, params_y[1], params_y[2], 0, 1e-3, 1000, 6, w, &result, &error);
     gsl_integration_workspace_free(w);
     return result;
 }
@@ -613,7 +691,7 @@ double integral_x(double x, void *params) {
     F.function = &integral_y;
     F.params = data;
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_x[4], params_x[5], params_x[6], params_x[7], params_x[8]);exit(0);
-    gsl_integration_qag(&F, params_x[2], params_x[3], 0, 1e-4, 1000, 6, w, &result, &error);
+    gsl_integration_qag(&F, params_x[2], params_x[3], 0, 1e-3, 1000, 6, w, &result, &error);
     gsl_integration_workspace_free(w);
     return result;
 }
@@ -628,7 +706,7 @@ double integrate_3D(double x_min, double x_max, double y_min, double y_max, doub
 
     F.function = &integral_x;
     F.params = limits;
-    gsl_integration_qag(&F, x_min, x_max, 0, 1e-4, 1000, 6, w, &result, &error);
+    gsl_integration_qag(&F, x_min, x_max, 0, 1e-3, 1000, 6, w, &result, &error);
     gsl_integration_workspace_free(w);
     return result;
 }
