@@ -28,6 +28,8 @@
 #define MAXT  1.e4
 #define NW  220
 #define NT  80
+#define NA 60
+#define NXI 60
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 double table[KAPPA_NSAMP][NW + 1][NT + 1];
@@ -36,6 +38,7 @@ double table[1][NW + 1][NT + 1];
 #endif
 
 double dlw, dlT, lminw, lmint;
+double lminA, lmaxA, dlA, minxi, maxxi, dxi;
 
 double kappa_function_int(double beta, void *params);
 double hc_klein_nishina(double we);
@@ -56,6 +59,42 @@ double integrate_3D(double x_min, double x_max, double y_min, double y_max, doub
 // since we could switch eDF
 void init_hotcross(void)
 {
+  // do the entire table in 4 D for the anisotropic case if anisotropy is enabled. Only for thermal models for now.
+  if(anisotropy){
+    dlw = log10(MAXW / MINW) / NW;
+    dlT = log10(MAXT / MINT) / NT;
+    lminw = log10(MINW);
+    lmint = log10(MINT);
+    // anisotropy parameters A (ratio of temperatures) and xi (pitch angle of photon wrt local B field)
+    lminA = -3;
+    lmaxA = 3;
+    dlA = (lmaxA - lminA) / NA;
+    minxi = 0;
+    maxxi = M_PI;
+    dxi = (maxxi - minxi) / NXI;
+    fprintf(stderr, "table for anisotropic compton cross section... ");
+    #pragma omp parallel for
+    for (int j = 0; j <= NT; j++) {
+      double lT = lmint + j * dlT;
+      for (int i = 0; i <= NW; i++) {
+        for (int k = 0; k <= NA; k++) {
+          for (int l = 0; l <= NXI; l++) {
+            double lw = lminw + i * dlw;
+            double lA = lminA + k * dlA;
+            double xi = minxi + l * dxi;
+            double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
+            // note: this table is in w and *thetae*
+            table[0][i][j] = log10(value);
+            if (isnan(table[0][i][j])) {
+              fprintf(stderr, "%d %d %g %g\n", i, j, lw, lT);
+              exit(0);
+            }
+          }
+        }
+      }
+    }
+    return;
+  }
   dlw = log10(MAXW / MINW) / NW;
   dlT = log10(MAXT / MINT) / NT;
   lminw = log10(MINW);

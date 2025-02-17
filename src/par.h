@@ -41,7 +41,8 @@ typedef struct params_t {
   double trat_small;
   double trat_large;
   double Thetae_max;
-
+  // anisotropy parameter, copied to extern variable that's used everywhere
+  int param_anisotropy;
   char loaded;
 } Params;
 
