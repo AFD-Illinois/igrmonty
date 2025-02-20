@@ -26,10 +26,10 @@
 #define MAXW  1.e15
 #define MINT  0.0001
 #define MAXT  1.e4
-#define NW  220
-#define NT 80
-#define NA 60
-#define NXI 10
+#define NW  22
+#define NT 8
+#define NA 6
+#define NXI 6
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 double table[KAPPA_NSAMP][NW + 1][NT + 1];
@@ -65,20 +65,22 @@ void init_hotcross(void)
   if(anisotropy){
 
     if (debug){
-      double photon_energy = 1.000000e-12;
-      double A = 1.000000e-03;
-      double xi = 1.361357e+00;
-      double thetae_perp = 3.162278e-03;
+      double photon_energy = 3.681818;
+      double A = 1.000000e0;
+      double xi = 1.570746;
+      double thetae_perp = 1e2;
       double ne = 1.000000e+00;
+      clock_t t1 = clock();
       double cross= compute_hotcross_anisotropic(photon_energy, A, xi, thetae_perp, ne);
+      clock_t t2 = clock();
       fprintf(stderr,"hotcross for photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, A, xi, thetae_perp, ne, cross);
+      printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
       exit(0);
     }
 
     size_t rank=4;
     size_t dims[4] = {NW + 1, NT + 1, NA + 1, NXI + 1};
     double start[4] = {lminw, lmint, lminA, minxi};
-    double dx[4] = {dlw, dlT, dlA, dxi};
 
     dlw = log10(MAXW / MINW) / NW;
     dlT = log10(MAXT / MINT) / NT;
@@ -91,22 +93,26 @@ void init_hotcross(void)
     minxi = 0;
     maxxi = M_PI-1e-4;
     dxi = (maxxi - minxi) / NXI;
+    double dx[4] = {dlw, dlT, dlA, dxi};
+    
     fprintf(stderr, "table for anisotropic compton cross section... ");
     if(load_table("hotcross_anisotropic.h5", 1, ani_table, rank, dims, start, dx) != 0){
       fprintf(stderr, "generating table...\n");
-      #pragma omp parallel for collapse(2)
+      #pragma omp parallel for schedule(dynamic,2) collapse(2)
       for (int i = 0; i <= NT; i++) {
         for (int j = 0; j <= NW; j++) {
-          for (int k = NA; k <= NA; k++) {
-            for (int l = NXI; l <= NXI; l++) {
+          if (j==0) fprintf(stderr, "%ld ", i);
+          for (int k = 0; k <= NA; k++) {
+            for (int l = 0; l <= NXI; l++) {
               double lT = lmint + i * dlT;
               double lw = lminw + j * dlw;
               double lA = lminA + k * dlA;
               double xi = minxi + l * dxi;
               double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
+              // fprintf(stderr,"value: %e\n", value);exit(0);
               // note: this table is in w, *thetae*, A and xi
               ani_table[i][j][k][l] = log10(value);
-              if (isnan(ani_table[i][j][k][l])) {
+              if (isnan(ani_table[i][j][k][l]) || value==0) {
                 fprintf(stderr, "lw%g lT%g lA%g xi%g\n", lw, lT, lA, xi);
                 exit(0);
               }
@@ -552,6 +558,10 @@ double check_scattering_limits(double photon_energy, double thetae) {
 
 double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, double photon_energy, double A, double xi, double thetae_perp, double ne) {
     double psq = p_perp * p_perp + p_par * p_par;
+    // if psq is zero no need to compute
+    if (psq == 0) {
+        return 0;
+    }
     double gammae = sqrt(psq + 1);
     double beta = sqrt(1 - 1 / (gammae * gammae));
     double p = sqrt(psq);
@@ -654,21 +664,21 @@ double dummy_fn(double x, double y, double z, double p1, double p2, double p3, d
     return 1;
 }
 
+// integrand of z (p_par) integral
 double integral_z(double z, void *params) {
     double *data = (double *)params;
     double x = data[0], y = data[1];
     double p1 = data[2], p2 = data[3], p3 = data[4], p4 = data[5], p5=data[6];
-    // return dummy_fn(z,y,x, p1, p2, p3, p4, p5);
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", p1, p2, p3, p4, p5);exit(0);
+    // return dummy_fn(z,y,x, p1, p2, p3, p4, p5);
     return hotcross_integrand_bimaxwell(z, y, x, p1, p2, p3, p4, p5);
-
-    // hotcross_integrand_bimaxwell(p_par, p_perp, phi, photon_energy, A, xi, thetae_perp, ne)
 }
 
-// 1D integral over y
+// returns integrand of y (p_perp) integral i.e., integral over z(p_par)
 double integral_y(double y, void *params) {
-    gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+    gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
+    size_t neval;
     double *params_y = (double *)params;
     double x = params_y[0];
     double data[] = {x, y, params_y[3], params_y[4], params_y[5], params_y[6], params_y[7]};
@@ -676,27 +686,33 @@ double integral_y(double y, void *params) {
     F.function = &integral_z;
     F.params = data;
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_y[3], params_y[4], params_y[5], params_y[6], params_y[7]);exit(0);
-    gsl_integration_qag(&F, params_y[1], params_y[2], 0, 1e-3, 1000, 6, w, &result, &error);
-    gsl_integration_workspace_free(w);
+    // gsl_integration_qagi(&F, 0, 1e-3, 1000, w, &result, &error);
+    gsl_integration_romberg(&F, params_y[1], params_y[2], 0, 1e-3, &result, &neval, w);
+    gsl_integration_romberg_free(w);
     return result;
 }
 
-// 1D integral over x
+// returns integrand of x (phi) integral i.e., integral over y(p_perp) and z(p_par)
 double integral_x(double x, void *params) {
-    gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+    gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
+    size_t neval;
     double *params_x = (double *)params;
     double data[] = {x, params_x[0], params_x[1], params_x[4], params_x[5], params_x[6], params_x[7], params_x[8]};
     gsl_function F;
     F.function = &integral_y;
     F.params = data;
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_x[4], params_x[5], params_x[6], params_x[7], params_x[8]);exit(0);
-    gsl_integration_qag(&F, params_x[2], params_x[3], 0, 1e-3, 1000, 6, w, &result, &error);
-    gsl_integration_workspace_free(w);
+    gsl_integration_romberg(&F, params_x[2], params_x[3], 0, 1e-3, &result, &neval, w);
+    // gsl_integration_qagiu(&F, params_x[2], 0, 1e-3, 1000, w, &result, &error);
+    gsl_integration_romberg_free(w);
     return result;
 }
 
-// Compute the full 3D integral
+// Compute the full 3D integral \int_x \int_y \int_z f(x,y,z) dx dy dz
+// where f(x,y,z) is the function hotcross_integrand_bimaxwell
+// x is phi, y is p_perp, z is p_par
+// p1, p2, p3, p4, p5 are the parameters of the function hotcross_integrand_bimaxwell
 double integrate_3D(double x_min, double x_max, double y_min, double y_max, double z_min, double z_max, double p1, double p2, double p3, double p4, double p5) {
     gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
     double result, error;
