@@ -26,10 +26,10 @@
 #define MAXW  1.e15
 #define MINT  0.0001
 #define MAXT  1.e4
-#define NW  22
-#define NT 8
-#define NA 6
-#define NXI 6
+#define NW 4
+#define NT 4
+#define NA 4
+#define NXI 4
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 double table[KAPPA_NSAMP][NW + 1][NT + 1];
@@ -65,10 +65,10 @@ void init_hotcross(void)
   if(anisotropy){
 
     if (debug){
-      double photon_energy = 3.681818;
-      double A = 1.000000e0;
-      double xi = 1.570746;
-      double thetae_perp = 1e2;
+      double photon_energy = pow(10,15);
+      double thetae_perp = 1e-4;
+      double A = 1.0e-3;
+      double xi = 2.35611949;
       double ne = 1.000000e+00;
       clock_t t1 = clock();
       double cross= compute_hotcross_anisotropic(photon_energy, A, xi, thetae_perp, ne);
@@ -80,7 +80,6 @@ void init_hotcross(void)
 
     size_t rank=4;
     size_t dims[4] = {NW + 1, NT + 1, NA + 1, NXI + 1};
-    double start[4] = {lminw, lmint, lminA, minxi};
 
     dlw = log10(MAXW / MINW) / NW;
     dlT = log10(MAXT / MINT) / NT;
@@ -93,6 +92,8 @@ void init_hotcross(void)
     minxi = 0;
     maxxi = M_PI-1e-4;
     dxi = (maxxi - minxi) / NXI;
+
+    double start[4] = {lminw, lmint, lminA, minxi};
     double dx[4] = {dlw, dlT, dlA, dxi};
     
     fprintf(stderr, "table for anisotropic compton cross section... ");
@@ -111,8 +112,8 @@ void init_hotcross(void)
               double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
               // fprintf(stderr,"value: %e\n", value);exit(0);
               // note: this table is in w, *thetae*, A and xi
-              ani_table[i][j][k][l] = log10(value);
-              if (isnan(ani_table[i][j][k][l]) || value==0) {
+              ani_table[j][i][k][l] = log10(value);
+              if (isnan(ani_table[j][i][k][l]) || value==0) {
                 fprintf(stderr, "lw%g lT%g lA%g xi%g\n", lw, lT, lA, xi);
                 exit(0);
               }
