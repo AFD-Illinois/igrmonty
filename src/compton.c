@@ -250,8 +250,15 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 	int sample_cnt = 0;
 
 	do {
-		sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
-		mu = sample_mu_distr(beta_e);
+		if(anisotropy){
+			// for now set A and xi parameters to isotropic values for testing
+			double A=1.0;
+			double xi=0.0;
+			sample_edf_distr_anisotropic(Thetae, &gamma_e, &beta_e, &mu, A, xi, rpars);
+		} else {
+			sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
+			mu = sample_mu_distr(beta_e);
+		}
 		// sometimes |mu| > 1 from roundoff error, fix it
 		if (mu > 1.)
 			mu = 1.;
@@ -438,7 +445,7 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiati
 void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars)
 {
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
-  if (Thetae < 0.01) {
+  if (Thetae < 0.01 && MODEL_EDF==EDF_KAPPA_FIXED) {
     *gamma_e = 1.000001;
 	  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
     return;
@@ -556,9 +563,7 @@ double sample_mu_distr(double beta_e)
 
 // samples electron gamma_e and direction mu from an anisotropic thermal distribution function by sampling a thermal distribution and then transforming to an anisotropic one
 // parts copied over from isotropic version
-void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *mu, double A, double xi, radiation_params *rpars){
-	// Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
-	double *beta_e;
+void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *beta_e, double *mu, double A, double xi, radiation_params *rpars){
 
 	sample_beta_distr(Thetae_perp, gamma_e, beta_e,rpars);
 	*mu = sample_mu_distr(*beta_e);
@@ -570,6 +575,7 @@ void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *m
 	double psq_shifted = psq*(*mu)*(*mu)/A + psq*sth*sth;
 
 	*gamma_e = sqrt(psq_shifted + 1);
-	*mu = atan2(abs(sth),(*mu)/sqrt(A));
+	// *mu = cos(atan2(abs(sth),(*mu)/sqrt(A)));
+	*mu = (*mu)/sqrt(A*sth*sth + (*mu)*(*mu));
 	return;
 }

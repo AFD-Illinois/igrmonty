@@ -32,10 +32,10 @@ def mkplot(nu, nuLnu, fname):
     ax.step(nu, nuLnu[1,:], label="(synch) once")
     ax.step(nu, nuLnu[2,:], label="(synch) twice")
     ax.step(nu, nuLnu[3,:], label="(synch)"+r"$>$"+" twice")
-    ax.step(nu, nuLnu[4,:], label="(brems) base")
-    ax.step(nu, nuLnu[5,:], label="(brems) once")
-    ax.step(nu, nuLnu[6,:], label="(brems) twice")
-    ax.step(nu, nuLnu[7,:], label="(brems)"+r"$>$"+" twice")
+    #ax.step(nu, nuLnu[4,:], label="(brems) base")
+    #ax.step(nu, nuLnu[5,:], label="(brems) once")
+    #ax.step(nu, nuLnu[6,:], label="(brems) twice")
+    #ax.step(nu, nuLnu[7,:], label="(brems)"+r"$>$"+" twice")
   else:
     ax.step(nu, nuLnu, "k", label="total")
 

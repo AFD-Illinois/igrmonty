@@ -31,3 +31,27 @@ double dnd3p_bimaxwell(double A, double p, double ne, double thetae_perp, double
 
     return prefactor * exp(-(sqrt(1 + psq_perp + A*psq_par)-1)/(thetae_perp));
 }
+
+// fast version of the bimaxwell distribution function dne_d3p, without the K2(1/Thetae) term or any prefactor.
+// used for trapezoid integration routines
+double dnd3p_bimaxwell_fast(double A, double p, double ne, double thetae_perp, double p_par, double p_perp)
+{
+    double psq_perp = p_perp*p_perp;
+    double psq_par = p_par*p_par;
+
+    return exp(-(sqrt(1 + psq_perp + A*psq_par)-1)/(thetae_perp));
+}
+
+// prefactor for the bimaxwell distribution function dne_d3p
+double dnd3p_bimaxwell_prefactor(double A, double ne, double thetae_perp)
+{
+    // multiply K2(1/Thetae) by e^(1/Thetae) for numerical purposes
+    double K2f;
+    if (thetae_perp > 1.e-2) {
+        K2f = gsl_sf_bessel_Kn(2, 1. / thetae_perp) * exp(1. / thetae_perp);
+    } else {
+        K2f = sqrt(M_PI * thetae_perp / 2.);
+    }
+
+    return ne * sqrt(A) / (4 * M_PI) / (thetae_perp*K2f);
+}

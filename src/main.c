@@ -97,6 +97,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
+  fprintf(stderr, "with anisotropy: %i\n", anisotropy);
 
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 

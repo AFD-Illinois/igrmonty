@@ -15,7 +15,7 @@ double ***b;
 static double Rmax_record = 1.e4;
 
 static double MODEL_R_0 = 100;
-static double MODEL_TAU_0 = 1.e-5;
+static double MODEL_TAU_0 = 1.e-4;
 static double MODEL_THETAE_0 = 10.;
 static double MODEL_BETA_0 = 20.;
 static double MODEL_MBH = 4.1e6;

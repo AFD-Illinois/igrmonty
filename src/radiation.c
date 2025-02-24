@@ -31,7 +31,7 @@ double powerlaw_gamma_max = 1.e5;
 double powerlaw_p = 3.25;
 
 double kappa_es(double nu, double Thetae, radiation_params *rpars);
-double kappa_es_anisotropic(double nu, double Thetae, double A, double xi);
+double kappa_es_anisotropic(double nu, double Thetae, double A, double xim, radiation_params *rpars);
 
 void try_set_radiation_parameter(const char *line)
 {
@@ -111,7 +111,7 @@ double alpha_inv_scatt(double nu, double Thetae, double Ne, radiation_params *rp
   if(anisotropy){
     double A = 1.0;
     double xi = 0.0;
-    return nu* kappa_es_anisotropic(nu, Thetae, A, xi) * Ne * MP;
+    return nu* kappa_es_anisotropic(nu, Thetae, A, xi,rpars) * Ne * MP;
   }
   else{
     return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;  
@@ -254,12 +254,11 @@ double kappa_es(double nu, double Thetae, radiation_params *rpars)
   if (Eg > 1.e75) {
     fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
   }
-
-	return total_compton_cross_lkup(Eg, Thetae, rpars) / MP;
+  return total_compton_cross_lkup(Eg, Thetae, rpars) / MP;
 }
 
 // return electron scattering opacity for anisotropic edf in cgs
-double kappa_es_anisotropic(double nu, double Thetae, double A, double xi){
+double kappa_es_anisotropic(double nu, double Thetae, double A, double xi, radiation_params *rpars){
   double Eg = HPL * nu / (ME * CL * CL);
   if (Eg > 1.e75) {
     fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
