@@ -28,8 +28,8 @@
 #define MAXT  1.e4
 #define NW 220
 #define NT 80
-#define NA 1
-#define NXI 1
+#define NA 2
+#define NXI 2
 
 #if MODEL_EDF==EDF_KAPPA_VARIABLE
 double table[KAPPA_NSAMP][NW + 1][NT + 1];
@@ -90,11 +90,11 @@ void init_hotcross(void)
     lminw = log10(MINW);
     lmint = log10(MINT);
     // anisotropy parameters A (ratio of temperatures) and xi (pitch angle of photon wrt local B field)
-    lminA = 0;
-    lmaxA = 0;
+    lminA = -1.0;
+    lmaxA = 1.0;
     dlA = (lmaxA - lminA) / NA;
-    minxi = 0;
-    maxxi = 0;
+    minxi = 0.;
+    maxxi = M_PI-1e-4;
     dxi = (maxxi - minxi) / NXI;
 
     double start[4] = {lminw, lmint, lminA, minxi};
@@ -107,10 +107,10 @@ void init_hotcross(void)
       for (int i = 0; i <= NT; i++) {
         for (int j = 0; j <= NW; j++) {
           if (j==0) fprintf(stderr, "%ld ", i);
-          int k=0;
-          int l=0;
-          // for (int k = 0; k <= NA; k++) {
-            // for (int l = 0; l <= NXI; l++) {
+          // int k=0;
+          // int l=0;
+          for (int k = 0; k <= NA; k++) {
+            for (int l = 0; l <= NXI; l++) {
               double lT = lmint + i * dlT;
               double lw = lminw + j * dlw;
               double lA = lminA + k * dlA;
@@ -119,15 +119,15 @@ void init_hotcross(void)
               // fprintf(stderr,"value: %e\n", value);exit(0);
               // note: this table is in w, *thetae*, A and xi
               ani_table[j][i][k][l] = log10(value);
-              ani_table[j][i][k+1][l] = log10(value);
-              ani_table[j][i][k][l+1] = log10(value);
-              ani_table[j][i][k+1][l+1] = log10(value);
+              // ani_table[j][i][k+1][l] = log10(value);
+              // ani_table[j][i][k][l+1] = log10(value);
+              // ani_table[j][i][k+1][l+1] = log10(value);
               if (isnan(ani_table[j][i][k][l]) || value==0) {
                 fprintf(stderr, "lw%g lT%g lA%g xi%g\n", lw, lT, lA, xi);
                 exit(0);
               }
-          //   }
-          // }
+            }
+          }
         }
       }
       write_table("hotcross_anisotropic.h5", 1, ani_table, rank, dims, start, dx);
@@ -760,15 +760,21 @@ double integral_x(double x, void *params) {
 // x is phi, y is p_perp, z is p_par
 // p1, p2, p3, p4, p5 are the parameters of the function hotcross_integrand_bimaxwell
 double integrate_3D(double x_min, double x_max, double y_min, double y_max, double z_min, double z_max, double p1, double p2, double p3, double p4, double p5) {
-    gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+    gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
+    size_t neval;
+    // gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
+    // double result, error;
     gsl_function F;
     double limits[9] = {z_min, z_max, y_min, y_max, p1, p2, p3, p4, p5};
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", p1, p2, p3, p4, p5);exit(0);
 
     F.function = &integral_x;
     F.params = limits;
-    gsl_integration_qag(&F, x_min, x_max, 0, 1e-4, 1000, 6, w, &result, &error);
-    gsl_integration_workspace_free(w);
+    gsl_integration_romberg(&F, x_min, x_max, 0, 1e-4, &result, &neval, w);
+    gsl_integration_romberg_free(w);
+
+    // gsl_integration_qag(&F, x_min, x_max, 0, 1e-3, 1000, 6, w, &result, &error);
+    // gsl_integration_workspace_free(w);
     return result;
 }
