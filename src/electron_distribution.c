@@ -39,7 +39,7 @@ double dnd3p_bimaxwell_fast(double A, double p, double ne, double thetae_perp, d
     double psq_perp = p_perp*p_perp;
     double psq_par = p_par*p_par;
 
-    return exp(-(sqrt(1 + psq_perp + A*psq_par)-1)/(thetae_perp));
+    return exp(-(sqrt(1.0 + psq_perp + A*psq_par)-1.0)/(thetae_perp));
 }
 
 // prefactor for the bimaxwell distribution function dne_d3p

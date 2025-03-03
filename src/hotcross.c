@@ -65,16 +65,20 @@ void init_hotcross(void)
   if(anisotropy){
 
     if (debug){
-      double photon_energy = pow(10,15);
+      double photon_energy = pow(10,-10);
       double thetae_perp = 1e4;
       double A = 1.0e0;
-      double xi = 2.35611949;
+      double xi = 2.356119;
       double ne = 1.000000e+00;
+      radiation_params *rpars;
       clock_t t1 = clock();
       double cross= compute_hotcross_anisotropic(photon_energy, A, xi, thetae_perp, ne);
       clock_t t2 = clock();
       fprintf(stderr,"hotcross for photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, A, xi, thetae_perp, ne, cross);
       printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
+      double cross_iso = total_compton_cross_num(photon_energy, thetae_perp, 1.0, rpars);
+      fprintf(stderr,"isotropic hotcross for photon_energy: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, thetae_perp, ne, cross_iso);
+      fprintf(stderr, "relative difference is: %e\n", (cross - cross_iso)/cross_iso);
       exit(0);
     }
 
@@ -86,8 +90,8 @@ void init_hotcross(void)
     lminw = log10(MINW);
     lmint = log10(MINT);
     // anisotropy parameters A (ratio of temperatures) and xi (pitch angle of photon wrt local B field)
-    lminA = 1;
-    lmaxA = 1;
+    lminA = 0;
+    lmaxA = 0;
     dlA = (lmaxA - lminA) / NA;
     minxi = 0;
     maxxi = 0;
@@ -136,7 +140,7 @@ void init_hotcross(void)
   }
 
   if (debug){
-    double photon_energy = pow(10,15);
+    double photon_energy = pow(10,-3);
     double thetae_perp = 1e4;
     double ne = 1.000000e+00;
     clock_t t1 = clock();
@@ -211,7 +215,7 @@ void init_hotcross(void)
       }
     }
   }
-  write_table("hotcross_isotropic.h5",1,table,3,(size_t[]){1,NW+1,NT+1},(double[]){lminw,lmint,0.0},(double[]){0.0,dlw,dlT});
+  write_table("hotcross_isotropic.h5",1,table,3,(size_t[]){1,NW+1,NT+1},(double[]){0.0,lminw,lmint},(double[]){0.0,dlw,dlT});
 
 #endif
 
@@ -244,33 +248,37 @@ double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, d
     lA = log10(A);
     i = (int) ((lw - lminw) / dlw);
     j = (int) ((lT - lmint) / dlT);
-    k = (int) ((lA - lminA) / dlA);
-    l = (int) ((xi - minxi) / dxi);
+    // k = (int) ((lA - lminA) / dlA);
+    // l = (int) ((xi - minxi) / dxi);
+    k=0;
+    l=0;
     di = (lw - lminw) / dlw - i;
     dj = (lT - lmint) / dlT - j;
-    dk = (lA - lminA) / dlA - k;
-    dl = (xi - minxi) / dxi - l;
+    // dk = (lA - lminA) / dlA - k;
+    // dl = (xi - minxi) / dxi - l;
+    dk=1;
+    dl=1;
 
-    // lc1 = (1.-di) * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i][j][k][l]
-    //        + di * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i+1][j][k][l]
-    //        + (1.-di) * dj * (1.-dk) * (1.-dl) * ani_table[i][j+1][k][l]
-    //        + di * dj * (1.-dk) * (1.-dl) * ani_table[i+1][j+1][k][l]
-    //        + (1.-di) * (1.-dj) * dk * (1.-dl) * ani_table[i][j][k+1][l]
-    //        + di * (1.-dj) * dk * (1.-dl) * ani_table[i+1][j][k+1][l]
-    //        + (1.-di) * dj * dk * (1.-dl) * ani_table[i][j+1][k+1][l]
-    //        + di * dj * dk * (1.-dl) * ani_table[i+1][j+1][k+1][l]
-    //        + (1.-di) * (1.-dj) * (1.-dk) * dl * ani_table[i][j][k][l+1]
-    //        + di * (1.-dj) * (1.-dk) * dl * ani_table[i+1][j][k][l+1]
-    //        + (1.-di) * dj * (1.-dk) * dl * ani_table[i][j+1][k][l+1]
-    //        + di * dj * (1.-dk) * dl * ani_table[i+1][j+1][k][l+1]
-    //        + (1.-di) * (1.-dj) * dk * dl * ani_table[i][j][k+1][l+1]
-    //        + di * (1.-dj) * dk * dl * ani_table[i+1][j][k+1][l+1]
-    //        + (1.-di) * dj * dk * dl * ani_table[i][j+1][k+1][l+1]
-    //        + di * dj * dk * dl * ani_table[i+1][j+1][k+1][l+1];
-    lc1 = (1.-di) * (1.-dj) * ani_table[i][j][0][0]
-        + di * (1.-dj) * ani_table[i+1][j][0][0] 
-        + (1.-di) * dj * ani_table[i][j+1][0][0] 
-        + di * dj * ani_table[i+1][j+1][0][0];
+    lc1 = (1.-di) * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i][j][k][l]
+           + di * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i+1][j][k][l]
+           + (1.-di) * dj * (1.-dk) * (1.-dl) * ani_table[i][j+1][k][l]
+           + di * dj * (1.-dk) * (1.-dl) * ani_table[i+1][j+1][k][l]
+           + (1.-di) * (1.-dj) * dk * (1.-dl) * ani_table[i][j][k+1][l]
+           + di * (1.-dj) * dk * (1.-dl) * ani_table[i+1][j][k+1][l]
+           + (1.-di) * dj * dk * (1.-dl) * ani_table[i][j+1][k+1][l]
+           + di * dj * dk * (1.-dl) * ani_table[i+1][j+1][k+1][l]
+           + (1.-di) * (1.-dj) * (1.-dk) * dl * ani_table[i][j][k][l+1]
+           + di * (1.-dj) * (1.-dk) * dl * ani_table[i+1][j][k][l+1]
+           + (1.-di) * dj * (1.-dk) * dl * ani_table[i][j+1][k][l+1]
+           + di * dj * (1.-dk) * dl * ani_table[i+1][j+1][k][l+1]
+           + (1.-di) * (1.-dj) * dk * dl * ani_table[i][j][k+1][l+1]
+           + di * (1.-dj) * dk * dl * ani_table[i+1][j][k+1][l+1]
+           + (1.-di) * dj * dk * dl * ani_table[i][j+1][k+1][l+1]
+           + di * dj * dk * dl * ani_table[i+1][j+1][k+1][l+1];
+    // lc1 = (1.-di) * (1.-dj) * ani_table[i][j][0][0]
+    //     + di * (1.-dj) * ani_table[i+1][j][0][0] 
+    //     + (1.-di) * dj * ani_table[i][j+1][0][0] 
+    //     + di * dj * ani_table[i+1][j+1][0][0];
 
     if(isnan(lc1)){
       fprintf(stderr,"lc1 is nan\n");
@@ -625,14 +633,17 @@ double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, dou
 double tpltrap(double photon_energy, double A, double xi, double thetae_perp, double ne, double p_perp_max, double p_par_max)
 {
   double result = 0.0;
-  int num_steps = 500;
+  int num_steps = 200;
   double phi_step = 2 * M_PI / 100;
-  // double p_perp_step = sqrt(thetae_perp*DGAMMAE);
-  // double p_par_step = sqrt(thetae_perp*DGAMMAE/A);
+  // double p_perp_step = (sqrt(MAXGAMMA*thetae_perp) - 1)/(MAXGAMMA*thetae_perp-1) * DGAMMAE*thetae_perp;
+  // double p_par_step = (sqrt(MAXGAMMA*thetae_perp/A) - 1)/(MAXGAMMA*thetae_perp/A-1) * DGAMMAE*thetae_perp/A;
+
+  // double p_perp_step = thetae_perp*DGAMMAE;
+  // double p_par_step = thetae_perp*DGAMMAE/A;
   double p_perp_step = p_perp_max / num_steps;
   double p_par_step = p_par_max / num_steps;
-  fprintf(stderr,"p_perp_step: %f, p_par_step: %f\n", p_perp_step, p_par_step);
-  fprintf(stderr,"number of steps in p_perp: %e, p_par: %e\n", p_perp_max/p_perp_step, p_par_max/p_par_step);
+  // fprintf(stderr,"p_perp_step: %f, p_par_step: %f\n", p_perp_step, p_par_step);
+  // fprintf(stderr,"number of steps in p_perp: %e, p_par: %e\n", p_perp_max/p_perp_step, p_par_max/p_par_step);
   for (double phi = phi_step/2; phi < 2 * M_PI; phi += phi_step)
   {
     for (double p_perp = p_perp_step/2; p_perp < p_perp_max; p_perp += p_perp_step)
@@ -674,19 +685,20 @@ double compute_hotcross_anisotropic(double photon_energy, double A, double xi, d
     return sigma * SIGMA_THOMSON;
   }
   
-  double p_perp_max = sqrt((1+MAXGAMMA*thetae_perp)*(1+MAXGAMMA*thetae_perp) - 1);
-  double p_par_max = sqrt((1+MAXGAMMA*thetae_perp/A)*(1+MAXGAMMA*thetae_perp/A) - 1);
+  double p_perp_max = sqrt((1+MAXGAMMA*thetae_perp)*(1.+MAXGAMMA*thetae_perp) - 1.)/sqrt(2);
+  double p_par_max = sqrt((1.+MAXGAMMA*thetae_perp/A)*(1.+MAXGAMMA*thetae_perp/A) - 1.)/sqrt(2);
+  // double p_par_max = p_perp_max;
   // double p_perp_max = sqrt(MAXGAMMA*thetae_perp);
   // double p_par_max = sqrt(MAXGAMMA*thetae_perp/A);
   // fprintf(stderr,"p_perp_max: %f, p_par_max: %f\n", p_perp_max, p_par_max);
   // fprintf(stderr,"photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e\n", photon_energy, A, xi, thetae_perp, ne);
   // clock_t t1 = clock();
-  double result = tpltrap(photon_energy, A, xi, thetae_perp, ne, p_perp_max, p_par_max) * SIGMA_THOMSON;
-  // double result = integrate_3D(0,2*M_PI,0,p_perp_max,-p_par_max,p_par_max,photon_energy,A,xi,thetae_perp,ne)*SIGMA_THOMSON;
+  // double result = tpltrap(photon_energy, A, xi, thetae_perp, ne, p_perp_max, p_par_max) * SIGMA_THOMSON;
+  double result = integrate_3D(0,2*M_PI,0,p_perp_max,-p_par_max,p_par_max,photon_energy,A,xi,thetae_perp,ne)*SIGMA_THOMSON;
   result *= dnd3p_bimaxwell_prefactor(A, ne, thetae_perp);
   // clock_t t2 = clock();
     // printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
-    return result;
+  return result;
 }
 
 // functions for quadrature integration in 3d for anisotropic integral
