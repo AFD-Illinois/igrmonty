@@ -52,10 +52,10 @@ typedef struct int_rpars_struct {
 } int_rpars;
 
 // function declarations for 3d quadrature integration
-double integral_z(double z, void *params);
-double integral_y(double y, void *params);
-double integral_x(double x, void *params);
-double integrate_3D(double x_min, double x_max, double y_min, double y_max, double z_min, double z_max, double p1, double p2, double p3, double p4, double p5);
+double integral_p_par(double p_par, void *params);
+double integral_p_perp(double p_perp, void *params);
+double integral_phi(double phi, void *params);
+double integrate_3D(double phi_min, double phi_max, double p_perp_min, double p_perp_max, double p_par_min, double p_par_max, double p1, double p2, double p3, double p4, double p5);
 
 // always recompute this. slightly slower than if saved, but safer
 // since we could switch eDF
@@ -706,51 +706,51 @@ double compute_hotcross_anisotropic(double photon_energy, double A, double xi, d
 // 1D integral over z
 // the abuse of the variable data is unfortunate, take care to make sure the parameters are being passed through each subfunction correctly.
 
-double dummy_fn(double x, double y, double z, double p1, double p2, double p3, double p4, double p5) {
+double dummy_fn(double phi, double p_perp, double z, double p1, double p2, double p3, double p4, double p5) {
     return 1;
 }
 
 // integrand of z (p_par) integral
-double integral_z(double z, void *params) {
+double integral_p_par(double p_par, void *params) {
     double *data = (double *)params;
-    double x = data[0], y = data[1];
+    double phi = data[0], p_perp = data[1];
     double p1 = data[2], p2 = data[3], p3 = data[4], p4 = data[5], p5=data[6];
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", p1, p2, p3, p4, p5);exit(0);
-    // return dummy_fn(z,y,x, p1, p2, p3, p4, p5);
-    return hotcross_integrand_bimaxwell(z, y, x, p1, p2, p3, p4, p5);
+    // return dummy_fn(p_par,p_perp,phi, p1, p2, p3, p4, p5);
+    return hotcross_integrand_bimaxwell(p_par, p_perp, phi, p1, p2, p3, p4, p5);
 }
 
 // returns integrand of y (p_perp) integral i.e., integral over z(p_par)
-double integral_y(double y, void *params) {
+double integral_p_perp(double p_perp, void *params) {
     gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
     size_t neval;
-    double *params_y = (double *)params;
-    double x = params_y[0];
-    double data[] = {x, y, params_y[3], params_y[4], params_y[5], params_y[6], params_y[7]};
+    double *params_p_perp = (double *)params;
+    double phi = params_p_perp[0];
+    double data[] = {phi, p_perp, params_p_perp[3], params_p_perp[4], params_p_perp[5], params_p_perp[6], params_p_perp[7]};
     gsl_function F;
-    F.function = &integral_z;
+    F.function = &integral_p_par;
     F.params = data;
-    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_y[3], params_y[4], params_y[5], params_y[6], params_y[7]);exit(0);
+    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_p_perp[3], params_p_perp[4], params_p_perp[5], params_p_perp[6], params_p_perp[7]);exit(0);
     // gsl_integration_qagi(&F, 0, 1e-3, 1000, w, &result, &error);
-    gsl_integration_romberg(&F, params_y[1], params_y[2], 0, 1e-4, &result, &neval, w);
+    gsl_integration_romberg(&F, params_p_perp[1], params_p_perp[2], 0, 1e-4, &result, &neval, w);
     gsl_integration_romberg_free(w);
     return result;
 }
 
 // returns integrand of x (phi) integral i.e., integral over y(p_perp) and z(p_par)
-double integral_x(double x, void *params) {
+double integral_phi(double phi, void *params) {
     gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
     size_t neval;
-    double *params_x = (double *)params;
-    double data[] = {x, params_x[0], params_x[1], params_x[4], params_x[5], params_x[6], params_x[7], params_x[8]};
+    double *params_phi = (double *)params;
+    double data[] = {phi, params_phi[0], params_phi[1], params_phi[4], params_phi[5], params_phi[6], params_phi[7], params_phi[8]};
     gsl_function F;
-    F.function = &integral_y;
+    F.function = &integral_p_perp;
     F.params = data;
-    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_x[4], params_x[5], params_x[6], params_x[7], params_x[8]);exit(0);
-    gsl_integration_romberg(&F, params_x[2], params_x[3], 0, 1e-4, &result, &neval, w);
-    // gsl_integration_qagiu(&F, params_x[2], 0, 1e-3, 1000, w, &result, &error);
+    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_phi[4], params_phi[5], params_phi[6], params_phi[7], params_phi[8]);exit(0);
+    gsl_integration_romberg(&F, params_phi[2], params_phi[3], 0, 1e-4, &result, &neval, w);
+    // gsl_integration_qagiu(&F, params_phi[2], 0, 1e-3, 1000, w, &result, &error);
     gsl_integration_romberg_free(w);
     return result;
 }
@@ -759,22 +759,22 @@ double integral_x(double x, void *params) {
 // where f(x,y,z) is the function hotcross_integrand_bimaxwell
 // x is phi, y is p_perp, z is p_par
 // p1, p2, p3, p4, p5 are the parameters of the function hotcross_integrand_bimaxwell
-double integrate_3D(double x_min, double x_max, double y_min, double y_max, double z_min, double z_max, double p1, double p2, double p3, double p4, double p5) {
+double integrate_3D(double phi_min, double phi_max, double p_perp_min, double p_perp_max, double p_par_min, double p_par_max, double p1, double p2, double p3, double p4, double p5) {
     gsl_integration_romberg_workspace *w = gsl_integration_romberg_alloc(10);
     double result, error;
     size_t neval;
     // gsl_integration_workspace *w = gsl_integration_workspace_alloc(1000);
     // double result, error;
     gsl_function F;
-    double limits[9] = {z_min, z_max, y_min, y_max, p1, p2, p3, p4, p5};
+    double limits[9] = {p_par_min, p_par_max, p_perp_min, p_perp_max, p1, p2, p3, p4, p5};
     // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", p1, p2, p3, p4, p5);exit(0);
 
-    F.function = &integral_x;
+    F.function = &integral_phi;
     F.params = limits;
-    gsl_integration_romberg(&F, x_min, x_max, 0, 1e-4, &result, &neval, w);
+    gsl_integration_romberg(&F, phi_min, phi_max, 0, 1e-4, &result, &neval, w);
     gsl_integration_romberg_free(w);
 
-    // gsl_integration_qag(&F, x_min, x_max, 0, 1e-3, 1000, 6, w, &result, &error);
+    // gsl_integration_qag(&F, phi_min, phi_max, 0, 1e-3, 1000, 6, w, &result, &error);
     // gsl_integration_workspace_free(w);
     return result;
 }
