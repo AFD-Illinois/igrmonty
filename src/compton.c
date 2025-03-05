@@ -575,6 +575,7 @@ void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *b
 	double psq_shifted = psq*(*mu)*(*mu)/A + psq*sth*sth;
 
 	*gamma_e = sqrt(psq_shifted + 1);
+	*beta_e = sqrt(1 - 1/((*gamma_e)*(*gamma_e)));
 	// *mu = cos(atan2(abs(sth),(*mu)/sqrt(A)));
 	*mu = (*mu)/sqrt(A*sth*sth + (*mu)*(*mu));
 	return;
