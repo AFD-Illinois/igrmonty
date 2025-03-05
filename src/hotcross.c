@@ -248,16 +248,16 @@ double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, d
     lA = log10(A);
     i = (int) ((lw - lminw) / dlw);
     j = (int) ((lT - lmint) / dlT);
-    // k = (int) ((lA - lminA) / dlA);
-    // l = (int) ((xi - minxi) / dxi);
-    k=0;
-    l=0;
+    k = (int) ((lA - lminA) / dlA);
+    l = (int) ((xi - minxi) / dxi);
+    // k=0;
+    // l=0;
     di = (lw - lminw) / dlw - i;
     dj = (lT - lmint) / dlT - j;
-    // dk = (lA - lminA) / dlA - k;
-    // dl = (xi - minxi) / dxi - l;
-    dk=1;
-    dl=1;
+    dk = (lA - lminA) / dlA - k;
+    dl = (xi - minxi) / dxi - l;
+    // dk=1;
+    // dl=1;
 
     lc1 = (1.-di) * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i][j][k][l]
            + di * (1.-dj) * (1.-dk) * (1.-dl) * ani_table[i+1][j][k][l]
