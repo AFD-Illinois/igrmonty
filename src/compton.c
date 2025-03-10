@@ -294,10 +294,18 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 
 	} while (x1 >= sigma_KN);
 
-	// first unit vector for coordinate system 
+	// set the first unit vector to be along B field
+	// b^mu  = e^mu_1
+	// b^a = e^mu_1 e_mu^a = delta(a,1) = (0,1,0,0)
+	// k^a b_a = k^1 b_1 = k^1
 	v0x = k[1];
-	v0y = k[2];
-	v0z = k[3];
+	v0y = 0.0;
+	v0z = 0.0;
+
+	// // first unit vector for coordinate system 
+	// v0x = k[1];
+	// v0y = k[2];
+	// v0z = k[3];
 	v0 = sqrt(v0x * v0x + v0y * v0y + v0z * v0z);
 	v0x /= v0;
 	v0y /= v0;

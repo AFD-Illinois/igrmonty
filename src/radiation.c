@@ -69,8 +69,8 @@ radiation_params get_model_radiation_params(const double X[NDIM], const double K
 #endif
   if(anisotropy){
     rpars.tperp_over_tpar = get_model_anisotropy_ratio(X);
-    // rpars.xi = get_bk_angle((double*)X,(double*)K,(double*)Ucov,(double*)Bcov,B);
-    rpars.xi=0.0;
+    rpars.xi = get_bk_angle((double*)X,(double*)K,(double*)Ucov,(double*)Bcov,B);
+    // rpars.xi=M_PI/2.0;
   }
   return rpars;
 }

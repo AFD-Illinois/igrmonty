@@ -18,7 +18,7 @@ static double MODEL_R_0 = 100;
 // this gets overwritten later
 static double MODEL_TAU_0 = 1.e-4;
 static double MODEL_THETAE_0 = 10.;
-static double MODEL_BETA_0 = 20.;
+static double MODEL_BETA_0 = 1.;
 static double MODEL_MBH = 4.1e6;
 static double MODEL_TP_OVER_TE = 3;
 static double MODEL_GAM = 13./9;
@@ -331,7 +331,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 1.;
+  return 0.1;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -365,9 +365,13 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   Ucon[3] = 0.;
  
   Bcon[0] = 0.;
-  Bcon[1] = model_B0 * cos(h) / B_unit;
-  Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8) / B_unit;
-  Bcon[3] = 0.;
+  // Bcon[1] = model_B0 * cos(h) / B_unit;
+  // Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8) / B_unit;
+  // Bcon[3] = 0.;
+  // setup B field to be along equator
+  Bcon[1]=model_B0 / B_unit;
+  Bcon[2]=10.*M_PI/180.0;
+  Bcon[3]=0.;
 
   if (METRIC_esphMINK) {
     Bcon[1] /= r;
