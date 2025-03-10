@@ -251,10 +251,10 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 
 	do {
 		if(anisotropy){
-			// for now set A and xi parameters to isotropic values for testing
-			double A=1.0;
-			double xi=0.0;
-			sample_edf_distr_anisotropic(Thetae, &gamma_e, &beta_e, &mu, A, xi, rpars);
+			// for now set tperp_over_tpar and xi parameters to isotropic values for testing
+			// double tperp_over_tpar=1.0;
+			// double xi=0.0;
+			sample_edf_distr_anisotropic(Thetae, &gamma_e, &beta_e, &mu, rpars->tperp_over_tpar, rpars->xi, rpars);
 		} else {
 			sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
 			mu = sample_mu_distr(beta_e);
@@ -563,7 +563,7 @@ double sample_mu_distr(double beta_e)
 
 // samples electron gamma_e and direction mu from an anisotropic thermal distribution function by sampling a thermal distribution and then transforming to an anisotropic one
 // parts copied over from isotropic version
-void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *beta_e, double *mu, double A, double xi, radiation_params *rpars){
+void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *beta_e, double *mu, double tperp_over_tpar, double xi, radiation_params *rpars){
 
 	sample_beta_distr(Thetae_perp, gamma_e, beta_e,rpars);
 	*mu = sample_mu_distr(*beta_e);
@@ -572,11 +572,11 @@ void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *b
 	double phi = 2*M_PI*monty_rand();
 
 	double psq = (*gamma_e)*(*gamma_e) - 1;
-	double psq_shifted = psq*(*mu)*(*mu)/A + psq*sth*sth;
+	double psq_shifted = psq*(*mu)*(*mu)/tperp_over_tpar + psq*sth*sth;
 
 	*gamma_e = sqrt(psq_shifted + 1);
 	*beta_e = sqrt(1 - 1/((*gamma_e)*(*gamma_e)));
-	// *mu = cos(atan2(abs(sth),(*mu)/sqrt(A)));
-	*mu = (*mu)/sqrt(A*sth*sth + (*mu)*(*mu));
+	// *mu = cos(atan2(abs(sth),(*mu)/sqrt(tperp_over_tpar)));
+	*mu = (*mu)/sqrt(tperp_over_tpar*sth*sth + (*mu)*(*mu));
 	return;
 }

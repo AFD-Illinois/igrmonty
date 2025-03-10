@@ -266,7 +266,7 @@ extern gsl_interp_accel *bremss_yacc;
   /* compton scattering */
 void init_hotcross(void);
 double total_compton_cross_lkup(double nu, double theta, radiation_params *rpars);
-double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, double xi);
+double total_compton_cross_lkup_anisotropic(double w, double thetae, double tperp_over_tpar, double xi);
 double klein_nishina(double a, double ap);
 void sample_electron_distr_p(double k[NDIM], double p[NDIM], double theta, radiation_params *rpars);
 void sample_beta_distr(double theta, double *gamma_e, double *beta_e, radiation_params *rpars);
@@ -294,6 +294,8 @@ double get_model_beta(const double X[NDIM]);
 int stop_criterion(struct of_photon *ph);
 int record_criterion(struct of_photon *ph);
 double kappa_w(double Thetae, double kappa);
+// anisotropy functions
+double get_model_anisotropy_ratio(const double X[NDIM]);
 
 /* coordinate related */
 void get_connection(double *X, double lconn[][NDIM][NDIM]);

@@ -67,14 +67,14 @@ void init_hotcross(void)
     if (debug){
       double photon_energy = pow(10,-10);
       double thetae_perp = 1e4;
-      double A = 1.0e0;
+      double tperp_over_tpar = 1.0e0;
       double xi = 2.356119;
       double ne = 1.000000e+00;
       radiation_params *rpars;
       clock_t t1 = clock();
-      double cross= compute_hotcross_anisotropic(photon_energy, A, xi, thetae_perp, ne);
+      double cross= compute_hotcross_anisotropic(photon_energy, tperp_over_tpar, xi, thetae_perp, ne);
       clock_t t2 = clock();
-      fprintf(stderr,"hotcross for photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, A, xi, thetae_perp, ne, cross);
+      fprintf(stderr,"hotcross for photon_energy: %e, tperp_over_tpar: %e, xi: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, tperp_over_tpar, xi, thetae_perp, ne, cross);
       printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
       double cross_iso = total_compton_cross_num(photon_energy, thetae_perp, 1.0, rpars);
       fprintf(stderr,"isotropic hotcross for photon_energy: %e, thetae_perp: %e, ne: %e is %e\n", photon_energy, thetae_perp, ne, cross_iso);
@@ -89,7 +89,7 @@ void init_hotcross(void)
     dlT = log10(MAXT / MINT) / NT;
     lminw = log10(MINW);
     lmint = log10(MINT);
-    // anisotropy parameters A (ratio of temperatures) and xi (pitch angle of photon wrt local B field)
+    // anisotropy parameters tperp_over_tpar (ratio of temperatures) and xi (pitch angle of photon wrt local B field)
     lminA = -1.0;
     lmaxA = 1.0;
     dlA = (lmaxA - lminA) / NA;
@@ -117,7 +117,7 @@ void init_hotcross(void)
               double xi = minxi + l * dxi;
               double value = compute_hotcross_anisotropic(pow(10., lw), pow(10., lA), xi , pow(10., lT), 1.0);
               // fprintf(stderr,"value: %e\n", value);exit(0);
-              // note: this table is in w, *thetae*, A and xi
+              // note: this table is in w, *thetae*, tperp_over_tpar and xi
               ani_table[j][i][k][l] = log10(value);
               // ani_table[j][i][k+1][l] = log10(value);
               // ani_table[j][i][k][l+1] = log10(value);
@@ -223,7 +223,7 @@ void init_hotcross(void)
 }
 
 // similar to isotropic hotcross lookup but now with 4 parameters, limits on w and thetae (here thetae_perp) are the same, might need to change for large anisotropy cases
-double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, double xi)
+double total_compton_cross_lkup_anisotropic(double w, double thetae, double tperp_over_tpar, double xi)
 {
   int i, j, k, l;
   double lw, lT, lA, di, dj, dk, dl;
@@ -241,11 +241,11 @@ double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, d
   }
 
   // in-bounds for table ... do tetralinear interpolation
-  // if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT) && (A > pow(10., lminA) && A < pow(10., lmaxA)) && (xi > minxi && xi < maxxi)) {
+  // if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT) && (tperp_over_tpar > pow(10., lminA) && tperp_over_tpar < pow(10., lmaxA)) && (xi > minxi && xi < maxxi)) {
   if ((w > MINW && w < MAXW) && (thetae > MINT && thetae < MAXT)) {
     lw = log10(w);
     lT = log10(thetae);
-    lA = log10(A);
+    lA = log10(tperp_over_tpar);
     i = (int) ((lw - lminw) / dlw);
     j = (int) ((lT - lmint) / dlT);
     k = (int) ((lA - lminA) / dlA);
@@ -287,7 +287,7 @@ double total_compton_cross_lkup_anisotropic(double w, double thetae, double A, d
     return pow(10., lc1);
   }
   // otherwise just compute numerically
-  return compute_hotcross_anisotropic(w, A, xi, thetae, 1.0);
+  return compute_hotcross_anisotropic(w, tperp_over_tpar, xi, thetae, 1.0);
 }
 
 double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars)
@@ -589,7 +589,7 @@ double check_scattering_limits(double photon_energy, double thetae) {
  *   p_perp       - Perpendicular component of the electron momentum
  *   phi          - Azimuth of the electron momentum with respect to the photon k
  *   photon_energy - k^0 in the plasma rest frame (in units of electron rest mass energy)
- *   A            - Anisotropy factor
+ *   tperp_over_tpar            - Anisotropy factor
  *   xi           - Pitch angle of the photon
  *   thetae_perp  - Perpendicular temperature of the electron distribution
  *   ne           - Number density of electrons
@@ -597,7 +597,7 @@ double check_scattering_limits(double photon_energy, double thetae) {
  *   The integrand for hotcross integration.
  */
 
-double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, double photon_energy, double A, double xi, double thetae_perp, double ne) {
+double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, double photon_energy, double tperp_over_tpar, double xi, double thetae_perp, double ne) {
     double psq = p_perp * p_perp + p_par * p_par;
     // if psq is zero no need to compute
     if (psq == 0) {
@@ -612,7 +612,7 @@ double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, dou
 
     double boost_factor =  (1 - mu_photon * beta);
     double sigma_kn_eframe = hc_klein_nishina(photon_energy * gammae * boost_factor);
-    double distr_fn_val = dnd3p_bimaxwell_fast(A, p, ne, thetae_perp, p_par, p_perp);
+    double distr_fn_val = dnd3p_bimaxwell_fast(tperp_over_tpar, p, ne, thetae_perp, p_par, p_perp);
     if (isnan(boost_factor)){
       fprintf(stderr, "boost_factor is nan. variables p_par: %f, p_perp: %f, phi: %f\n", p_par, p_perp, phi);
       exit(0);
@@ -630,27 +630,22 @@ double hotcross_integrand_bimaxwell(double p_par, double p_perp, double phi, dou
 }
 
 // Function that does 3D trapezoidal integration of the cross section for an anisotropic edf
-double tpltrap(double photon_energy, double A, double xi, double thetae_perp, double ne, double p_perp_max, double p_par_max)
+double tpltrap(double photon_energy, double tperp_over_tpar, double xi, double thetae_perp, double ne, double p_perp_max, double p_par_max)
 {
   double result = 0.0;
   int num_steps = 200;
   double phi_step = 2 * M_PI / 100;
-  // double p_perp_step = (sqrt(MAXGAMMA*thetae_perp) - 1)/(MAXGAMMA*thetae_perp-1) * DGAMMAE*thetae_perp;
-  // double p_par_step = (sqrt(MAXGAMMA*thetae_perp/A) - 1)/(MAXGAMMA*thetae_perp/A-1) * DGAMMAE*thetae_perp/A;
 
-  // double p_perp_step = thetae_perp*DGAMMAE;
-  // double p_par_step = thetae_perp*DGAMMAE/A;
   double p_perp_step = p_perp_max / num_steps;
   double p_par_step = p_par_max / num_steps;
-  // fprintf(stderr,"p_perp_step: %f, p_par_step: %f\n", p_perp_step, p_par_step);
-  // fprintf(stderr,"number of steps in p_perp: %e, p_par: %e\n", p_perp_max/p_perp_step, p_par_max/p_par_step);
+
   for (double phi = phi_step/2; phi < 2 * M_PI; phi += phi_step)
   {
     for (double p_perp = p_perp_step/2; p_perp < p_perp_max; p_perp += p_perp_step)
     {
       for (double p_par = -p_par_max + p_perp_step/2; p_par < p_par_max; p_par += p_par_step)
       {
-        result += hotcross_integrand_bimaxwell(p_par, p_perp, phi, photon_energy, A, xi, thetae_perp, ne) *
+        result += hotcross_integrand_bimaxwell(p_par, p_perp, phi, photon_energy, tperp_over_tpar, xi, thetae_perp, ne) *
                   phi_step * p_perp_step * p_par_step;
         if (isnan(result)) {
           fprintf(stderr, "result is nan. variables p_par: %f, p_perp: %f, phi: %f\n", p_par, p_perp, phi);
@@ -672,13 +667,13 @@ double tpltrap(double photon_energy, double A, double xi, double thetae_perp, do
  *
  * Parameters:
  *   photon_energy - k^0 in the plasma rest frame (in units of electron rest mass energy)
- *   A             - Anisotropy factor
+ *   tperp_over_tpar             - Anisotropy factor
  *   xi            - Pitch angle of the photon
  *
  * Returns:
  *   sigma_hot - The hot cross section.
  */
-double compute_hotcross_anisotropic(double photon_energy, double A, double xi, double thetae_perp, double ne) {
+double compute_hotcross_anisotropic(double photon_energy, double tperp_over_tpar, double xi, double thetae_perp, double ne) {
   double sigma = check_scattering_limits(photon_energy, thetae_perp);
   
   if (sigma != -1) {
@@ -686,18 +681,10 @@ double compute_hotcross_anisotropic(double photon_energy, double A, double xi, d
   }
   
   double p_perp_max = sqrt((1+MAXGAMMA*thetae_perp)*(1.+MAXGAMMA*thetae_perp) - 1.)/sqrt(2);
-  double p_par_max = sqrt((1.+MAXGAMMA*thetae_perp/A)*(1.+MAXGAMMA*thetae_perp/A) - 1.)/sqrt(2);
-  // double p_par_max = p_perp_max;
-  // double p_perp_max = sqrt(MAXGAMMA*thetae_perp);
-  // double p_par_max = sqrt(MAXGAMMA*thetae_perp/A);
-  // fprintf(stderr,"p_perp_max: %f, p_par_max: %f\n", p_perp_max, p_par_max);
-  // fprintf(stderr,"photon_energy: %e, A: %e, xi: %e, thetae_perp: %e, ne: %e\n", photon_energy, A, xi, thetae_perp, ne);
-  // clock_t t1 = clock();
-  // double result = tpltrap(photon_energy, A, xi, thetae_perp, ne, p_perp_max, p_par_max) * SIGMA_THOMSON;
-  double result = integrate_3D(0,2*M_PI,0,p_perp_max,-p_par_max,p_par_max,photon_energy,A,xi,thetae_perp,ne)*SIGMA_THOMSON;
-  result *= dnd3p_bimaxwell_prefactor(A, ne, thetae_perp);
-  // clock_t t2 = clock();
-    // printf("Time taken: %f seconds\n", (double)(t2 - t1) / CLOCKS_PER_SEC);
+  double p_par_max = sqrt((1.+MAXGAMMA*thetae_perp/tperp_over_tpar)*(1.+MAXGAMMA*thetae_perp/tperp_over_tpar) - 1.)/sqrt(2);
+  // double result = tpltrap(photon_energy, tperp_over_tpar, xi, thetae_perp, ne, p_perp_max, p_par_max) * SIGMA_THOMSON;
+  double result = integrate_3D(0,2*M_PI,0,p_perp_max,-p_par_max,p_par_max,photon_energy,tperp_over_tpar,xi,thetae_perp,ne)*SIGMA_THOMSON;
+  result *= dnd3p_bimaxwell_prefactor(tperp_over_tpar, ne, thetae_perp);
   return result;
 }
 
@@ -731,8 +718,6 @@ double integral_p_perp(double p_perp, void *params) {
     gsl_function F;
     F.function = &integral_p_par;
     F.params = data;
-    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_p_perp[3], params_p_perp[4], params_p_perp[5], params_p_perp[6], params_p_perp[7]);exit(0);
-    // gsl_integration_qagi(&F, 0, 1e-3, 1000, w, &result, &error);
     gsl_integration_romberg(&F, params_p_perp[1], params_p_perp[2], 0, 1e-4, &result, &neval, w);
     gsl_integration_romberg_free(w);
     return result;
@@ -748,7 +733,6 @@ double integral_phi(double phi, void *params) {
     gsl_function F;
     F.function = &integral_p_perp;
     F.params = data;
-    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", params_phi[4], params_phi[5], params_phi[6], params_phi[7], params_phi[8]);exit(0);
     gsl_integration_romberg(&F, params_phi[2], params_phi[3], 0, 1e-4, &result, &neval, w);
     // gsl_integration_qagiu(&F, params_phi[2], 0, 1e-3, 1000, w, &result, &error);
     gsl_integration_romberg_free(w);
@@ -756,7 +740,7 @@ double integral_phi(double phi, void *params) {
 }
 
 // Compute the full 3D integral \int_x \int_y \int_z f(x,y,z) dx dy dz
-// where f(x,y,z) is the function hotcross_integrand_bimaxwell
+// where f(x,y,z) is the function hotcross_integrand_bimaxwell (includes factor of p_perp as it's in cylindrical coordinates)
 // x is phi, y is p_perp, z is p_par
 // p1, p2, p3, p4, p5 are the parameters of the function hotcross_integrand_bimaxwell
 double integrate_3D(double phi_min, double phi_max, double p_perp_min, double p_perp_max, double p_par_min, double p_par_max, double p1, double p2, double p3, double p4, double p5) {
@@ -767,7 +751,6 @@ double integrate_3D(double phi_min, double phi_max, double p_perp_min, double p_
     // double result, error;
     gsl_function F;
     double limits[9] = {p_par_min, p_par_max, p_perp_min, p_perp_max, p1, p2, p3, p4, p5};
-    // fprintf(stderr,"p1: %f, p2: %f, p3: %f, p4: %f, p5: %f\n", p1, p2, p3, p4, p5);exit(0);
 
     F.function = &integral_phi;
     F.params = limits;

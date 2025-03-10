@@ -39,7 +39,7 @@ void track_super_photon(struct of_photon *ph)
   // Initialize opacities
   gcov_func(ph->X, Gcov);
   get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-  radiation_params rpars = get_model_radiation_params(ph->X);
+  radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
 
   theta = get_bk_angle(ph->X, ph->K, Ucov, Bcov, B);
   nu = get_fluid_nu(ph->X, ph->K, Ucov);
@@ -78,7 +78,7 @@ void track_super_photon(struct of_photon *ph)
     // Allow photon to interact with matter
     gcov_func(ph->X, Gcov);
     get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-    radiation_params rpars = get_model_radiation_params(ph->X);
+    radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
     if (alpha_absi > 0. || alpha_scatti > 0. || Ne > 0.) {
       bound_flag = 0;
       if (Ne == 0.)
@@ -159,7 +159,7 @@ void track_super_photon(struct of_photon *ph)
         // Get plasma parameters at new position
         gcov_func(ph->X, Gcov);
         get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-        radiation_params rparsp = get_model_radiation_params(ph->X);
+        radiation_params rparsp = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
 
         // Actually about to scatter photon
         if (Ne > 0.) { 

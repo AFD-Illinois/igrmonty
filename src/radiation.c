@@ -31,7 +31,7 @@ double powerlaw_gamma_max = 1.e5;
 double powerlaw_p = 3.25;
 
 double kappa_es(double nu, double Thetae, radiation_params *rpars);
-double kappa_es_anisotropic(double nu, double Thetae, double A, double xim, radiation_params *rpars);
+// double kappa_es_anisotropic(double nu, double Thetae, double tperp_over_tpar, double xim, radiation_params *rpars);
 
 void try_set_radiation_parameter(const char *line)
 {
@@ -60,13 +60,18 @@ double get_model_kappa(const double X[NDIM])
 }
 
 // get params struct 
-radiation_params get_model_radiation_params(const double X[NDIM])
+radiation_params get_model_radiation_params(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM], const double Bcov[NDIM], const double B)
 {
   radiation_params rpars;
 #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   rpars.kappa = get_model_kappa(X);
   rpars.kappa_max = variable_kappa_max;
 #endif
+  if(anisotropy){
+    rpars.tperp_over_tpar = get_model_anisotropy_ratio(X);
+    // rpars.xi = get_bk_angle((double*)X,(double*)K,(double*)Ucov,(double*)Bcov,B);
+    rpars.xi=0.0;
+  }
   return rpars;
 }
 
@@ -108,14 +113,14 @@ double jnu_inv(double nu, double Thetae, double Ne, double B, double theta, radi
 double alpha_inv_scatt(double nu, double Thetae, double Ne, radiation_params *rpars)
 {
   #if COMPTON
-  if(anisotropy){
-    double A = 1.0;
-    double xi = 0.0;
-    return nu* kappa_es_anisotropic(nu, Thetae, A, xi,rpars) * Ne * MP;
-  }
-  else{
-    return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;  
-  }
+  // if(anisotropy){
+  //   double tperp_over_tpar = 1.0;
+  //   double xi = 0.0;
+  //   return nu* kappa_es_anisotropic(nu, Thetae, tperp_over_tpar, xi,rpars) * Ne * MP;
+  // }
+  // else{
+  return nu * kappa_es(nu, Thetae, rpars) * Ne * MP;  
+  // }
   #else
 
   return 0.;
@@ -254,17 +259,20 @@ double kappa_es(double nu, double Thetae, radiation_params *rpars)
   if (Eg > 1.e75) {
     fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
   }
+  if(anisotropy){
+    return total_compton_cross_lkup_anisotropic(Eg, Thetae, rpars->tperp_over_tpar, rpars->xi) / MP;
+  }
   return total_compton_cross_lkup(Eg, Thetae, rpars) / MP;
 }
 
-// return electron scattering opacity for anisotropic edf in cgs
-double kappa_es_anisotropic(double nu, double Thetae, double A, double xi, radiation_params *rpars){
-  double Eg = HPL * nu / (ME * CL * CL);
-  if (Eg > 1.e75) {
-    fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
-  }
-  return total_compton_cross_lkup_anisotropic(Eg, Thetae, A, xi) / MP;
-}
+// // return electron scattering opacity for anisotropic edf in cgs
+// double kappa_es_anisotropic(double nu, double Thetae, double tperp_over_tpar, double xi, radiation_params *rpars){
+//   double Eg = HPL * nu / (ME * CL * CL);
+//   if (Eg > 1.e75) {
+//     fprintf(stderr, "out of bounds: %g %g %g\n", Eg, Thetae, nu);
+//   }
+//   return total_compton_cross_lkup_anisotropic(Eg, Thetae, tperp_over_tpar, xi) / MP;
+// }
 
 // get frequency in fluid frame, in Hz
 double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM])
