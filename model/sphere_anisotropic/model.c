@@ -108,14 +108,17 @@ void record_super_photon(struct of_photon *ph)
   }
 
   // bin in X[2] BL coord while folding around the equator and check limit
+  // bin in X[2] BL coord and check limit (NOTE: not folded about equator)
   double r, th;
   bl_coord(ph->X, &r, &th);
   dx2 = M_PI/2./N_THBINS;
-  if (th > M_PI/2.) {
-    ix2 = (int)( (M_PI - th) / dx2 );
-  } else {
-    ix2 = (int)( th / dx2 );
-  }
+  // if (th > M_PI/2.) {
+  //   ix2 = (int)( (M_PI - th) / dx2 );
+  // } else {
+  //   ix2 = (int)( th / dx2 );
+  // }
+  dx2 = M_PI/N_THBINS;
+  ix2 = (int)( th / dx2 );
   // printf("ix2 %d \n",ix2);
   if (ix2 < 0 || ix2 >= N_THBINS) {
     // printf("invalid theta index?\n");
@@ -331,7 +334,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 1.0;
+  return 0.1;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -400,7 +403,7 @@ void gcov_func(const double X[NDIM], double gcov[NDIM][NDIM])
 
 double dOmega_func(int j)
 {
-  double dx2 = M_PI/2./N_THBINS;
+  double dx2 = M_PI/N_THBINS;
   double thi = j * dx2;
   double thf = (j+1) * dx2;
 
@@ -634,7 +637,8 @@ void report_spectrum(int N_superph_made, Params *params)
 
   for (int j=0; j<N_THBINS; ++j) {
     // warning: this assumes geodesic X \in [0,1]
-    dOmega_buf[j] = 2. * dOmega_func(j);
+    // dOmega_buf[j] = 2. * dOmega_func(j);
+    dOmega_buf[j] = dOmega_func(j);
   }
 
   for (int k=0; k<N_TYPEBINS; ++k) {
