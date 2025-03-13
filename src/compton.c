@@ -420,10 +420,11 @@ void sample_beta_distr_y(double Thetae, double *gamma_e, double *beta_e, radiati
 void sample_beta_distr_num(double Thetae, double *gamma_e, double *beta_e, radiation_params *rpars)
 {
   // Relativistic kappa distribution does not like very small Thetae. Ugly kludge.
-  if (Thetae < 0.01 && MODEL_EDF==EDF_KAPPA_FIXED) {
-    *gamma_e = 1.000001;
-	  *beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
-    return;
+//   if (Thetae < 0.01 && MODEL_EDF==EDF_KAPPA_FIXED) {
+	if (Thetae < 0.01) {
+		*gamma_e = 1.000001;
+		*beta_e = sqrt(1. - 1. / (*gamma_e * *gamma_e));
+		return;
   }
 
   // Get maximum for window

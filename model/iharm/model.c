@@ -378,6 +378,11 @@ double get_model_beta(const double X[NDIM])
   return interp_scalar(X, beta_array);
 }
 
+double get_model_anisotropy_ratio(const double X[NDIM])
+{
+  return 1.0;
+}
+
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],

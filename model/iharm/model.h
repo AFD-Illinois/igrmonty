@@ -14,7 +14,7 @@
 //1 Based on Rybicki and Lightman eq. 5.14a with eq. 5.25 corrective factor
 //2 Straub+ 2012 section 3.2.1
 //3 van Hoof 2015 + Nozawa 2009
-#define BREMSSTRAHLUNG (1)
+#define BREMSSTRAHLUNG (0)
 #define COMPTON (1)
 
 #define KRHO     0

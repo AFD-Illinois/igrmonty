@@ -43,7 +43,7 @@ def mkplot(nu, nuLnu, fname):
   nuLnu_max = nuLnu.max()
   ax.set_xscale("log")
   ax.set_yscale("log")
-  ax.set_xlim([1.e8, 1.e22])
+  ax.set_xlim([1.e8, 1.e26])
   ax.set_ylim([1.e-10 * nuLnu_max, 1.e1 * nuLnu_max])
   ax.set_xlabel(r"$\nu$ (Hz)", fontsize=16)
   ax.set_ylabel(r"$\nu L_\nu$ (erg s$^{-1}$)", fontsize=16)

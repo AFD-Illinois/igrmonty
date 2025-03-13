@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
-  fprintf(stderr, "with anisotropy: %i\n", anisotropy);
+  fprintf(stderr, "with anisotropy: %i\n\n", anisotropy);
 
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 
@@ -215,7 +215,6 @@ int main(int argc, char *argv[])
   
   reset_state(1);
   #pragma omp parallel firstprivate(quit_flag)
-  // for(int ii =0; ii<Ns; ii++){
   {
     struct of_photon ph = {0};
     while (1) {
@@ -240,10 +239,10 @@ int main(int argc, char *argv[])
         summary(stderr, NULL);
 
       // avoid too much scattering; break for all threads immediately
-      if (N_scatt > 10000 && N_scatt / N_superph_made > 1000)
-	      bad_bias = 1;
-      if (bad_bias || (N_superph_recorded == Ns)){
-        // continue;
+      if (N_scatt > 10000 && N_scatt / N_superph_made > 10) bad_bias = 1;
+      // if (bad_bias || (N_superph_recorded == Ns)){
+      if (bad_bias){
+          // continue;
         break;
       }
     }

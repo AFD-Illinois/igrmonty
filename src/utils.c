@@ -349,9 +349,6 @@ void sample_origin_photon(struct of_photon *ph)
   make_tetrad(Ucon, ehat, gcov, Econ, Ecov);
 
   tetrad_to_coordinate(Econ, K_tetrad, ph->K);
-	//printf("printing ph->K\n");
-	//MULOOP printf("%g ",mu,ph->K[mu]);
-	//printf("\n");
 
   K_tetrad[0] *= -1.;
   tetrad_to_coordinate(Ecov, K_tetrad, tmpK);
@@ -366,9 +363,6 @@ void sample_origin_photon(struct of_photon *ph)
   ph->ne0 = 0.;
   ph->b0 = 0.;
   ph->thetae0 = 0.;
-// 	printf("created photon at r=%e, w=%e printing K:\n",ph->X[1],ph->w);
-// 	for (int ii=0;ii<4;ii++)	printf("%e\t",ph->K[ii]);
-// 	printf("\n");
 }
 #endif // EMIT_ORIGIN
 
@@ -417,13 +411,15 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
     ph->w = 1.e+40;
   }
 
-  //// power law spectrum
-  //else {
-  //  double lnu = monty_rand() * (LNUMAX - LNUMIN) + LNUMIN;
-  //  nu = pow(10., lnu);
-  //  double numin = pow(10., LNUMIN);
-  //  ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec);
-  //}
+  // power law spectrum
+  #if EDF_POWER_LAW==4
+  else {
+   double lnu = monty_rand() * (LNUMAX - LNUMIN) + LNUMIN;
+   nu = pow(10., lnu);
+   double numin = pow(10., LNUMIN);
+   ph->w = 1.e+40 * pow(nu, alpha_spec) / pow(numin, alpha_spec);
+  }
+  #endif
 
   // isotropic emission
   cth = 2. * monty_rand() - 1.;

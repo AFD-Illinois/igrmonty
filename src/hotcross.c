@@ -350,8 +350,7 @@ double total_compton_cross_lkup(double w, double thetae, radiation_params *rpars
     }
 
     return pow(10., lcross);
-#if MODEL_EDF==EDF_KAPPA_VARIA
-          // }BLE
+#if MODEL_EDF==EDF_KAPPA_VARIABLE
   } else {fprintf(stderr, "kappa < MIN: %g\n", rpars->kappa); exit(-1);}
 #endif
   }
