@@ -11,18 +11,21 @@ Canfield, Howard, and Liang, 1987, ApJ 323, 565.
 
 */
 
+
+typedef struct root_rpars_struct {
+	double Thetae;
+	radiation_params *rpars;
+} root_rpars;
+
+// helper function for electron p sampling
+void kbasis_to_tetrad(double k[4], double p[4], double gamma_e, double beta_e, double mu);
+
 /*
    given photon w/ wavevector $k$ colliding w/ electron with
    momentum $p$, ($p$ is actually the four-velocity) 
    find new wavevector $kp$ 
    
 */
-
-typedef struct root_rpars_struct {
-  double Thetae;
-  radiation_params *rpars;
-} root_rpars;
-
 void sample_scattered_photon(double k[4], double p[4], double kp[4])
 {
 	double ke[4], kpe[4];
@@ -249,22 +252,32 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 	double v2x, v2y, v2z;
 	int sample_cnt = 0;
 
-	do {
-		if(anisotropy){
-			// for now set tperp_over_tpar and xi parameters to isotropic values for testing
-			// double tperp_over_tpar=1.0;
-			// double xi=0.0;
-			sample_edf_distr_anisotropic(Thetae, &gamma_e, &beta_e, &mu, rpars->tperp_over_tpar, rpars->xi, rpars);
-		} else {
-			sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
-			mu = sample_mu_distr(beta_e);
-		}
+	do {		
+		sample_beta_distr(Thetae, &gamma_e, &beta_e, rpars);
+		mu = sample_mu_distr(beta_e);
 		// sometimes |mu| > 1 from roundoff error, fix it
 		if (mu > 1.)
 			mu = 1.;
 		else if (mu < -1.)
 			mu = -1;
+			
+		// we have gamme_e and mu from the thermal distribution. we need to shift them to get the values for an anisotropic distribution.
+		// mu is with respect to k, so we need to compute p in the tetrad basis p^a, then modify p_par -> p_par/sqrt(tperp_over_par)
+		// then recompute the angle the new p^a makes wrt k^a, which is mu used in the rejection sampling (p and k angle in tetrad basis will be the same in basis about k as both have same metric in spatial indices)
+		if(anisotropy){
+			kbasis_to_tetrad(k, p, gamma_e, beta_e, mu);
+			// now transform p_par (p1) as index 1 is along B field, the second tetrad basis vector
+			p[1] /= sqrt(rpars->tperp_over_tpar);
+			double psq_shifted = p[1]*p[1]+p[2]*p[2]+p[3]*p[3];
+			// reassign gamma_e, beta_e
+			gamma_e = sqrt(psq_shifted+1);
+			beta_e = sqrt(1-1/(gamma_e*gamma_e));
+			// p2 and p3 remain same, reassign p0
+			p[0] = gamma_e;
 
+			// recompute mu about k for the new p^a
+			mu = (p[1]*v0x + p[2]*v0y + p[3]*v0z)/sqrt(psq_shifted);
+		}
 		// frequency in electron rest frame
 		K = gamma_e * (1. - beta_e * mu) * k[0];
 
@@ -294,56 +307,10 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 
 	} while (x1 >= sigma_KN);
 
-	// set the first unit vector to be along B field
-	// b^mu  = e^mu_1
-	// b^a = e^mu_1 e_mu^a = delta(a,1) = (0,1,0,0)
-	// k^a b_a = k^1 b_1 = k^1
-	v0x = k[1];
-	v0y = 0.0;
-	v0z = 0.0;
-
-	// // first unit vector for coordinate system 
-	// v0x = k[1];
-	// v0y = k[2];
-	// v0z = k[3];
-	v0 = sqrt(v0x * v0x + v0y * v0y + v0z * v0z);
-	v0x /= v0;
-	v0y /= v0;
-	v0z /= v0;
-
-	// pick zero-angle for coordinate system 
-	monty_ran_dir_3d(&n0x, &n0y, &n0z);
-	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
-
-	// second unit vector
-	v1x = n0x - (n0dotv0) * v0x;
-	v1y = n0y - (n0dotv0) * v0y;
-	v1z = n0z - (n0dotv0) * v0z;
-
-	// normalize
-	v1 = sqrt(v1x * v1x + v1y * v1y + v1z * v1z);
-	v1x /= v1;
-	v1y /= v1;
-	v1z /= v1;
-
-	// find one more unit vector using cross product;
-	// this guy is automatically normalized
-	v2x = v0y * v1z - v0z * v1y;
-	v2y = v0z * v1x - v0x * v1z;
-	v2z = v0x * v1y - v0y * v1x;
-
-	// now resolve new momentum vector along unit vectors 
-	// and create a four-vector $p$
-	phi = monty_rand() * 2. * M_PI;	// orient uniformly
-  sphi = sin(phi);
-  cphi = cos(phi);
-	cth = mu;
-	sth = sqrt(1. - mu * mu);
-
-	p[0] = gamma_e;
-	p[1] = gamma_e * beta_e * (cth * v0x + sth * (cphi * v1x + sphi * v2x));
-	p[2] = gamma_e * beta_e * (cth * v0y + sth * (cphi * v1y + sphi * v2y));
-	p[3] = gamma_e * beta_e * (cth * v0z + sth * (cphi * v1z + sphi * v2z));
+	// isotropic case only sampled gamma_e and mu, get the full p^a in tetrad basis
+	if (!anisotropy){
+		kbasis_to_tetrad(k, p, gamma_e, beta_e, mu);
+	}
 
 	if (beta_e < 0) {
 		fprintf(stderr, "betae error: %g %g %g %g\n",
@@ -569,22 +536,55 @@ double sample_mu_distr(double beta_e)
 	return (mu);
 }
 
-// samples electron gamma_e and direction mu from an anisotropic thermal distribution function by sampling a thermal distribution and then transforming to an anisotropic one
-// parts copied over from isotropic version
-void sample_edf_distr_anisotropic(double Thetae_perp, double *gamma_e, double *beta_e, double *mu, double tperp_over_tpar, double xi, radiation_params *rpars){
+// Given a momentum vector p defined at angle arccos(mu),phi with respect to the photon wavevector k, calculate p in tetrad basis
+void kbasis_to_tetrad(double k[4], double p[4], double gamma_e, double beta_e, double mu){
+	double v0,n0dotv0,v1;
+	double n0x, n0y, n0z;
+	double v0x, v0y, v0z;
+	double v1x, v1y, v1z;
+	double v2x, v2y, v2z;
+	double phi, sphi, cphi, cth, sth;
+	// // first unit vector for coordinate system 
+	v0x = k[1];
+	v0y = k[2];
+	v0z = k[3];
+	v0 = sqrt(v0x * v0x + v0y * v0y + v0z * v0z);
+	v0x /= v0;
+	v0y /= v0;
+	v0z /= v0;
 
-	sample_beta_distr(Thetae_perp, gamma_e, beta_e,rpars);
-	*mu = sample_mu_distr(*beta_e);
+	// pick zero-angle for coordinate system 
+	monty_ran_dir_3d(&n0x, &n0y, &n0z);
+	n0dotv0 = v0x * n0x + v0y * n0y + v0z * n0z;
 
-	double sth = sqrt(1-(*mu)*(*mu));
-	double phi = 2*M_PI*monty_rand();
+	// second unit vector
+	v1x = n0x - (n0dotv0) * v0x;
+	v1y = n0y - (n0dotv0) * v0y;
+	v1z = n0z - (n0dotv0) * v0z;
 
-	double psq = (*gamma_e)*(*gamma_e) - 1;
-	double psq_shifted = psq*(*mu)*(*mu)/tperp_over_tpar + psq*sth*sth;
+	// normalize
+	v1 = sqrt(v1x * v1x + v1y * v1y + v1z * v1z);
+	v1x /= v1;
+	v1y /= v1;
+	v1z /= v1;
 
-	*gamma_e = sqrt(psq_shifted + 1);
-	*beta_e = sqrt(1 - 1/((*gamma_e)*(*gamma_e)));
-	// *mu = cos(atan2(abs(sth),(*mu)/sqrt(tperp_over_tpar)));
-	*mu = (*mu)/sqrt(tperp_over_tpar*sth*sth + (*mu)*(*mu));
-	return;
+	// find one more unit vector using cross product;
+	// this guy is automatically normalized
+	v2x = v0y * v1z - v0z * v1y;
+	v2y = v0z * v1x - v0x * v1z;
+	v2z = v0x * v1y - v0y * v1x;
+
+	// now resolve new momentum vector along unit vectors 
+	// and create a four-vector $p$
+	phi = monty_rand() * 2. * M_PI;	// orient uniformly
+	sphi = sin(phi);
+	cphi = cos(phi);
+	cth = mu;
+	sth = sqrt(1. - mu * mu);
+
+	p[0] = gamma_e;
+	p[1] = gamma_e * beta_e * (cth * v0x + sth * (cphi * v1x + sphi * v2x));
+	p[2] = gamma_e * beta_e * (cth * v0y + sth * (cphi * v1y + sphi * v2y));
+	p[3] = gamma_e * beta_e * (cth * v0z + sth * (cphi * v1z + sphi * v2z));
+	
 }
