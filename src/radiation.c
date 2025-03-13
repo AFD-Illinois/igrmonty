@@ -59,7 +59,7 @@ double get_model_kappa(const double X[NDIM])
 }
 
 // get params struct 
-radiation_params get_model_radiation_params(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM], const double Bcov[NDIM], const double B)
+radiation_params get_model_radiation_params(const double X[NDIM], const double K[NDIM], const double Ucon[NDIM], const double Bcon[NDIM], const double B)
 {
   radiation_params rpars;
 #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
@@ -67,8 +67,14 @@ radiation_params get_model_radiation_params(const double X[NDIM], const double K
   rpars.kappa_max = variable_kappa_max;
 #endif
   if(anisotropy){
+    double gcov[NDIM][NDIM];
+    double Ucov[NDIM], Bcov[NDIM];
+    // be sure none of the functions modify any of the const arrays. leaving the warnings for now.
+    gcov_func(X,gcov);
+    lower(Ucon,gcov,Ucov);
+    lower(Bcon,gcov,Bcov);
     rpars.tperp_over_tpar = get_model_anisotropy_ratio(X);
-    rpars.xi = get_bk_angle((double*)X,(double*)K,(double*)Ucov,(double*)Bcov,B);
+    rpars.xi = get_bk_angle(X,K,Ucov,Bcov,B);
     // rpars.xi=M_PI/2.0;
   }
   return rpars;
@@ -279,8 +285,8 @@ double get_fluid_nu(const double X[NDIM], const double K[NDIM], const double Uco
 }
 
 // return angle between magnetic field and wavevector
-double get_bk_angle(double X[NDIM], double K[NDIM], double Ucov[NDIM],
-		    double Bcov[NDIM], double B)
+double get_bk_angle(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM],
+		    const double Bcov[NDIM], const double B)
 {
 	double k, mu;
 

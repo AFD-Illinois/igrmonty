@@ -42,6 +42,6 @@ typedef struct radiation_param_struct {
   double tperp_over_tpar;
   double xi;
 } radiation_params;
-radiation_params get_model_radiation_params(const double X[NDIM], const double K[NDIM], const double Ucov[NDIM], const double Bcov[NDIM], const double B);
+radiation_params get_model_radiation_params(const double X[NDIM], const double K[NDIM], const double Ucon[NDIM], const double Bcon[NDIM], const double B);
 
 #endif // MODEL_RADIATION_H

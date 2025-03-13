@@ -19,7 +19,7 @@ void track_super_photon(struct of_photon *ph)
   int nstep = 0;
   
   // Don't track zero-weight photons
-  if (ph->w < WEIGHT_MIN) {
+  if (ph->w < 1) {
     return;
   }
 
@@ -39,7 +39,7 @@ void track_super_photon(struct of_photon *ph)
   // Initialize opacities
   gcov_func(ph->X, Gcov);
   get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-  radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
+  radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucon,Bcon,B);
 
   theta = get_bk_angle(ph->X, ph->K, Ucov, Bcov, B);
   nu = get_fluid_nu(ph->X, ph->K, Ucov);
@@ -78,7 +78,7 @@ void track_super_photon(struct of_photon *ph)
     // Allow photon to interact with matter
     gcov_func(ph->X, Gcov);
     get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-    radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
+    radiation_params rpars = get_model_radiation_params(ph->X,ph->K,Ucon,Bcon,B);
     if (alpha_absi > 0. || alpha_scatti > 0. || Ne > 0.) {
       bound_flag = 0;
       if (Ne == 0.)
@@ -159,16 +159,16 @@ void track_super_photon(struct of_photon *ph)
         // Get plasma parameters at new position
         gcov_func(ph->X, Gcov);
         get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-        radiation_params rparsp = get_model_radiation_params(ph->X,ph->K,Ucov,Bcov,B);
+        radiation_params rparsp = get_model_radiation_params(ph->X,ph->K,Ucon,Bcon,B);
 
         // Actually about to scatter photon
         if (Ne > 0.) { 
-      //     if (bias < 1.0) { // Ensure bias >= 1
-	    // #pragma omp atomic
-      //       ++invalid_bias; // count invalid_bias
-      //       fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
-      //       return;
-      //     }
+          if (bias < 1.0) { // Ensure bias >= 1
+	        #pragma omp atomic
+            ++invalid_bias; // count invalid_bias
+            fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
+            return;
+          }
           scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov, &rparsp);
 
           if (ph->w < 1.e-100) {  // Possible problem while enforcing k.k = 0

@@ -123,10 +123,8 @@ void init_weight_table(void)
     get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
     double X[NDIM] = { 0. };
     ijktoX(i, j, k, X);
-    double gcov[NDIM][NDIM];
-    double Ucov[NDIM], Bcov[NDIM];
-    get_fluid_params(X, gcov, &Ne, &Thetae, &B, Ucon, Ucon, Bcon, Bcon);
-    radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucov,Bcov,B);
+    radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucon,Bcon,B);
+    // radiation_params rpars;
     if (Ne == 0.) continue;
 
     for (int l=0; l<N_ESAMP; ++l) {
@@ -151,10 +149,7 @@ void init_weight_table(void)
     get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
     double X[NDIM] = { 0. };
     ijktoX(i, j, k, X);
-    double gcov[NDIM][NDIM];
-    double Ucov[NDIM], Bcov[NDIM];
-    get_fluid_params(X, gcov, &Ne, &Thetae, &Bmag, Ucon, Ucon, Bcon, Bcon);
-    radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucov,Bcov,Bmag);
+    radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucon,Bcon,Bmag);
     for (int m=0; m<=N_ESAMP; ++m) {
       ninterp += DLNU * int_jnu(Ne, Thetae, Bmag, exp(m*DLNU + LNUMIN), &rpars) / (HPL*exp(wgt[m]));
     }
@@ -182,11 +177,8 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
   double X[NDIM] = { 0. };
   ijktoX(i, j, k, X);
-  double gcov[NDIM][NDIM];
-  double Ucov[NDIM], Bcov[NDIM];
-  get_fluid_params(X, gcov, &Ne, &Thetae, &Bmag, Ucon, Ucon, Bcon, Bcon);
-  radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucov,Bcov,Bmag);
-
+  radiation_params rpars = get_model_radiation_params(X,(double[]){1,1,0,0},Ucon,Bcon,Bmag);
+  // radiation_params rpars;
   if (Ne == 0.) {// || Thetae < THETAE_MIN) {
     *nz = 0.;
     *dnmax = 0.;
@@ -398,11 +390,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ijktoX(i, j, k, ph->X);
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
-  double gcov[NDIM][NDIM];
-  double Ucov[NDIM], Bcov[NDIM];
-  get_fluid_params(ph->X, gcov, &Ne, &Thetae, &Bmag, Ucon, Ucon, Bcon, Bcon);
-  radiation_params rpars = get_model_radiation_params(ph->X,(double[]){1,1,0,0},Ucov,Bcov,Bmag);
-
+  radiation_params rpars = get_model_radiation_params(ph->X,(double[]){1,1,0,0},Ucon,Bcon,Bmag);
 #ifdef MODEL_TRANSPARENT
 
   // monochromatic
