@@ -240,7 +240,7 @@ double klein_nishina(double a, double ap)
 	sample electron distribution to find which electron was
 	scattered.
 
-*/
+	*/
 
 void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_params *rpars)
 {
@@ -274,9 +274,8 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 			beta_e = sqrt(1-1/(gamma_e*gamma_e));
 			// p2 and p3 remain same, reassign p0
 			p[0] = gamma_e;
-
 			// recompute mu about k for the new p^a
-			mu = (p[1]*v0x + p[2]*v0y + p[3]*v0z)/sqrt(psq_shifted);
+			mu = (p[1]*k[1] + p[2]*k[2] + p[3]*k[3])/sqrt(psq_shifted)/sqrt(k[1]*k[1]+k[2]*k[2]+k[3]*k[3]);
 		}
 		// frequency in electron rest frame
 		K = gamma_e * (1. - beta_e * mu) * k[0];
@@ -537,7 +536,7 @@ double sample_mu_distr(double beta_e)
 	return (mu);
 }
 
-// Given a momentum vector p defined at angle arccos(mu),phi with respect to the photon wavevector k, calculate p in tetrad basis
+// Given a momentum defined by magnitude sqrt(gamma_e^2-1) at angle arccos(mu),phi with respect to the photon wavevector k, calculate p in tetrad basis
 void kbasis_to_tetrad(double k[4], double p[4], double gamma_e, double beta_e, double mu){
 	double v0,n0dotv0,v1;
 	double n0x, n0y, n0z;

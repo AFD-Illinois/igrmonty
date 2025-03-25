@@ -268,7 +268,7 @@ double bias_func(double Te, double w)
 
   // if (bias > max)
   //   bias = max;
-  bias = fmax(1/MODEL_TAU_0,1);
+  bias = fmax(1/MODEL_TAU_0/2,1);
   return bias > max? max : bias;
   // return 10;
   // // return  bias * biasTuning;
@@ -432,7 +432,7 @@ void init_data(int argc, char *argv[], Params *params)
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 100.;
   MODEL_BETA_0 = 20.;
-  MODEL_TAU_0 = 1e-1;
+  MODEL_TAU_0 = 1e-4;
   MODEL_THETAE_0 = 4.;
   MODEL_TP_OVER_TE = 3.;
   MODEL_GAM = 13./9;  
@@ -538,11 +538,6 @@ void init_data(int argc, char *argv[], Params *params)
   tetrads = (struct of_tetrads***)malloc_rank3(N1, N2, N3, sizeof(struct of_tetrads));
   init_tetrads();
 
-  #ifdef EMIT_ORIGIN
-    n2gen = Ns;
-  #else
-    n2gen = -1;
-  #endif
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
 }
 

@@ -126,7 +126,6 @@ extern double Ns_scale, N_superph_made;
 extern struct of_geom **geom;
 extern struct of_tetrads ***tetrads;
 extern double ***n2gens;
-extern int n2gen;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
 

@@ -63,16 +63,15 @@ void init_model(int argc, char *argv[], Params *params)
   init_monty_rand(params->seed);
 }
 
-// int n2gen = -1;
+int n2gen = -1;
 double dnmax;
 int zone_i, zone_j, zone_k;
 void make_super_photon(struct of_photon *ph, int *quit_flag)
 {
-#ifdef EMIT_ORIGIN
-  // if (n2gen < 0) {
-  //   n2gen = Ns;
-  // }
-  #pragma omp atomic
+  #ifdef EMIT_ORIGIN
+  if (n2gen < 0) {
+    n2gen = (int)Ns;
+  }
   n2gen--;
   if (n2gen < 0) {
     *quit_flag = 1;

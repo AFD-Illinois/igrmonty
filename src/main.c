@@ -240,8 +240,8 @@ int main(int argc, char *argv[])
 
       // avoid too much scattering; break for all threads immediately
       if (N_scatt > 10000 && N_scatt / N_superph_made > 10) bad_bias = 1;
-      // if (bad_bias || (N_superph_recorded == Ns)){
-      if (bad_bias){
+      if (bad_bias || (N_superph_recorded > Ns)){
+      // if (bad_bias){
           // continue;
         break;
       }
