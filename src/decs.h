@@ -102,14 +102,14 @@ struct of_grid {
   int *in;
 };
 
-extern double ****bcon;
-extern double ****bcov;
-extern double ****ucon;
-extern double ****ucov;
-extern double ****p;
-extern double ***ne;
-extern double ***thetae;
-extern double ***b;
+// extern double ****bcon;
+// extern double ****bcov;
+// extern double ****ucon;
+// extern double ****ucov;
+// extern double ****p;
+// extern double ***ne;
+// extern double ***thetae;
+// extern double ***b;
 
 /** global variables **/
 /** model independent */

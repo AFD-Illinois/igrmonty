@@ -2,15 +2,15 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 
-// fluid data
-double ****bcon;
-double ****bcov;
-double ****ucon;
-double ****ucov;
-double ****p;
-double ***ne;
-double ***thetae;
-double ***b;
+// // fluid data
+// double ****bcon;
+// double ****bcov;
+// double ****ucon;
+// double ****ucov;
+// double ****p;
+// double ***ne;
+// double ***thetae;
+// double ***b;
 
 static double Rmax_record = 1.e4;
 
@@ -362,10 +362,13 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
     *B = _get_model_Bmag();
   }
 
+  double fluid_beta = 0.;
+  double fluid_gamma = sqrt(1/(1-fluid_beta*fluid_beta));
   Ucon[0] = 1;
-  Ucon[1] = 0.;
+  Ucon[1] = fluid_beta;
   Ucon[2] = 0.;
   Ucon[3] = 0.;
+  MULOOP  Ucon[mu]*=fluid_gamma;
  
   Bcon[0] = 0.;
   // setup B field to be parallel to the z axis
@@ -374,6 +377,7 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   Bcon[3] = 0.;
 
   if (METRIC_esphMINK) {
+    Ucon[1] /= r;
     Bcon[1] /= r;
   }
 

@@ -38,6 +38,11 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	// ke == photon momentum in elecron frame
 
 	boost(k, p, ke);
+	// integration errors in the normalization of k can lead to negative photon energy in the electron frame. Ensure k^a k_a=0 
+	if(ke[0]<0){
+		k[0] = sqrt(k[1]*k[1] + k[2]*k[2] + k[3]*k[3]);
+		boost(k,p,ke);
+	}
 	if (ke[0] > 1.e-4) {
 		k0p = sample_klein_nishina(ke[0]);
 		cth = 1. - 1 / k0p + 1. / ke[0];
@@ -90,6 +95,7 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
   sphi = sin(phi);
   cphi = cos(phi);
 
+	// flip momentum spatial indices for boosting back to plasma frame
 	p[1] *= -1.;
 	p[2] *= -1.;
 	p[3] *= -1.;
@@ -105,6 +111,11 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 
 	// transform k back to lab frame
 	boost(kpe, p, kp);
+
+	// reset momentum to avoid future confusion
+	p[1] *= -1.;
+	p[2] *= -1.;
+	p[3] *= -1.;
 
 	// quality control
 	if (kp[0] < 0 || isnan(kp[0])) {
@@ -244,12 +255,8 @@ double klein_nishina(double a, double ap)
 
 void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_params *rpars)
 {
-	double beta_e, mu, phi, cphi, sphi, gamma_e, sigma_KN;
-	double K, sth, cth, x1, n0dotv0, v0, v1;
-	double n0x, n0y, n0z;
-	double v0x, v0y, v0z;
-	double v1x, v1y, v1z;
-	double v2x, v2y, v2z;
+	double beta_e, mu, gamma_e, sigma_KN;
+	double K, x1;
 	int sample_cnt = 0;
 
 	do {		
@@ -276,6 +283,11 @@ void sample_electron_distr_p(double k[4], double p[4], double Thetae, radiation_
 			p[0] = gamma_e;
 			// recompute mu about k for the new p^a
 			mu = (p[1]*k[1] + p[2]*k[2] + p[3]*k[3])/sqrt(psq_shifted)/sqrt(k[1]*k[1]+k[2]*k[2]+k[3]*k[3]);
+			// sometimes |mu| > 1 from roundoff error, fix it
+			if (mu > 1.)
+				mu = 1.;
+			else if (mu < -1.)
+				mu = -1;
 		}
 		// frequency in electron rest frame
 		K = gamma_e * (1. - beta_e * mu) * k[0];

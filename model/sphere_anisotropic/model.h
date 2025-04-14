@@ -36,7 +36,7 @@
 
 #define N_ESAMP 200
 #define N_EBINS 200
-#define N_THBINS 10
+#define N_THBINS 6
 
 #include "hdf5_utils.h"
 #include "h5io.h"

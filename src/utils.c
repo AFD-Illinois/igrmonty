@@ -561,9 +561,9 @@ void summary(FILE *file, const char *prefix)
             "%stime %gs, "
             "ph made %.3g%s, rate %.3gk/s, "
             "scatter %.3g%s, ratio %.3g "
-            "recorded %d\n",
+            "recorded %.3gk\n",
             prefix ? prefix : "", deltatime,
             nmade,  umade,  N_superph_made / deltatime / 1e3,
-            nscatt, uscatt, N_scatt / N_superph_made, N_superph_recorded);
+            nscatt, uscatt, N_scatt / N_superph_made, N_superph_recorded/1e3);
   }  
 }
