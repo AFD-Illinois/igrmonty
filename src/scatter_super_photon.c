@@ -11,7 +11,8 @@
 void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
     double Ne, double Thetae, double B,
     double Ucon[NDIM], double Bcon[NDIM],
-    double Gcov[NDIM][NDIM])
+    double Gcov[NDIM][NDIM],
+    radiation_params *rpars)
 {
   double P[NDIM], Econ[NDIM][NDIM], Ecov[NDIM][NDIM],
   K_tetrad[NDIM], K_tetrad_p[NDIM], Bhatcon[NDIM], tmpK[NDIM];
@@ -84,7 +85,7 @@ void scatter_super_photon(struct of_photon *ph, struct of_photon *php,
   }
 
   /* find the electron that we collided with */
-  sample_electron_distr_p(K_tetrad, P, Thetae);
+  sample_electron_distr_p(K_tetrad, P, Thetae, rpars);
 
   /* given electron momentum P, find the new
      photon momentum Kp */

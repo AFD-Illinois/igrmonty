@@ -299,6 +299,28 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   get_fluid_params(X, gcov, Ne, Thetae, B, Ucon, Ucov, Bcon, Bcov);
 }
 
+double _get_model_Ne()
+{
+  return model_Ne0;
+}
+
+double _get_model_Bmag()
+{
+  return model_B0;
+}
+
+double get_model_sigma(const double X[NDIM])
+{
+  double Ne = _get_model_Ne();
+  double Bmag = _get_model_Bmag();
+  return Bmag*Bmag / Ne / (4. * M_PI * CL * (MP + ME));
+}
+
+double get_model_beta(const double X[NDIM])
+{
+  return MODEL_BETA_0;
+}
+
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
           double *Thetae, double *B, double Ucon[NDIM],
           double Ucov[NDIM], double Bcon[NDIM],
@@ -319,9 +341,9 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
     return;
   }
 
-  *Ne = model_Ne0;
+  *Ne = _get_model_Ne();
   *Thetae = MODEL_THETAE_0;
-  *B = model_B0;
+  *B = _get_model_Bmag();
 
   Ucon[0] = 1;
   Ucon[1] = 0.;

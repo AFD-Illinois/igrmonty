@@ -2,9 +2,8 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 
-#define NVAR (10)
-#define USE_FIXED_TPTE (0)
-#define USE_MIXED_TPTE (1)
+#define USE_FIXED_TPTE (1)   // don't use for HAMR dataset
+#define USE_MIXED_TPTE (0)   // don't use for HAMR dataset
 
 double interp_scalar(const double X[NDIM], double ***var);
 
@@ -12,17 +11,25 @@ double interp_scalar(const double X[NDIM], double ***var);
 // or in the runtime parameter file.
 // with_electrons ->
 //     0 : constant TP_OVER_TE
-//     1 : use dump file model (kawazura?)
+//     1 : use dump file model (kawazura?)  -> not compatible with HAMR dataset
 //     2: use mixed TP_OVER_TE (moscibrodzka "beta" model)
-static double tp_over_te = 3.;
-static double trat_small = 2.;
-static double trat_large = 70.;
-static double beta_crit = 1.;
-static double Thetae_max = 1.e100;
+static double tp_over_te;
+static double trat_small;
+static double trat_large;
+static double beta_crit;
+static double Thetae_max;
 static int with_electrons;
 
 // fluid data
+double ****bcon;
+double ****bcov;
+double ****ucon;
+double ****ucov;
 double ****p;
+double ***ne;
+double ***thetae;
+double ***b;
+
 double ***sigma_array;
 double ***beta_array;
 
@@ -30,16 +37,30 @@ double TP_OVER_TE;
 
 static double MBH, game, gamp;
 
-static hdf5_blob fluid_header = { 0 };
-
 static int with_radiation;
+
+void readattr(hid_t file_id, const char *attr_name, hid_t mem_type_id, void *buf);
+void readdata(hid_t file_id, const char *attr_name, hid_t mem_type_id, hid_t memspace, void *buf);
 
 void report_bad_input(int argc)
 {
+  fprintf(stderr, "parameters are not from file but from default values in par.c and arguments!! \n");
+  #if(HAMR_READ)
+  #if(read_dscale)
+  if (argc < 3){
+    fprintf(stderr, "usage: \n");
+    fprintf(stderr, "  HAMR (read_dscale):   grmonty Ns fname \n");
+  #else
+  if (argc < 4){
+    fprintf(stderr, "usage: \n");
+    fprintf(stderr, "  HAMR (!read_dscale):  grmonty Ns fname M_unit \n");
+  #endif
+  #else
   if (argc < 6) {
     fprintf(stderr, "usage: \n");
     fprintf(stderr, "  HARM:    grmonty Ns fname M_unit[g] MBH[Msolar] Tp/Te\n");
     fprintf(stderr, "  bhlight: grmonty Ns fname\n");
+  #endif
     exit(0);
   }
 }
@@ -292,9 +313,37 @@ double bias_func(double Te, double w)
 
   if (bias > max) bias = max;
 
+  //bias = 0; // test: turn off compton scattering
   return bias * biasTuning;
 }
 
+double thetae_func(double uu, double rho, double B)
+{
+  // assumes uu, rho, B in code units
+  double thetae = 0.;
+
+  if (with_electrons == 0) {  
+    // fixed tp/te ratio
+    thetae = MP/ME * (gam-1.) * uu / rho / tp_over_te;
+  } else if (with_electrons == 1) {
+    // howes/kawazura model from IHARM electron thermodynamics:: not included in HAMR dataset
+    fprintf(stderr, "hows/kawazura model is not compatible with h-amr dumps..\n");
+	exit(-3);
+    //thetae = kel * pow(rho, game-1.) * Thetae_unit;
+  } else if (with_electrons == 2 ) {
+	// Moscibrodzka beta model for eletron temperature. 
+    double beta = uu * (gam-1.) / 0.5 / B / B;
+    double b2 = beta*beta / beta_crit/beta_crit;
+    double trat = trat_large * b2/(1.+b2) + trat_small /(1.+b2);
+    if (B == 0) trat = trat_large;
+    thetae = (MP/ME) * (gam-1.) * uu / rho / trat;
+  }
+
+  //return 1./(1./thetae + 1./Thetae_max);
+  return thetae;
+}
+
+/*
 double thetae_func(double uu, double rho, double B, double kel)
 {
   // assumes uu, rho, B, kel in code units
@@ -316,6 +365,7 @@ double thetae_func(double uu, double rho, double B, double kel)
 
   return 1./(1./thetae + 1./Thetae_max);
 }
+*/
 
 void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
         double Ucon[NDIM], double Bcon[NDIM])
@@ -325,10 +375,13 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double sig ;
 
-  Bp[1] = p[B1][i][j][k];
-  Bp[2] = p[B2][i][j][k];
-  Bp[3] = p[B3][i][j][k];
-
+  //Bp[1] = p[B1][i][j][k];
+  //Bp[2] = p[B2][i][j][k];
+  //Bp[3] = p[B3][i][j][k];
+  Bp[1] = p[B1][i][j][k] * sqrt(-geom[i][j].gcon[0][0]);
+  Bp[2] = p[B2][i][j][k] * sqrt(-geom[i][j].gcon[0][0]);
+  Bp[3] = p[B3][i][j][k] * sqrt(-geom[i][j].gcon[0][0]);
+  
   Vcon[1] = p[U1][i][j][k];
   Vcon[2] = p[U2][i][j][k];
   Vcon[3] = p[U3][i][j][k];
@@ -357,12 +410,15 @@ void get_fluid_zone(int i, int j, int k, double *Ne, double *Thetae, double *B,
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
   *Ne = p[KRHO][i][j][k] * Ne_unit;
-  *Thetae = thetae_func(p[UU][i][j][k], p[KRHO][i][j][k], (*B)/B_unit, p[KEL][i][j][k]);
+  //*Thetae = thetae_func(p[UU][i][j][k], p[KRHO][i][j][k], (*B)/B_unit, p[KEL][i][j][k]);
+  //*Thetae = MP/ME * (gam-1.) * p[UU][i][j][k] / p[KRHO][i][j][k] / TP_OVER_TE;
+  *Thetae = thetae_func(p[UU][i][j][k], p[KRHO][i][j][k], (*B)/B_unit);
 
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
-  if(sig > 1. || i < 9) {
+  //if(sig > 1. || i < 9) {
+  if(sig > 1.) {
     *Thetae = SMALL;
   }
 
@@ -386,6 +442,7 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   double rho, kel, uu;
   double Bp[NDIM], Vcon[NDIM], Vfac, VdotV, UdotBp;
   double gcon[NDIM][NDIM];
+  double interp_scalar(const double X[NDIM], double ***var);
   double sig ;
 
   if ( X_in_domain(X) == 0 ) {
@@ -394,12 +451,12 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   }
 
   rho = interp_scalar(X, p[KRHO]);
-  kel = interp_scalar(X, p[KEL]);
+  //kel = interp_scalar(X, p[KEL]);
   uu = interp_scalar(X, p[UU]);
 
-  Bp[1] = interp_scalar(X, p[B1]);
-  Bp[2] = interp_scalar(X, p[B2]);
-  Bp[3] = interp_scalar(X, p[B3]);
+  //Bp[1] = interp_scalar(X, p[B1]);
+  //Bp[2] = interp_scalar(X, p[B2]);
+  //Bp[3] = interp_scalar(X, p[B3]);
 
   Vcon[1] = interp_scalar(X, p[U1]);
   Vcon[2] = interp_scalar(X, p[U2]);
@@ -407,6 +464,10 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
 
   gcov_func(X, gcov);
   gcon_func(gcov, gcon);
+
+  Bp[1] = interp_scalar(X, p[B1]) * sqrt(-gcon[0][0]);
+  Bp[2] = interp_scalar(X, p[B2]) * sqrt(-gcon[0][0]);
+  Bp[3] = interp_scalar(X, p[B3]) * sqrt(-gcon[0][0]);
 
   // Get Ucov
   VdotV = 0.;
@@ -432,12 +493,14 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
       Bcon[2] * Bcov[2] + Bcon[3] * Bcov[3]) * B_unit;
 
   *Ne = rho*Ne_unit;
-  *Thetae = thetae_func(uu, rho, (*B)/B_unit, kel);
+  //*Thetae = thetae_func(uu, rho, (*B)/B_unit, kel);
+  //*Thetae = MP/ME * (gam-1.) * uu / rho / TP_OVER_TE;
+  *Thetae = thetae_func(uu, rho, (*B)/B_unit);
   if (*Thetae > THETAE_MAX) *Thetae = THETAE_MAX ;
 
   sig = pow(*B/B_unit,2)/(*Ne/Ne_unit);
   if (sig > 1.) *Thetae = SMALL;
-}
+} 
 
 ////////////////////////////////// COORDINATES /////////////////////////////////
 
@@ -485,89 +548,145 @@ void init_data(int argc, char *argv[], Params *params)
 {
   const char *fname = NULL;
   double dV, V;
-  int nprims = 0;
 
-  NPRIM = 10;
+  hid_t    file_id;        /* File identifier */
+  hid_t    memspace;       /* memory space identifier */
+  hsize_t  dimsm[1];       /* memory space dimensions */
+  herr_t   ret;            /* Return value */
+
+  //double t,a,gam,Rin,Rout,hslope,R0;
+  //int N1, N2, N3;
+  int RANK_OUT=1;          /* dimension of data array for HDF5 dataset */
+  int gridIndex,gridIndex2D;
+
+  double *x1_in,*x2_in,*x3_in,*r_in,*h_in,*ph_in,*RHO_in,*UU_in, //*U0_in,
+         *U1_in,*U2_in,*U3_in,*B1_in,*B2_in,*B3_in,*gdet_in,*Ucov0_in,*Ucon0_in;
+
+  int i, j, z, ieh;
+  double x[4], xp[4];
+  double rin, hin, phin, gdet, Ucov0, Ucon0, dscale;
+  double rp, hp, x2temp;
+
+  NPRIM = NVAR;
 
   if (params->loaded && strlen(params->dump) > 0) {
     fname = params->dump;
+	#if (Monika_Te)
     trat_small = params->trat_small;
     trat_large = params->trat_large;
+	#else
+	tp_over_te = params->TP_OVER_TE;
+	#endif
     beta_crit = params->beta_crit;
     biasTuning = params->biasTuning;
     Thetae_max = params->Thetae_max;
-  } else {
+  } else {      // preferrable condition for H-AMR
     fname = argv[2];
     strncpy((char *)params->dump, argv[2], 255);
+
+	#if (Monika_Te)    // values from model.h (only for hamr)
+	trat_small = Rlow;
+	trat_large = Rhigh;
+	params->trat_small = trat_small;
+	params->trat_large = trat_large;
+	#else
+	tp_over_te = TPoTE;
+	params->TP_OVER_TE = TPoTE;
+	#endif
+	beta_crit = params->beta_crit;
+	biasTuning = params->biasTuning;
+	Thetae_max = THETAE_MAX;
+	params->Thetae_max = Thetae_max;
   }
 
   if ( hdf5_open((char *)fname) < 0 ) {
     fprintf(stderr, "File %s does not exist! Exiting...\n", fname);
     exit(-1);
+  } else {
+    file_id = H5Fopen(fname, H5F_ACC_RDONLY, H5P_DEFAULT);
+	fprintf(stderr, "successfully opened HAMR dataset: %s\n", fname);
   }
 
-  // get dump info to copy to grmonty output
-  fluid_header = hdf5_get_blob("/header");
-
-  // read header
-  hdf5_set_directory("/header/");
-
   // flag reads
-  with_electrons = 0;
+  #if (Monika_Te)
+  with_electrons = 2;   // Monika's Te beta model
+  #else
+  with_electrons = 0;   // constant Temperature ratio
+  #endif
+  // keep the flag 0 for HAMR data set.
   with_radiation = 0;
-  with_derefine_poles = 0;
-  if ( hdf5_exists("has_electrons") )
-    hdf5_read_single_val(&with_electrons, "has_electrons", H5T_STD_I32LE);
-  if ( hdf5_exists("has_radiation") )
-    hdf5_read_single_val(&with_radiation, "has_radiation", H5T_STD_I32LE);
-
   // read geometry
   with_derefine_poles = 0;
   METRIC_MKS3 = 0;
-  char metric_name[20];
-  hid_t string_type = hdf5_make_str_type(20);
-  hdf5_read_single_val(&metric_name, "metric", string_type);
-  if ( strncmp(metric_name, "MMKS", 19) == 0 || strncmp(metric_name, "FMKS", 19) == 0 ) {
-    with_derefine_poles = 1;
-  } else if ( strncmp(metric_name, "MKS3", 19) == 0 ) {
-    METRIC_eKS = 1;
-    METRIC_MKS3 = 1;
-    fprintf(stderr, "using eKS metric with exotic \"MKS3\" zones...\n");
-  }
+  METRIC_eKS  = 0;
 
-  hdf5_read_single_val(&nprims, "n_prim", H5T_STD_I32LE);
-  hdf5_read_single_val(&N1, "n1", H5T_STD_I32LE);
-  hdf5_read_single_val(&N2, "n2", H5T_STD_I32LE);
-  hdf5_read_single_val(&N3, "n3", H5T_STD_I32LE);
-  hdf5_read_single_val(&gam, "gam", H5T_IEEE_F64LE);
+  /* read attributes */
+  readattr(file_id, "t",      H5T_NATIVE_DOUBLE, &t);
+  readattr(file_id, "N1",     H5T_NATIVE_INT,    &N1);
+  readattr(file_id, "N2",     H5T_NATIVE_INT,    &N2);
+  readattr(file_id, "N3",     H5T_NATIVE_INT,    &N3);
+  readattr(file_id, "startx", H5T_NATIVE_DOUBLE, &startx[1]);
+  readattr(file_id, "dx",     H5T_NATIVE_DOUBLE, &dx[1]);
+  readattr(file_id, "a",      H5T_NATIVE_DOUBLE, &a);
+  readattr(file_id, "gam",    H5T_NATIVE_DOUBLE, &gam);
+  readattr(file_id, "Rin",    H5T_NATIVE_DOUBLE, &Rin);
+  readattr(file_id, "Rout",   H5T_NATIVE_DOUBLE, &Rout);
+  readattr(file_id, "hslope", H5T_NATIVE_DOUBLE, &hslope);
+  readattr(file_id, "R0",     H5T_NATIVE_DOUBLE, &R0);
+
+  /* read density scale unit RHO_unit from HAMR dataset */
+  #if (read_dscale==1)
+  readattr(file_id, "dscale", H5T_NATIVE_DOUBLE, &RHO_unit);
+  if (dscale==0){
+    fprintf(stderr,"density scale = 0; should be checked!!! \n");
+    exit(-3);
+  }
+  #endif
+
+  /* check the parameters */
+  fprintf(stderr,"t: %g, N1: %d, N2: %d, N3: %d \n",t,N1,N2,N3);
+  fprintf(stderr,"startx: %g %g %g \n", startx[1],startx[2],startx[3]);
+  fprintf(stderr,"dx: %g %g %g \n", dx[1],dx[2],dx[3]);
+  fprintf(stderr,"a: %g, gam: %g, Rin: %g, Rout: %g, hslope: %g, R0: %g \n",a,gam,Rin,Rout,hslope,R0);
+
+  /* nominal non-zero values for axisymmetric simulations */
+  startx[0] = 0.;
+  startx[2] = 0.;
+  startx[3] = 0.;
+
+  dx[2]=dx[2]/2.0;
+  stopx[0] = 1.;
+  stopx[1] = startx[1] + N1 * dx[1];
+  stopx[2] = startx[2] + N2 * dx[2];
+  stopx[3] = startx[3] + N3 * dx[3];
+  //stopx[3] = 2. * M_PI;
+
+  fprintf(stderr, "Sim range x1, x2, x3:  %g %g, %g %g, %g %g\n", startx[1],
+      stopx[1], startx[2], stopx[2], startx[3], stopx[3]);
+
+  fprintf(stderr, "hslope: %f, Rin: %f, Rout:%f \n", hslope, Rin, Rout);
+
+  dx[0] = 1.;
+  //dx[3] = 2. * M_PI;
 
   // conditional reads
-  game = 4./3;
-  gamp = 5./3;
-  if (with_electrons) {
-    fprintf(stderr, "custom electron model loaded...\n");
-    hdf5_read_single_val(&game, "gam_e", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&gamp, "gam_p", H5T_IEEE_F64LE);
-  }
+  game = gam;   // check gamma whether it has different values for electrons and ions
+  gamp = gam;
+  //game = 4./3;
+  //gamp = 5./3;
 
-  if (!USE_FIXED_TPTE && !USE_MIXED_TPTE) {
-    if (with_electrons != 1) {
-      fprintf(stderr, "! no electron temperature model specified in model/iharm.c\n");
-      exit(-3);
-    }
-    with_electrons = 1;
-    Thetae_unit = MP/ME;
-  } else if (USE_FIXED_TPTE && !USE_MIXED_TPTE) {
-    with_electrons = 0; // force TP_OVER_TE to overwrite electron temperatures
-    fprintf(stderr, "using fixed tp_over_te ratio = %g\n", tp_over_te);
-    Thetae_unit = MP/ME * (gam-1.) / (1. + tp_over_te);
-    Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
-  } else if (USE_MIXED_TPTE && !USE_FIXED_TPTE) {
+  if (with_electrons == 0){
+	Thetae_unit = MP/ME;
+    fprintf(stderr, "using fixed Tp/Te ratio = %g\n", tp_over_te);
+    //Thetae_unit = MP/ME * (gam-1.) / (1. + tp_over_te);
+    //Thetae_unit = 2./3. * MP/ME / (2. + tp_over_te);
+    Thetae_unit = MP/ME * (gam-1.) / tp_over_te;
+  } else if (with_electrons == 2){
     Thetae_unit = 2./3. * MP/ME / 5.;
     with_electrons = 2;
-    fprintf(stderr, "using mixed tp_over_te with trat_small = %g and trat_large = %g\n", trat_small, trat_large);
+    fprintf(stderr, "using beta model with Rlow = %g and Rhigh = %g\n", trat_small, trat_large);
   } else {
-    fprintf(stderr, "! please change electron model in model/iharm.c\n");
+    fprintf(stderr, "! please change electron model. Check with_electrons in model.c  \n");
     exit(-3);
   }
 
@@ -582,14 +701,25 @@ void init_data(int argc, char *argv[], Params *params)
     }
     hdf5_read_single_val(&MBH, "Mbh", H5T_IEEE_F64LE);
     hdf5_read_single_val(&TP_OVER_TE, "tp_over_te", H5T_IEEE_F64LE);
-  } else {
-    if (! params->loaded) {
+  } else {    
+    if (! params->loaded) {    
       report_bad_input(argc);
-      sscanf(argv[3], "%lf", &M_unit);
-      sscanf(argv[4], "%lf", &MBH);
-      sscanf(argv[5], "%lf", &TP_OVER_TE);
+      #if(read_dscale != 1)
+	  if (argc < 4) report_bad_input(argc);
+	  //sscanf(argv[3], "%lf", &RHO_unit);
+	  sscanf(argv[3], "%lf", &M_unit);
+      #else
+	  if (argc < 3) report_bad_input(argc);
+	  #endif
+
+	  //M_unit = RHO_unit * pow(L_unit, 3);
+	  MBH = MBH_in;
+      params->MBH = MBH;
+      TP_OVER_TE = params->TP_OVER_TE;
     } else {
       M_unit = params->M_unit;
+	  //RHO_unit = params->RHO_unit;
+	  //M_unit = RHO_unit * pow(L_unit, 3);
       MBH = params->MBH;
       TP_OVER_TE = params->TP_OVER_TE;
     }
@@ -597,55 +727,10 @@ void init_data(int argc, char *argv[], Params *params)
     L_unit = GNEWT*MBH/(CL*CL);
     T_unit = L_unit/CL;
   }
-
-  hdf5_set_directory("/header/geom/");
-  hdf5_read_single_val(&startx[1], "startx1", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&startx[2], "startx2", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&startx[3], "startx3", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&dx[1], "dx1", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&dx[2], "dx2", H5T_IEEE_F64LE);
-  hdf5_read_single_val(&dx[3], "dx3", H5T_IEEE_F64LE);
-
-  hdf5_set_directory("/header/geom/mks/");
-  if (with_derefine_poles) hdf5_set_directory("/header/geom/mmks/");
-  if ( METRIC_MKS3 ) {
-    hdf5_set_directory("/header/geom/mks3/");
-    hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks3R0, "R0", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks3H0, "H0", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks3MY1, "MY1", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks3MY2, "MY2", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&mks3MP0, "MP0", H5T_IEEE_F64LE);
-    Rout = 100.;
-  } else {
-    hdf5_read_single_val(&a, "a", H5T_IEEE_F64LE);
-    hdf5_read_single_val(&hslope, "hslope", H5T_IEEE_F64LE);
-    if (hdf5_exists("Rin")) {
-      hdf5_read_single_val(&Rin, "Rin", H5T_IEEE_F64LE);
-      hdf5_read_single_val(&Rout, "Rout", H5T_IEEE_F64LE);
-    } else {
-      hdf5_read_single_val(&Rin, "r_in", H5T_IEEE_F64LE);
-      hdf5_read_single_val(&Rout, "r_out", H5T_IEEE_F64LE);
-    }
-    if (with_derefine_poles) {
-      fprintf(stderr, "custom refinement at poles loaded...\n");
-      hdf5_read_single_val(&poly_xt, "poly_xt", H5T_IEEE_F64LE);
-      hdf5_read_single_val(&poly_alpha, "poly_alpha", H5T_IEEE_F64LE);
-      hdf5_read_single_val(&mks_smooth, "mks_smooth", H5T_IEEE_F64LE);
-      poly_norm = 0.5*M_PI*1./(1. + 1./(poly_alpha + 1.)*1./pow(poly_xt, poly_alpha));
-    }
-  }
-
-  // Set other geometry
-  stopx[0] = 1.;
-  stopx[1] = startx[1]+N1*dx[1];
-  stopx[2] = startx[2]+N2*dx[2];
-  stopx[3] = startx[3]+N3*dx[3];
-
-  // Set remaining units and constants
-  RHO_unit = M_unit/pow(L_unit,3);
+  RHO_unit = M_unit * pow(L_unit, -3);
   U_unit = RHO_unit*CL*CL;
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
+  //M_unit = RHO_unit * pow(L_unit, 3);
   Ne_unit = RHO_unit/(MP + ME);
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4; // this doesn't make sense ...
   max_tau_scatt = 0.0001; // TODO look at this in the future and figure out a smarter general value
@@ -671,74 +756,230 @@ void init_data(int argc, char *argv[], Params *params)
   init_geometry();
 
   // Read prims.
-  // Assume standard ordering in iharm dump file, especially for
-  // electron variables...
-  hdf5_set_directory("/");
+  /* allocate the memory for dataset */
+  x1_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  x2_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  x3_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  r_in     = (double *) malloc(N1*N2*N3 * sizeof(double));
+  h_in     = (double *) malloc(N1*N2*N3 * sizeof(double));
+  ph_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  RHO_in   = (double *) malloc(N1*N2*N3 * sizeof(double));
+  UU_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  //U0_in    = (double *) malloc(N1*N2*N3 * sizeof(double)); 
+  U1_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  U2_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  U3_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  B1_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  B2_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  B3_in    = (double *) malloc(N1*N2*N3 * sizeof(double));
+  gdet_in  = (double *) malloc(N1*N2    * sizeof(double));
+  Ucov0_in = (double *) malloc(N1*N2*N3 * sizeof(double));
+  Ucon0_in = (double *) malloc(N1*N2*N3 * sizeof(double));
 
-  hsize_t fdims[] = { N1, N2, N3, nprims };
-  hsize_t fstart[] = { 0, 0, 0, 0 }; //{global_start[0], global_start[1], global_start[2], 0};
-  hsize_t fcount[] = {N1, N2, N3, 1};
-  hsize_t mstart[] = {0, 0, 0, 0};
+  /* memory size of the data */
+  dimsm[0] = N1*N2*N3;
+  memspace = H5Screate_simple(RANK_OUT,dimsm,NULL);
 
-  fstart[3] = 0;
-  hdf5_read_array(p[KRHO][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 1;
-  hdf5_read_array(p[UU][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 2;
-  hdf5_read_array(p[U1][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 3;
-  hdf5_read_array(p[U2][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 4;
-  hdf5_read_array(p[U3][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 5;
-  hdf5_read_array(p[B1][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 6;
-  hdf5_read_array(p[B2][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
-  fstart[3] = 7;
-  hdf5_read_array(p[B3][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
+  /* read the datasets */
+  readdata(file_id, "x1",    H5T_NATIVE_DOUBLE, memspace, &x1_in[0]);
+  readdata(file_id, "x2",    H5T_NATIVE_DOUBLE, memspace, &x2_in[0]);
+  readdata(file_id, "x3",    H5T_NATIVE_DOUBLE, memspace, &x3_in[0]);
+  readdata(file_id, "r",     H5T_NATIVE_DOUBLE, memspace, &r_in[0]);
+  readdata(file_id, "h",     H5T_NATIVE_DOUBLE, memspace, &h_in[0]);
+  readdata(file_id, "ph",    H5T_NATIVE_DOUBLE, memspace, &ph_in[0]);
+  readdata(file_id, "RHO",   H5T_NATIVE_DOUBLE, memspace, &RHO_in[0]);
+  readdata(file_id, "UU",    H5T_NATIVE_DOUBLE, memspace, &UU_in[0]);
+  //readdata(file_id, "U0",    H5T_NATIVE_DOUBLE, memspace, &U0_in[0]);
+  readdata(file_id, "U1",    H5T_NATIVE_DOUBLE, memspace, &U1_in[0]);
+  readdata(file_id, "U2",    H5T_NATIVE_DOUBLE, memspace, &U2_in[0]);
+  readdata(file_id, "U3",    H5T_NATIVE_DOUBLE, memspace, &U3_in[0]);
+  readdata(file_id, "B1",    H5T_NATIVE_DOUBLE, memspace, &B1_in[0]);
+  readdata(file_id, "B2",    H5T_NATIVE_DOUBLE, memspace, &B2_in[0]);
+  readdata(file_id, "B3",    H5T_NATIVE_DOUBLE, memspace, &B3_in[0]);
+  readdata(file_id, "Ucov0", H5T_NATIVE_DOUBLE, memspace, &Ucov0_in[0]);
+  readdata(file_id, "Ucon0", H5T_NATIVE_DOUBLE, memspace, &Ucon0_in[0]);
 
-  if (with_electrons == 1) {
+  /* the memory space of "gdet" is 2D */
+  dimsm[0] = N1*N2;
+  memspace = H5Screate_simple(RANK_OUT,dimsm,NULL);
 
-    fstart[3] = 8;
-    hdf5_read_array(p[KEL][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
+  readdata(file_id, "gdet", H5T_NATIVE_DOUBLE, memspace, &gdet_in[0]);
 
-    fstart[3] = 9;
-    hdf5_read_array(p[KTOT][0][0], "prims", 4, fdims, fstart, fcount, fcount, mstart, H5T_IEEE_F64LE);
+  /* close HDF5 file */
+  ret = H5Fclose(file_id);
 
-  }
-
-  hdf5_close();
-
-  V = dMact = Ladv = 0.;
-  dV = dx[1]*dx[2]*dx[3];
-  ZLOOP {
-
-    V += dV*geom[i][j].gzone;
-
-    double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
-    get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
-
-    bias_norm += dV*geom[i][j].gzone * Thetae*Thetae;
-
-    double bsq = Bmag*Bmag/B_unit/B_unit;  // in code units
-    sigma_array[i][j][k] = bsq / (Ne / Ne_unit);
-    beta_array[i][j][k] = p[UU][i][j][k] * (gam - 1.) * 2. / bsq;
-
-    if (10 <= i && i <= 20) {
-      lower(Ucon, geom[i][j].gcov, Ucov);
-      dMact += geom[i][j].gzone*dx[2]*dx[3]*p[KRHO][i][j][k]*Ucon[1];
-      Ladv += geom[i][j].gzone*dx[2]*dx[3]*p[UU][i][j][k]*Ucon[1]*Ucov[0];
+  /* find the index for event horizon ridius */
+  for (i=0;i<N1;i++){
+    if (r_in[i*N2*N3] >= Rh){
+      ieh = i;
+      break;
     }
+  }
+  fprintf(stderr, "the radius of event horizon is %g and the index of X1 is %i \n", Rh, ieh);
+
+  /* pass the 1D dataset to pointers */
+  for (i=0;i<N1;i++) for(j=0;j<N2;j++) for(z=0;z<N3;z++){
+      gridIndex   = i*N2*N3 + j*N3 + z;
+      gridIndex2D = i*N2 + j;
+
+      x[1] = x1_in[gridIndex];
+      x[2] = x2_in[gridIndex];
+      x[3] = x3_in[gridIndex];
+      rin  = r_in[gridIndex];
+      hin  = h_in[gridIndex];
+      phin = ph_in[gridIndex];
+
+      /* 
+        H-AMR internal coordinates: x2c = (1+x2)/2 
+        --> In grmonty, x2 is treated as x2c
+      */
+      x2temp=(1.0+x[2])/2.0;
+      x[2]=x2temp;
+      /* check that we've got the coordinate parameters right */
+      coord(i,j,z,xp);
+      bl_coord(x, &rp, &hp);
+      if (fabs(x[1]-xp[1]) > 1.e5 * x[1] || fabs(x[2]-xp[2]) > 1.e5 || fabs(x[3]-xp[3]) > 1.e5){
+          fprintf(stderr, "grid setup error\n");
+          fprintf(stderr, "x[1],xp[1],x[2],xp[2],x[3],xp[3]: %g %g %g %g %g %g \n",
+              x[1], xp[1], x[2], xp[2], x[3], xp[3]);
+          fprintf(stderr,
+              "check the internal coordinates, and continue\n");
+          exit(1);
+      } else if (fabs(rp - rin) > 1.e-3 * rp || fabs(hp - hin) > 1.e-5 || fabs(xp[3]-phin) > 1.e-5) {
+          fprintf(stderr, "grid setup error\n");
+          fprintf(stderr, "rp,r, (rp-r)/r, hp,h,php,ph: %g %g %g %g %g %g %g \n",
+              rp, rin, (rp-rin)/rp, hp, hin, xp[3], phin);
+          fprintf(stderr,
+              "edit R0, hslope, compile, and continue\n");
+          exit(1);
+      }
+
+      /* Since x2c = (1+x2)/2, the vectors in x2 direction should be corrected.
+         Or, we need to correct the theta correction term in gcov_func  (pi -> pi/2)
+      */
+      p[KRHO][i][j][z] = RHO_in[gridIndex];
+      p[UU][i][j][z]   = UU_in[gridIndex];
+      //p[U0][i][j][z]   = U0_in[gridIndex];
+      p[U1][i][j][z]   = U1_in[gridIndex];
+      p[U2][i][j][z]   = U2_in[gridIndex]/2.;
+      p[U3][i][j][z]   = U3_in[gridIndex];
+      p[B1][i][j][z]   = B1_in[gridIndex];
+      p[B2][i][j][z]   = B2_in[gridIndex]/2.;
+      p[B3][i][j][z]   = B3_in[gridIndex];
+
+	  /*
+      if(i==20 && j==80 && z==20){
+            fprintf(stderr, "B1= %g\n", p[B1][i][j][z]);
+            fprintf(stderr, "B2= %g\n", p[B2][i][j][z]);
+            fprintf(stderr, "B3= %g\n", p[B3][i][j][z]);
+      }  
+	  */
+
+      gdet  = gdet_in[gridIndex2D];
+      Ucov0 = Ucov0_in[gridIndex];
+      Ucon0 = Ucon0_in[gridIndex];
+
+      //bias_norm +=
+      //   dV * gdet * pow(p[UU][i][j][z] / p[KRHO][i][j][z] *
+      //         Thetae_unit, 2.);
+      V += dV * gdet;
+
+      /* check accretion rate */
+      if (i == ieh)
+          dMact += gdet * p[KRHO][i][j][z] * p[U1][i][j][z] *Ucon0;
+      if (i >= 20 && i < 40)
+          Ladv += gdet * p[UU][i][j][z] * p[U1][i][j][z] *Ucon0 * Ucov0;
+
+      /* check the dataset */
+      /*printf("%d %d %d %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g \n",
+              i,j,z,x[1],x[2],x[3],
+              rr,h,ph,
+              p[KRHO][i][j][z],p[UU][i][j][z],p[U1][i][j][z],p[U2][i][j][z],p[U3][i][j][z],
+              p[B1][i][j][z],p[B2][i][j][z],p[B3][i][j][z],gdet,
+              Ucov0,Ucon0);*/
+
+      /*printf("%d %d %d %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g %g \n",
+              i,j,z,x1_in[gridIndex],x2_in[gridIndex],x3_in[gridIndex],
+              r_in[gridIndex],h_in[gridIndex],ph_in[gridIndex],
+              RHO_in[gridIndex],UU_in[gridIndex],U1_in[gridIndex],U2_in[gridIndex],U3_in[gridIndex],
+              B1_in[gridIndex],B2_in[gridIndex],B3_in[gridIndex],gdet_in[gridIndex2D],
+              Ucov0_in[gridIndex],Ucon0_in[gridIndex]);*/
+
+	  double Ne, Thetae, Bmag, Ucon[NDIM], Ucov[NDIM], Bcon[NDIM];
+      get_fluid_zone(i, j, z, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+
+      double bsq = Bmag*Bmag/B_unit/B_unit;  // in code units
+      sigma_array[i][j][z] = bsq / (Ne / Ne_unit);
+      beta_array[i][j][z] = p[UU][i][j][z] * (gam - 1.) * 2. / bsq;
 
   }
 
-  dMact /= 11.;
-  Ladv /= 1.;
-  bias_norm /= V;
+  /* deallocate memories */
+  free(x1_in);
+  free(x2_in);
+  free(x3_in);
+  free(r_in);
+  free(h_in);
+  free(ph_in);
+  free(RHO_in);
+  free(UU_in);
+  //free(U0_in);
+  free(U1_in);
+  free(U2_in);
+  free(U3_in);
+  free(B1_in);
+  free(B2_in);
+  free(B3_in);
+  free(gdet_in);
+  free(Ucov0_in);
+  free(Ucon0_in);
+
+  //bias_norm /= V;
+  //dMact *= dx[3] * dx[2];
+  /* since dx[2] was rearranged by dx[2] = dx[2]/2 while using gdet from the data, 
+    the accretion rate should be multiplied by 2 */
+  dMact *= dx[3] * dx[2] * 2;
+  //dMact /= 21.;
+  Ladv *= dx[3] * dx[2];
+  Ladv /= 21.;
   fprintf(stderr, "dMact: %g, Ladv: %g\n", dMact, Ladv);
+
+  /* done! */
+
+#if (MODEL_EDF==EDF_MAXWELL_JUTTNER)
+  fprintf(stderr, "Model EDF: Thermal distribution (Maxwell Juttner). \n");
+#elif (MODEL_EDF==EDF_KAPPA_FIXED)
+  fprintf(stderr, "Model EDF: Kappa fixed.\n");
+#elif (MODEL_EDF==EDF_POWER_LAW)
+  fprintf(stderr, "Model EDF: POWER law.\n");
+#endif
 
   init_tetrads();
 }
+
+void readattr(hid_t file_id, const char *attr_name, hid_t mem_type_id, void *buf)
+{
+    hid_t attr_id;        /* attribute identifier */
+    herr_t ret;           /* Return value */
+
+    attr_id = H5Aopen(file_id, attr_name, H5P_DEFAULT);
+    ret     = H5Aread(attr_id, mem_type_id, buf);
+    ret     = H5Aclose(attr_id);
+}
+
+
+void readdata(hid_t file_id, const char *attr_name, hid_t mem_type_id, hid_t memspace, void *buf)
+{
+    hid_t ds_id;          /* dataset identifier */
+    herr_t ret;           /* Return value */
+    hid_t dataspace;      /* data space identifier */
+
+    ds_id     = H5Dopen(file_id, attr_name, H5P_DEFAULT);
+    dataspace = H5Dget_space(ds_id);    /* dataspace handle */
+    ret       = H5Dread(ds_id, mem_type_id, memspace, dataspace, H5P_DEFAULT, buf);
+    ret       = H5Dclose(ds_id);
+}
+
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
 
@@ -759,9 +1000,6 @@ void report_spectrum(int N_superph_made, Params *params)
   }
 
   h5io_add_attribute_str(fid, "/", "githash", xstr(VERSION));
-
-  h5io_add_blob(fid, "/fluid_header", fluid_header);
-  hdf5_close_blob(fluid_header);
 
   h5io_add_group(fid, "/params");
 

@@ -41,6 +41,11 @@ void init_model(int argc, char *argv[], Params *params)
   // Read dumpfile
   init_data(argc, argv, params);
 
+  // If using van Hoof 2015, initialize the electron-ion Gaunt factor spline
+  #if ( BREMSSTRAHLUNG == 3 )
+  init_bremss_spline();
+  #endif
+
   // make look-up table for hot cross sections
 #if COMPTON
   init_hotcross();
@@ -114,12 +119,15 @@ void init_weight_table(void)
   ZLOOP {
     double Ne, Thetae, B, Ucon[NDIM], Bcon[NDIM];
     get_fluid_zone(i, j, k, &Ne, &Thetae, &B, Ucon, Bcon);
+    double X[NDIM] = { 0. };
+    ijktoX(i, j, k, X);
+    radiation_params rpars = get_model_radiation_params(X);
 
     if (Ne == 0.) continue;
 
     for (int l=0; l<N_ESAMP; ++l) {
      #pragma omp atomic
-      sum[l] += int_jnu(Ne, Thetae, B, nu[l]) * sfac * geom[i][j].gzone;
+      sum[l] += int_jnu(Ne, Thetae, B, nu[l], &rpars) * sfac * geom[i][j].gzone;
     }
   }
 
@@ -137,8 +145,11 @@ void init_weight_table(void)
     double Ucon[NDIM], Bcon[NDIM];
     double ninterp = 0.;
     get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+    double X[NDIM] = { 0. };
+    ijktoX(i, j, k, X);
+    radiation_params rpars = get_model_radiation_params(X);
     for (int m=0; m<=N_ESAMP; ++m) {
-      ninterp += DLNU * int_jnu(Ne, Thetae, Bmag, exp(m*DLNU + LNUMIN)) / (HPL*exp(wgt[m]));
+      ninterp += DLNU * int_jnu(Ne, Thetae, Bmag, exp(m*DLNU + LNUMIN), &rpars) / (HPL*exp(wgt[m]));
     }
     ninterp *= geom[i][j].gzone * sfac;
     n2gens[i][j][k] = ninterp;
@@ -162,6 +173,9 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   double Ucon[NDIM], Bcon[NDIM];
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+  double X[NDIM] = { 0. };
+  ijktoX(i, j, k, X);
+  radiation_params rpars = get_model_radiation_params(X);
 
   if (Ne == 0.) {// || Thetae < THETAE_MIN) {
     *nz = 0.;
@@ -186,7 +200,7 @@ void init_zone(int i, int j, int k, double *nz, double *dnmax)
   // energy bin.
   for (int m=0; m<N_ESAMP; ++m) {
     double nu = exp(m*DLNU +LNUMIN);
-    dn = int_jnu(Ne, Thetae, Bmag, nu)/(HPL*exp(wgt[m]));
+    dn = int_jnu(Ne, Thetae, Bmag, nu, &rpars)/(HPL*exp(wgt[m]));
     if (*nz > 0) {
       if (dn == 0) {
         zwgt[m] = 0.;
@@ -358,6 +372,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ijktoX(i, j, k, ph->X);
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
+  radiation_params rpars = get_model_radiation_params(ph->X);
 
 #ifdef MODEL_TRANSPARENT
 
@@ -387,11 +402,11 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   weight = zone_linear_interp_weight(nu);
   
   ph->w = weight;
-  jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2.);
+  jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2., &rpars);
   do {
     cth = 2. * monty_rand() - 1.;
     th = acos(cth);
-  } while (monty_rand() > jnu(nu, Ne, Thetae, Bmag, th) / jmax);
+  } while (monty_rand() > jnu(nu, Ne, Thetae, Bmag, th, &rpars) / jmax);
 
 #endif
 
@@ -432,7 +447,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   ph->ne0 = Ne;
   ph->b0 = Bmag;
   ph->thetae0 = Thetae;
-  ph->ratio_brems = jnu_ratio_brems(nu, Ne, Thetae, Bmag, th); // TODO uninitialized in transparent models
+  ph->ratio_brems = jnu_ratio_brems(nu, Ne, Thetae, Bmag, th, &rpars); // TODO uninitialized in transparent models
 #ifdef TRACK_PH_CREATION
   ph->isrecorded = 0;
 #endif // TRACK_PH_CREATION

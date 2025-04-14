@@ -1,4 +1,5 @@
 #include "decs.h"
+#include "model_radiation.h"
 
 #define MAXNSTEP  1280000
 void track_super_photon(struct of_photon *ph)
@@ -38,11 +39,12 @@ void track_super_photon(struct of_photon *ph)
   // Initialize opacities
   gcov_func(ph->X, Gcov);
   get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
+  radiation_params rpars = get_model_radiation_params(ph->X);
 
   theta = get_bk_angle(ph->X, ph->K, Ucov, Bcov, B);
   nu = get_fluid_nu(ph->X, ph->K, Ucov);
-  alpha_scatti = alpha_inv_scatt(nu, Thetae, Ne);
-  alpha_absi = alpha_inv_abs(nu, Thetae, Ne, B, theta);
+  alpha_scatti = alpha_inv_scatt(nu, Thetae, Ne, &rpars);
+  alpha_absi = alpha_inv_abs(nu, Thetae, Ne, B, theta, &rpars);
   bi = bias_func(Thetae, ph->w);
 
   init_dKdlam(ph->X, ph->K, ph->dKdlam);
@@ -77,6 +79,7 @@ void track_super_photon(struct of_photon *ph)
     // Allow photon to interact with matter
     gcov_func(ph->X, Gcov);
     get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
+    radiation_params rpars = get_model_radiation_params(ph->X);
     if (alpha_absi > 0. || alpha_scatti > 0. || Ne > 0.) {
       bound_flag = 0;
       if (Ne == 0.)
@@ -101,12 +104,12 @@ void track_super_photon(struct of_photon *ph)
         bias = 0.;
         bi = 0.;
       } else {
-        alpha_scattf = alpha_inv_scatt(nu, Thetae, Ne);
+        alpha_scattf = alpha_inv_scatt(nu, Thetae, Ne, &rpars);
         dtau_scatt = 0.5*(alpha_scatti + alpha_scattf)*dtauK*dl;
         alpha_scatti = alpha_scattf;
 
         // Absorption optical depth along step
-        alpha_absf = alpha_inv_abs(nu, Thetae, Ne, B, theta);
+        alpha_absf = alpha_inv_abs(nu, Thetae, Ne, B, theta, &rpars);
         dtau_abs = 0.5*(alpha_absi + alpha_absf)*dtauK*dl;
         alpha_absi = alpha_absf;
 
@@ -157,6 +160,7 @@ void track_super_photon(struct of_photon *ph)
         // Get plasma parameters at new position
         gcov_func(ph->X, Gcov);
         get_fluid_params(ph->X, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
+        radiation_params rparsp = get_model_radiation_params(ph->X);
 
         // Actually about to scatter photon
         if (Ne > 0.) { 
@@ -166,7 +170,7 @@ void track_super_photon(struct of_photon *ph)
             fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
             return;
           }
-          scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov);
+          scatter_super_photon(ph, &php, Ne, Thetae, B, Ucon, Bcon, Gcov, &rparsp);
 
           if (ph->w < 1.e-100) {  // Possible problem while enforcing k.k = 0
             return;
@@ -179,8 +183,8 @@ void track_super_photon(struct of_photon *ph)
         if (nu < 0.) {
           alpha_scatti = alpha_absi = 0.;
         } else {
-          alpha_scatti = alpha_inv_scatt(nu, Thetae, Ne);
-          alpha_absi = alpha_inv_abs(nu, Thetae, Ne, B, theta);
+          alpha_scatti = alpha_inv_scatt(nu, Thetae, Ne, &rparsp);
+          alpha_absi = alpha_inv_abs(nu, Thetae, Ne, B, theta, &rparsp);
         }
         bi = bias_func(Thetae, ph->w);
 
