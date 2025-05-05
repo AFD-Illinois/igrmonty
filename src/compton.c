@@ -38,7 +38,7 @@ void sample_scattered_photon(double k[4], double p[4], double kp[4])
 	// ke == photon momentum in elecron frame
 
 	boost(k, p, ke);
-	// integration errors in the normalization of k can lead to negative photon energy in the electron frame. Ensure k^a k_a=0 
+	// integration errors in the normalization of k can lead to negative photon energy in the electron frame. Ensure k^a k_a=0 when that happens
 	if(ke[0]<0){
 		k[0] = sqrt(k[1]*k[1] + k[2]*k[2] + k[3]*k[3]);
 		boost(k,p,ke);

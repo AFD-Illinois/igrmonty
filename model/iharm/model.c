@@ -122,6 +122,17 @@ void record_super_photon(struct of_photon *ph)
     return;
   }
 
+  // #pragma omp critical
+  // {
+  //   // print out information about last scattering location to a file "scattering_location.txt"
+  //   FILE* fp  = fopen("scattering_location.txt", "a");
+  //   double r,th;
+  //   double dummy_X[4] = {0,ph->X1i,ph->X2i,0};
+  //   bl_coord(dummy_X,&r,&th);
+  //   fprintf(fp, "%g %g %d\n",r,th,ph->nscatt);
+  //   fclose(fp);
+  // }
+
   // bin in X[2] BL coord while folding around the equator and check limit
   double r, th;
   bl_coord(ph->X, &r, &th);
