@@ -57,6 +57,9 @@ int record_photons, bad_bias, invalid_bias, quit_flag;
 double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
+// gaussian random field vector for B field
+double ****gauss_rand_b;
+
 double t;
 double a;
 double R0, Rin, Rout, Rms, Rh, Rmax; // Rh, Rmax used to set stop/record geodesic criteria

@@ -64,6 +64,7 @@ LDFLAGS = $(CFLAGS)
 
 HDF5_LIB = -lhdf5_hl -lhdf5
 GSL_LIB = -lgsl -lgslcblas
+FFTW_LIB = -lfftw3
 
 ## LOGIC FOR PATHS ##
 CORE_DIR := $(MAKEFILE_PATH)/src/
@@ -82,7 +83,7 @@ OBJ := $(addprefix $(ARC_DIR)/, $(notdir $(SRC:%.c=%.o)))
 
 INC = -I$(ARC_DIR)
 LIBDIR =
-LIB = $(MATH_LIB) $(GSL_LIB)
+LIB = $(MATH_LIB) $(GSL_LIB) $(FFTW_LIB)
 
 # Add HDF and MPI directories only if compiler doesn't
 ifneq ($(strip $(HDF5_DIR)),)

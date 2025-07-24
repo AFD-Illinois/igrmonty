@@ -1,6 +1,7 @@
 #include "decs.h"
 #include "coordinates.h"
 #include "model_radiation.h"
+#include "grf_sampler.h"
 
 // // fluid data
 // double ****bcon;
@@ -334,7 +335,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 0.1;
+  return 10.;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -543,6 +544,10 @@ void init_data(int argc, char *argv[], Params *params)
   init_tetrads();
 
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
+
+  gauss_rand_b = (double ****)malloc_rank4(128, 128, 128, 3, sizeof(double));
+  sample_grf_magnetic_field(128,MODEL_R_0,gauss_rand_b,1.0);
+
 }
 
 //////////////////////////////////// OUTPUT ////////////////////////////////////
