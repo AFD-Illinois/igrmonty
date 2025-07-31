@@ -377,6 +377,18 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   Bcon[2] = - model_B0 * sin(h) / (r + 1.e-8) / B_unit;
   Bcon[3] = 0.;
 
+  // need to add contributions from gauss_rand_b
+  double phi=X[3];
+  double Badd[3];
+  sample_grf_magnetic_field(128,2*MODEL_R_0,gauss_rand_b,r,h,phi,Badd);
+  double new_Bsq=0.0;
+  for(int i=0;i<3;i++){
+    Bcon[i+1]=Badd[i];
+    new_Bsq+=Bcon[i+1]*Bcon[i+1];
+  }
+  *B=sqrt(new_Bsq);
+  
+
   if (METRIC_esphMINK) {
     Ucon[1] /= r;
     Bcon[1] /= r;
@@ -546,7 +558,7 @@ void init_data(int argc, char *argv[], Params *params)
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
 
   gauss_rand_b = (double ****)malloc_rank4(128, 128, 128, 3, sizeof(double));
-  sample_grf_magnetic_field(128,MODEL_R_0,gauss_rand_b,1.0);
+  generate_grf_magnetic_field_cartesian(128,MODEL_R_0,gauss_rand_b,1.0);
 
 }
 
