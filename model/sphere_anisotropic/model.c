@@ -335,7 +335,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 10.;
+  return 0.1;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
@@ -546,6 +546,12 @@ void init_data(int argc, char *argv[], Params *params)
   // unsure where this definition of max_tau_scatt comes from. For a isothermal sphere model it should simply be 2*MODEL_TAU_0?
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
   // max_tau_scatt = 2*MODEL_TAU_0;
+  
+  // set this up before defining tetrads as they depend on B
+  gauss_rand_b = (double ****)malloc_rank4(128, 128, 128, 3, sizeof(double));
+  generate_grf_magnetic_field_cartesian(128,1.0,gauss_rand_b,0.1,100.0,11.0/3.0);
+  const char grf_file[] = "grf_b_data.txt";
+  write_grf_field_to_file(grf_file,128, MODEL_R_0, gauss_rand_b);
 
   fprintf(stderr, "B_unit: %g\n", B_unit);
 
@@ -556,9 +562,6 @@ void init_data(int argc, char *argv[], Params *params)
   init_tetrads();
 
   n2gens = (double ***)malloc_rank3(N1, N2, N3, sizeof(double));
-
-  gauss_rand_b = (double ****)malloc_rank4(128, 128, 128, 3, sizeof(double));
-  generate_grf_magnetic_field_cartesian(128,MODEL_R_0,gauss_rand_b,1.0);
 
 }
 
