@@ -17,6 +17,7 @@
 //3 van Hoof 2015 + Nozawa 2009
 #define BREMSSTRAHLUNG (0)
 #define COMPTON (1)
+#define GRF_B_SAMPLING (0)
 
 // #define MODEL_TRANSPARENT (1)
 

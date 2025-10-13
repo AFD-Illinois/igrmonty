@@ -24,6 +24,7 @@ good for Thetae > 1
 
 // these functions are scoped here only and called from above "public" functions.
 static double jnu_thermal(double nu, double Ne, double Thetae, double B, double theta);
+static double jnu_thermal_aniso(double nu, double Ne, double Thetae, double B, double theta, radiation_params *);
 static double jnu_kappa(double, double, double, double, double, radiation_params *);
 static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_bremss(double nu, double Ne, double Thetae);
@@ -56,7 +57,12 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta, radiatio
  #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   j += jnu_kappa(nu, Ne, Thetae, B, theta, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
-  j += jnu_thermal(nu, Ne, Thetae, B, theta);
+  if(anisotropy){
+    j += jnu_thermal_aniso(nu,Ne,Thetae,B,theta,rpars);
+  }
+  else{
+    j += jnu_thermal(nu, Ne, Thetae, B, theta);
+  }
  #elif MODEL_EDF==EDF_POWER_LAW
   j += jnu_powerlaw(nu, Ne, Thetae, B, theta);
  #else
@@ -229,6 +235,39 @@ static double jnu_thermal(double nu, double Ne, double Thetae, double B,
 
 	return j;
 }
+
+static double jnu_thermal_aniso(double nu, double Ne, double Theta_perp, double B,
+                     double theta_B, radiation_params *rpars)
+{
+    double R = rpars->tperp_over_tpar;
+    double Theta_perp_star, K2_perp, K2_perp_star;
+    double KI, j_iso_star, j_tb, cos_theta, denom;
+
+    if (Theta_perp < THETAE_MIN) {
+        return 0.;
+    }
+
+    // Effective perpendicular temperature Θ*_⊥
+    cos_theta = cos(theta_B);
+    denom = sqrt(1.0 + (R - 1.0) * cos_theta * cos_theta);
+    Theta_perp_star = Theta_perp / denom;
+
+    // Evaluate modified Bessel function K2 at both temperatures
+    K2_perp_star = K2_eval(Theta_perp_star);
+    K2_perp = K2_eval(Theta_perp);
+
+    // K_I factor
+    KI = (Theta_perp_star / Theta_perp) * (K2_perp_star / K2_perp);
+
+    // Compute isotropic emissivity at Θ = Θ*_⊥
+    j_iso_star = jnu_thermal(nu, Ne, Theta_perp_star, B, theta_B);
+
+    // Final j_nu_TB
+    j_tb = sqrt(R) * KI * j_iso_star;
+
+    return j_tb;
+}
+
 
 static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta)
 {

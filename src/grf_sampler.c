@@ -4,6 +4,7 @@
 #include <complex.h>
 #include <fftw3.h>
 #include <time.h>
+#include <omp.h>
 
 #define IDX(i,j,k) ((i)*N*N + (j)*N + (k))
 
@@ -30,7 +31,7 @@ static double gauss_rand() {
     return u * s;
 }
 
-void generate_grf_magnetic_field_cartesian(int N, double L, double**** grf_field, double L0, double amp_fac, double alpha) {
+void generate_grf_magnetic_field_cartesian(int N, double L, double L0, double amp_fac, double alpha, double**** grf_field) {
 /**
  * Generate a Gaussian random magnetic field in a periodic Cartesian box. Note the magnetic field is exactly divergence free in k-space, but not in real space.
  *
@@ -153,14 +154,19 @@ void generate_grf_magnetic_field_cartesian(int N, double L, double**** grf_field
     fftw_free(Bz);
 }
 
-void sample_grf_magnetic_field(int N, double L, double**** grf_field,
+void sample_grf_magnetic_field(int N, double L,
                               double r, double theta, double phi,
-                              double* B) {
+                              double* B, double**** grf_field) {
+/*
+Given a location in r, theta, phi, return a B field interpolated from a cartesian grid grf_field of size L^3 and resolution L/N.
+*/
     double Bx, By, Bz;
+    double sth=sin(theta),cth=cos(theta);
+    double sphi=sin(phi),cphi=cos(phi);
     // Convert spherical (r, theta, phi) to Cartesian (x, y, z)
-    double x = r * sin(theta) * cos(phi);
-    double y = r * sin(theta) * sin(phi);
-    double z = r * cos(theta);
+    double x = r * sth * cphi;
+    double y = r * sth * sphi;
+    double z = r * cth;
 
     // Map (x, y, z) to grid indices
     double grid_x = (x + L/2) * (N-1) / L;
@@ -197,9 +203,9 @@ void sample_grf_magnetic_field(int N, double L, double**** grf_field,
     By = by;
     Bz = bz;
     // Convert (bx, by, bz) from Cartesian to spherical coordinates
-    double Br = bx * sin(theta) * cos(phi) + by * sin(theta) * sin(phi) + bz * cos(theta);
-    double Btheta = bx * cos(theta) * cos(phi) + by * cos(theta) * sin(phi) - bz * sin(theta);
-    double Bphi = -bx * sin(phi) + by * cos(phi);
+    double Br = bx * sth * cphi + by * sth * sphi + bz * cth;
+    double Btheta = bx * cth * cphi + by * cth * sphi - bz * sth;
+    double Bphi = -bx * sphi + by * cphi;
 
     B[0]=Br;
     B[1]=Btheta;
@@ -229,16 +235,47 @@ void write_grf_field_to_file(const char* filename, int N, double L, double**** g
     fclose(fp);
 }
 
-// void main(){
-//     int N=128;
-//     double L=1.0;
-//     double grf_field[N][N][N][3];
-//     double L0=0.1;
-//     double amp_fac=100;
-//     double alpha=11.0/3.0;
+double compute_amp_fac(int N, double L, double alpha, double L0, double B_rms_target) {
+    
+    double k0 = 2.0*M_PI/L0;
+    // Allocate k-vector
+    double *kx = (double*)malloc(N * sizeof(double));
+    if (kx == NULL) {
+        fprintf(stderr, "Memory allocation failed.\n");
+        exit(1);
+    }
 
-//     generate_grf_magnetic_field_cartesian(N, L, grf_field, L0, amp_fac, alpha);
-//     write_grf_field_to_file("grf_field.txt", N, L, grf_field);
+    // --- Compute k-vector (like np.fft.fftfreq) ---
+    for (int i = 0; i < N; i++) {
+        kx[i] = (i < N/2 ? i : i - N) * (2.0 * M_PI / L);
+    }
 
+    double integral = 0.0;
 
-// }
+    // --- Parallel loop over 3D grid ---
+    #pragma omp parallel for collapse(3) reduction(+:integral) schedule(dynamic)
+    for (int i = 0; i < N; i++) {
+        for (int j = 0; j < N; j++) {
+            for (int k = 0; k < N; k++) {
+                double kxi = kx[i];
+                double kyj = kx[j];
+                double kzk = kx[k];
+
+                double ksq = kxi*kxi + kyj*kyj + kzk*kzk;
+
+                if (ksq > 0.0) {
+                    double denom = pow(ksq + k0*k0, alpha/2.0);
+                    double Pk = 1.0 / denom;
+                    integral += Pk;
+                }
+            }
+        }
+    }
+
+    free(kx);
+
+    // --- Compute amp_fac ---
+    double amp_fac = (B_rms_target * B_rms_target) * pow((double)N, 6) / integral;
+
+    return amp_fac;
+}

@@ -51,7 +51,7 @@ int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
 int Ns, N_superph_recorded, N_scatt;
-int anisotropy;
+int anisotropy, anisotropy_synch;
 int debug;
 int record_photons, bad_bias, invalid_bias, quit_flag;
 double Ns_scale, N_superph_made;
@@ -100,7 +100,8 @@ int main(int argc, char *argv[])
   fprintf(stderr, "with synch: %i\n", SYNCHROTRON);
   fprintf(stderr, "with brems: %i\n", BREMSSTRAHLUNG);
   fprintf(stderr, "with compt: %i\n\n", COMPTON);
-  fprintf(stderr, "with anisotropy: %i\n\n", anisotropy);
+  fprintf(stderr, "with anisotropy: %i\n", anisotropy);
+  fprintf(stderr, "with emissivity anisotropy: %i\n\n", anisotropy_synch);
 
   if ( COMPTON && (params.fitBias!=0) ) {
     // find a good value for the bias tuning to make 

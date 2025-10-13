@@ -20,6 +20,7 @@ void load_par_from_argv(int argc, char *argv[], Params *params) {
   params->trat_large = 10.;
   params->Thetae_max = 1.e100;
   params->param_anisotropy = 0;
+  params->param_anisotropy_synch = 0;
 
   params->MBH = 4.1e6;   // MBH for Sgr A* is updated by Gravity Collaboration 2018,615,L15
 
@@ -78,8 +79,9 @@ void load_par (const char *fname, Params *params) {
     read_param(line, "trat_large", &(params->trat_large), TYPE_DBL);
     read_param(line, "Thetae_max", &(params->Thetae_max), TYPE_DBL);
 
-    //anisotropy flag, 0 for isotropic, 1 for anisotropic
+    //anisotropy flags, 0 for isotropic, 1 for anisotropic
     read_param(line, "anisotropy", &(params->param_anisotropy), TYPE_INT);
+    read_param(line, "anisotropy_synch", &(params->param_anisotropy_synch), TYPE_INT);
 
     // debug flag
     read_param(line, "debug", &(params->debug), TYPE_INT);

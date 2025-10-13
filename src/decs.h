@@ -156,6 +156,7 @@ extern double max_tau_scatt, Ladv, dMact, bias_norm, biasTuning;
 
 // anisotropy edf global flag
 extern int anisotropy;
+extern int anisotropy_synch;
 
 // Macros
 #define NULL_CHECK(val,msg,fail) if (val == NULL) { fprintf(stderr, "%s\n", msg); exit(fail); }

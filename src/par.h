@@ -45,6 +45,8 @@ typedef struct params_t {
   double Thetae_max;
   // anisotropy parameter, copied to extern variable that's used everywhere
   int param_anisotropy;
+  // synchrotron emissivity anisotropy parameter, copied to extern variable
+  int param_anisotropy_synch;
   char loaded;
 } Params;
 

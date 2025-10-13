@@ -2,7 +2,7 @@
 #include "coordinates.h"
 #include "model_radiation.h"
 #include "grf_sampler.h"
-
+#include "model.h"
 // // fluid data
 // double ****bcon;
 // double ****bcov;
@@ -380,14 +380,16 @@ void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
   // need to add contributions from gauss_rand_b
   double phi=X[3];
   double Badd[3];
-  sample_grf_magnetic_field(128,2*MODEL_R_0,gauss_rand_b,r,h,phi,Badd);
+  #if (GRF_B_SAMPLING==1)
+  // interpolate B from the Gaussian random field (in cgs)
+  sample_grf_magnetic_field(128,2*MODEL_R_0,r,h,phi,Badd,gauss_rand_b);
   double new_Bsq=0.0;
   for(int i=0;i<3;i++){
-    Bcon[i+1]=Badd[i];
+    Bcon[i+1]+=Badd[i]/B_unit;
     new_Bsq+=Bcon[i+1]*Bcon[i+1];
   }
   *B=sqrt(new_Bsq);
-  
+  #endif
 
   if (METRIC_esphMINK) {
     Ucon[1] /= r;
@@ -474,8 +476,8 @@ void init_data(int argc, char *argv[], Params *params)
   // as implemented in the Illinois suite
   THETAE_UNIT = MP/ME * (game-1.) * (gamp-1.) / ( (gamp-1.) + (game-1)*MODEL_TP_OVER_TE );
 
-  // as implemented in RAPTOR + kmonty
-  THETAE_UNIT = MP/ME * (gam-1.) / (1. + MODEL_TP_OVER_TE);
+  // // as implemented in RAPTOR + kmonty
+  // THETAE_UNIT = MP/ME * (gam-1.) / (1. + MODEL_TP_OVER_TE);
 
   // now we can find B (again, in gauss)
   model_B0 = CL * sqrt(8 * M_PI * (gam-1.) * (MP+ME) / MODEL_BETA_0) * sqrt( model_Ne0 * MODEL_THETAE_0 ) / sqrt( THETAE_UNIT );
@@ -547,11 +549,18 @@ void init_data(int argc, char *argv[], Params *params)
   max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
   // max_tau_scatt = 2*MODEL_TAU_0;
   
-  // set this up before defining tetrads as they depend on B
-  gauss_rand_b = (double ****)malloc_rank4(128, 128, 128, 3, sizeof(double));
-  generate_grf_magnetic_field_cartesian(128,1.0,gauss_rand_b,0.1,100.0,11.0/3.0);
-  const char grf_file[] = "grf_b_data.txt";
-  write_grf_field_to_file(grf_file,128, MODEL_R_0, gauss_rand_b);
+  #if (GRF_B_SAMPLING==1)
+  // set the grf B field before defining tetrads as they depend on B
+  double N = 128, L=2*MODEL_R_0, alpha=11.0/3.0;
+  double L0=0.1*MODEL_R_0;
+  double rms_fac=10;
+  double amp_fac = compute_amp_fac(N,L,alpha,L0,rms_fac*model_B0);
+  // double amp_fac=100000;
+  gauss_rand_b = (double ****)malloc_rank4(N, N, N, 3, sizeof(double));
+  fprintf(stderr,"sampling grf B field and writing to grf_b_data.txt\n");
+  generate_grf_magnetic_field_cartesian(N,L,L0,amp_fac,alpha,gauss_rand_b);
+  write_grf_field_to_file("grf_b_data.txt",N,L,gauss_rand_b);
+  #endif
 
   fprintf(stderr, "B_unit: %g\n", B_unit);
 
