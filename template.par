@@ -6,11 +6,7 @@ bias	      0.5   # initial guess of bias scaling (>1 for thin, <1 for thick)
 
 Ns            100000 # number of superphotons in the spectrum
 MBH           4.14e+6 # central black hole mass
-<<<<<<< Updated upstream
 M_unit        1e+16  # mass unit for the plasma in the accretion flow
-=======
-M_unit        7.785558056370315e+19  # mass unit for the plasma in the accretion flow
->>>>>>> Stashed changes
 TP_OVER_TE    3.     # proton-electron temperature ratio
 trat_small		1.
 trat_large		10.

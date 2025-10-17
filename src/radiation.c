@@ -66,17 +66,17 @@ radiation_params get_model_radiation_params(const double X[NDIM], const double K
   rpars.kappa = get_model_kappa(X);
   rpars.kappa_max = variable_kappa_max;
 #endif
-  if(anisotropy){
-    double gcov[NDIM][NDIM];
-    double Ucov[NDIM], Bcov[NDIM];
-    // be sure none of the functions modify any of the const arrays. leaving the warnings for now.
-    gcov_func(X,gcov);
-    lower(Ucon,gcov,Ucov);
-    lower(Bcon,gcov,Bcov);
-    rpars.tperp_over_tpar = get_model_anisotropy_ratio(X);
-    rpars.xi = get_bk_angle(X,K,Ucov,Bcov,B);
-    // rpars.xi=M_PI/2.0;
-  }
+#if MODEL_EDF_ANISOTROPIC
+  double gcov[NDIM][NDIM];
+  double Ucov[NDIM], Bcov[NDIM];
+  // be sure none of the functions modify any of the const arrays. leaving the warnings for now.
+  gcov_func(X,gcov);
+  lower(Ucon,gcov,Ucov);
+  lower(Bcon,gcov,Bcov);
+  rpars.tperp_over_tpar = get_model_anisotropy_ratio(X);
+  rpars.xi = get_bk_angle(X,K,Ucov,Bcov,B);
+  // rpars.xi=M_PI/2.0;
+#endif
   return rpars;
 }
 

@@ -673,7 +673,7 @@ void report_spectrum(int N_superph_made, Params *params)
   // diagnostic output to screen
   fprintf(stderr, "\n");
 
-  fprintf(stderr, "MBH = %g Msun\n", MODEL_MBH/MSUN);
+  fprintf(stderr, "MBH = %g Msun\n", MODEL_MBH);
   fprintf(stderr, "max_tau_scatt = %g\n", max_tau_scatt);
   fprintf(stderr, "L = %g erg/s \n", Lum);
 

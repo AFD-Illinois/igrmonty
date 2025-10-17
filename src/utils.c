@@ -304,7 +304,7 @@ void sample_origin_photon(struct of_photon *ph)
   }
 
   // Sample intensity uniformly in frequency
-  nu = exp(monty_rand()*(log(1e14) - log(1e9)) + log(1e9));
+  nu = exp(monty_rand()*(LNUMAX - LNUMIN) + LNUMIN);
 	//nu = 5e12;
 	double thetae_core = 1e-8;
   double numax = Bnu_inv_maxfreq(thetae_core);
@@ -400,7 +400,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   }
 
   // power law spectrum
-  #if EDF_POWER_LAW==4
+  #if MODEL_EDF == EDF_POWER_LAW
   else {
    double lnu = monty_rand() * (LNUMAX - LNUMIN) + LNUMIN;
    nu = pow(10., lnu);
