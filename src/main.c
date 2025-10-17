@@ -46,7 +46,7 @@ Params params = { 0 };
 struct of_geom **geom;
 struct of_tetrads ***tetrads;
 double ***n2gens;
-int n2gen;
+// int n2gen;
 int nthreads;
 int NPRIM, N1, N2, N3, n_within_horizon;
 double F[N_ESAMP + 1], wgt[N_ESAMP + 1], zwgt[N_ESAMP + 1];
@@ -58,7 +58,7 @@ double Ns_scale, N_superph_made;
 struct of_spectrum spect[N_TYPEBINS][N_THBINS][N_EBINS] = { };
 
 // gaussian random field vector for B field
-double ****gauss_rand_b;
+// double ****gauss_rand_b;
 
 double t;
 double a;
@@ -244,8 +244,7 @@ int main(int argc, char *argv[])
 
       // avoid too much scattering; break for all threads immediately
       if (N_scatt > 10000 && N_scatt / N_superph_made > 10) bad_bias = 1;
-      if (bad_bias || (N_superph_recorded > Ns)){
-      // if (bad_bias){
+      if (bad_bias){
           // continue;
         break;
       }
