@@ -92,7 +92,6 @@ void make_super_photon(struct of_photon *ph, int *quit_flag)
     *quit_flag = 1;
   } else {
     sample_zone_photon(zone_i, zone_j, zone_k, dnmax, ph);
-    fprintf(stdout,"%g\n",ph->X[0]);
   }
 
 #endif // EMIT_ORIGIN
@@ -371,7 +370,7 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   double Ne, Thetae, Bmag, Ucon[NDIM], Bcon[NDIM];
 
   // fine for fast light, but set X[0] correctly for slow light
-  // ph->X[0] = 0.0;
+  ph->X[0] = 0.0;
   ijktoX(i, j, k, ph->X);
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);
