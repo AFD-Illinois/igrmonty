@@ -57,7 +57,7 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta, radiatio
  #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   j += jnu_kappa(nu, Ne, Thetae, B, theta, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
-  if(anisotropy){
+  if(anisotropy_synch){
     j += jnu_thermal_aniso(nu,Ne,Thetae,B,theta,rpars);
   }
   else{

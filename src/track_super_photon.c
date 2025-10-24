@@ -164,7 +164,7 @@ void track_super_photon(struct of_photon *ph)
         // Actually about to scatter photon
         if (Ne > 0.) { 
           if (bias < 1.0) { // Ensure bias >= 1
-	        #pragma omp atomic
+            #pragma omp atomic
             ++invalid_bias; // count invalid_bias
             fprintf(stderr, "ERROR!!! bias = %g < 1\n", bias);
             return;

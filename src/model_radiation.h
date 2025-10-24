@@ -11,7 +11,7 @@
 
 #define MODEL_EDF EDF_MAXWELL_JUTTNER
 
-#define MODEL_EDF_ANISOTROPIC (0)
+#define MODEL_EDF_ANISOTROPIC (1)
 
 // for variable kappa. also set behavior for how to
 // deal with out-of-bounds kappas in get_model_kappa(...)
