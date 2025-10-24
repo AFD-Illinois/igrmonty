@@ -48,7 +48,6 @@ void track_super_photon(struct of_photon *ph)
   bi = bias_func(Thetae, ph->w);
 
   init_dKdlam(ph->X, ph->K, ph->dKdlam);
-  //fprintf(stdout,"%g %g %g %g %g %g %g %g \n",ph->K[0],ph->K[1],ph->K[2],ph->K[3],ph->X[0],ph->X[1],ph->X[2],ph->X[3]);return;
   while (!stop_criterion(ph)) {
     // Save initial position/wave vector
     Xi[0] = ph->X[0];
@@ -89,18 +88,11 @@ void track_super_photon(struct of_photon *ph)
         theta = get_bk_angle(ph->X, ph->K, Ucov, Bcov, B);
         nu = get_fluid_nu(ph->X, ph->K, Ucov);
         if (isnan(nu)) {
-          gcov_func(Xi,Gcov);
-          get_fluid_params(Xi, Gcov, &Ne, &Thetae, &B, Ucon, Ucov, Bcon, Bcov);
-          fprintf(stderr, "gcov before crashing: %g %g %g %g\n", 
-            Gcov[0][0], Gcov[1][1], Gcov[2][2], Gcov[3][3]);
-          fprintf(stderr, "fluid params before crashing: Ne, Thetae, B: %g %g %g\n", Ne, Thetae, B);
           fprintf(stderr, "isnan nu: track_super_photon dl,E0 %g %g\n", dl, E0);
           fprintf(stderr, "Xi, %g %g %g %g\n", Xi[0], Xi[1], Xi[2], Xi[3]);
           fprintf(stderr, "Ki, %g %g %g %g\n", Ki[0], Ki[1], Ki[2], Ki[3]);
           fprintf(stderr, "dKi, %g %g %g %g\n", dKi[0], dKi[1], dKi[2], dKi[3]);
-          // kill the photon not the program
           exit(-1);
-          return;
         }
       }
 
