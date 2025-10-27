@@ -1,6 +1,6 @@
 #define NDIM 4
 #define NUMIN 1.e8
-#define NUMAX 1.e24
+#define NUMAX 1.e28
 #define LNUMIN log(NUMIN)
 #define LNUMAX log(NUMAX)
 #define DLNU ((LNUMAX-LNUMIN)/N_ESAMP)
@@ -9,14 +9,14 @@
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
-// #define EMIT_ORIGIN (0)
+#define EMIT_ORIGIN (0)
 //Bremss (only supported for thermal electrons) options
 //0 No bremsstrahlung
 //1 Based on Rybicki and Lightman eq. 5.14a with eq. 5.25 corrective factor
 //2 Straub+ 2012 section 3.2.1
 //3 van Hoof 2015 + Nozawa 2009
 #define BREMSSTRAHLUNG (0)
-#define COMPTON (0)
+#define COMPTON (1)
 #define GRF_B_SAMPLING (0)
 
 // #define MODEL_TRANSPARENT (1)
@@ -39,7 +39,7 @@
 
 #define N_ESAMP 200
 #define N_EBINS 200
-#define N_THBINS 20
+#define N_THBINS 10
 
 #include "hdf5_utils.h"
 #include "h5io.h"

@@ -1,6 +1,6 @@
-Ns 1e6
+Ns 1e7
 bias 1
 fit_bias 0
-anisotropy 0
+anisotropy 1
 anisotropy_synch 1
 debug 0

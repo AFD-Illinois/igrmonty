@@ -263,7 +263,7 @@ void omp_reduce_spect()
 double bias_func(double Te, double w)
 {
   double bias, max;
-  return 1;
+  // return 1;
 
   max = 0.5 * w / WEIGHT_MIN;
 
@@ -458,7 +458,7 @@ void init_data(int argc, char *argv[], Params *params)
   // model parameters // TODO, maybe load these from model parameters
   MODEL_R_0 = 5.;
   MODEL_BETA_0 = 1.;
-  MODEL_TAU_0 = 1e-4;
+  MODEL_TAU_0 = 1e-6;
   MODEL_THETAE_0 = 10.;
   MODEL_TP_OVER_TE = 3.;
   MODEL_GAM = 13./9;  
@@ -555,8 +555,8 @@ void init_data(int argc, char *argv[], Params *params)
   B_unit = CL*sqrt(4.*M_PI*RHO_unit);
   Ne_unit = RHO_unit/(MP + ME);
   // unsure where this definition of max_tau_scatt comes from. For a isothermal sphere model it should simply be 2*MODEL_TAU_0?
-  max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
-  // max_tau_scatt = 2*MODEL_TAU_0;
+  // max_tau_scatt = (6.*L_unit)*RHO_unit*0.4;
+  max_tau_scatt = 2*MODEL_TAU_0;
   
   #if (GRF_B_SAMPLING==1)
   // set the grf B field before defining tetrads as they depend on B
