@@ -9,7 +9,7 @@
 #define WEIGHT_MIN (1.e28)
 
 #define SYNCHROTRON (1)
-#define EMIT_ORIGIN (0)
+// #define EMIT_ORIGIN (0)
 //Bremss (only supported for thermal electrons) options
 //0 No bremsstrahlung
 //1 Based on Rybicki and Lightman eq. 5.14a with eq. 5.25 corrective factor

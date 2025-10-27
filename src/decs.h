@@ -128,7 +128,6 @@ extern struct of_tetrads ***tetrads;
 extern double ***n2gens;
 extern int NPRIM, N1, N2, N3;
 extern int n_within_horizon;
-extern double ****gauss_rand_b;
 
 /* some coordinate parameters */
 extern int METRIC_sphMINK, METRIC_esphMINK;

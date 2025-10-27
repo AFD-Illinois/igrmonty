@@ -5,6 +5,8 @@
 #include <math.h>
 #include <time.h>
 
+double ****gauss_rand_b;
+
 void generate_grf_magnetic_field_cartesian(int N, double L, double L0, double amp_fac, double alpha, double**** grf_field);
 
 void sample_grf_magnetic_field(int N, double L, double r, double theta, double phi, double* B, double**** grf_field);

@@ -5,6 +5,7 @@
 #include <fftw3.h>
 #include <time.h>
 #include <omp.h>
+#include "grf_sampler.h"
 
 #define IDX(i,j,k) ((i)*N*N + (j)*N + (k))
 
