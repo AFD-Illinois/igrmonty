@@ -56,13 +56,15 @@ double jnu(double nu, double Ne, double Thetae, double B, double theta, radiatio
 #if SYNCHROTRON
  #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   j += jnu_kappa(nu, Ne, Thetae, B, theta, rpars);
- #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
+ #elif (MODEL_EDF==EDF_MAXWELL_JUTTNER) && (MODEL_EDF_ANISOTROPIC==1)
   if(anisotropy_synch){
     j += jnu_thermal_aniso(nu,Ne,Thetae,B,theta,rpars);
   }
   else{
     j += jnu_thermal(nu, Ne, Thetae, B, theta);
   }
+  #elif (MODEL_EDF==EDF_MAXWELL_JUTTNER)
+    j += jnu_thermal(nu, Ne, Thetae, B, theta);
  #elif MODEL_EDF==EDF_POWER_LAW
   j += jnu_powerlaw(nu, Ne, Thetae, B, theta);
  #else
@@ -119,7 +121,11 @@ double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *
  #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   intj += int_jnu_kappa(Ne, Thetae, B, nu, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
+   #if MODEL_EDF_ANISOTROPIC==1
+  intj += int_jnu_thermal(Ne, Thetae, B,nu);
+  #else
   intj += int_jnu_thermal(Ne, Thetae, B, nu);
+  #endif
  #elif MODEL_EDF==EDF_POWER_LAW
   intj += int_jnu_powerlaw(Ne, Thetae, B, nu);
  #else

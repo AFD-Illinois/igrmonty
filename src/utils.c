@@ -541,8 +541,8 @@ void summary(FILE *file, const char *prefix)
   else {
     double deltatime = time(NULL) - starttime;
     
-    double      nmade,  nscatt;
-    const char *umade, *uscatt;
+    double      nmade,  nscatt, nrecorded;
+    const char *umade, *uscatt, *urecorded;
 
     if (N_superph_made > 0.999e6) {
       nmade = N_superph_made / 1e6;
@@ -559,14 +559,22 @@ void summary(FILE *file, const char *prefix)
       nscatt = N_scatt / 1e3;
       uscatt = "k";
     }
+
+    if (N_superph_recorded > 0.999e6){
+      nrecorded = N_superph_recorded / 1e6;
+      urecorded = "M";
+    } else{
+      nrecorded = N_superph_recorded / 1e3;
+      urecorded = "k";
+    }
     
     fprintf(stderr,
             "%stime %gs, "
             "ph made %.3g%s, rate %.3gk/s, "
             "scatter %.3g%s, ratio %.3g "
-            "recorded %.3gk\n",
+            "recorded %.3g%s\n",
             prefix ? prefix : "", deltatime,
             nmade,  umade,  N_superph_made / deltatime / 1e3,
-            nscatt, uscatt, N_scatt / N_superph_made, N_superph_recorded/1e3);
+            nscatt, uscatt, N_scatt / N_superph_made, nrecorded, urecorded);
   }  
 }
