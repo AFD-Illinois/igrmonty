@@ -121,7 +121,7 @@ double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *
  #if (MODEL_EDF==EDF_KAPPA_FIXED) || (MODEL_EDF==EDF_KAPPA_VARIABLE)
   intj += int_jnu_kappa(Ne, Thetae, B, nu, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
-   #if MODEL_EDF_ANISOTROPIC==1
+  #if MODEL_EDF_ANISOTROPIC==1
   intj += int_jnu_thermal(Ne, Thetae, B,nu);
   #else
   intj += int_jnu_thermal(Ne, Thetae, B, nu);

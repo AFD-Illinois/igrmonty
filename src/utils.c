@@ -64,15 +64,16 @@ void init_model(int argc, char *argv[], Params *params)
   init_monty_rand(params->seed);
 }
 
-int n2gen = -1;
+int n2gen = INT_MIN;
 double dnmax;
 int zone_i, zone_j, zone_k;
 void make_super_photon(struct of_photon *ph, int *quit_flag)
 {
-  #ifdef EMIT_ORIGIN
-  if (n2gen < 0) {
+#ifdef EMIT_ORIGIN
+  if (n2gen == INT_MIN) {
     n2gen = (int)Ns;
   }
+  #pragma omp atomic
   n2gen--;
   if (n2gen < 0) {
     *quit_flag = 1;
@@ -282,25 +283,33 @@ int get_zone(int *i, int *j, int *k, double *dnmax)
 void sample_origin_photon(struct of_photon *ph)
 {
   double K_tetrad[NDIM], tmpK[NDIM], E;//, Nln;
-  double nu, /*th, */cth, sth, phi, sphi, cphi, /*jmax, */weight;
+  double nu, th, cth, sth, phi, sphi, cphi, /*jmax, */weight;
   //double Ne, Thetae, Bmag;//Ucon[NDIM], Bcon[NDIM], bhat[NDIM];
   static double Econ[NDIM][NDIM], Ecov[NDIM][NDIM];
+  
+  // set position at random position on a sphere about origin
+  cth = 2.*monty_rand() - 1.;
+  th = acos(cth);
+  sth = sqrt(1. - cth*cth);
+  phi = 2.*M_PI*monty_rand();
+  cphi = cos(phi);
+  sphi = sin(phi);
 
   if (METRIC_esphMINK){
     // Assume spherical coordinates
     ph->X[0] = 0.;
     // ph->X[1] = 2.e-5;
     ph->X[1] = log(0.1);
-    ph->X[2] = M_PI/2.;
-    ph->X[3] = 0.;
+    ph->X[2] = th;
+    ph->X[3] = phi;
   }
   else{
     // Assume spherical coordinates
     ph->X[0] = 0.;
     // ph->X[1] = 2.e-5;
     ph->X[1] = 0.1;
-    ph->X[2] = M_PI/2.;
-    ph->X[3] = 0.;
+    ph->X[2] = th;
+    ph->X[3] = phi;
   }
 
   // Sample intensity uniformly in frequency
@@ -308,25 +317,19 @@ void sample_origin_photon(struct of_photon *ph)
 	//nu = 5e12;
 	double thetae_core = 1e-8;
   double numax = Bnu_inv_maxfreq(thetae_core);
-	weight = 1e26*Bnu_inv(nu,thetae_core)/Bnu_inv(numax,thetae_core) * pow(nu/numax,3);
+	weight = WEIGHT_MIN*WEIGHT_MIN*Bnu_inv(nu,thetae_core)/Bnu_inv(numax,thetae_core) * pow(nu/numax,3);
 	//weight = Bnu_inv(nu,thetae_core);
 	//weight = get_Inu(nu)/get_Imax();
 
   ph->w = weight;
 
-  cth = 2.*monty_rand() - 1.;
-  //th = acos(cth);
-  sth = sqrt(1. - cth*cth);
-  phi = 2.*M_PI*monty_rand();
+  // these angles are for K_tetrad, which is NOT a cartesian basis. th=phi=0 give purely radial k^mu
+  th = 0.;
+  phi = 0.;
+  sth = sin(th);
+  cth = cos(th);
   cphi = cos(phi);
   sphi = sin(phi);
-
-  // double th = 0.;
-  // phi = 0.;
-  // sth = sin(th);
-  // cth = cos(th);
-  // cphi = cos(phi);
-  // sphi = sin(phi);
 
   E = nu*HPL/(ME*CL*CL);
   K_tetrad[0] = E;
@@ -491,7 +494,7 @@ void init_geometry()
       gcon_func(geom[i][j].gcov, geom[i][j].gcon);
       geom[i][j].g = gdet_func(geom[i][j].gcov);
 
-    }
+   }
   }
 }
 

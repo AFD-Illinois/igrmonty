@@ -224,7 +224,7 @@ int main(int argc, char *argv[])
       if (!quit_flag)
         make_super_photon(&ph, &quit_flag);
       if (quit_flag){
-        // printf("quitting immediately!\n");
+        // printf(stderr,"quitting immediately!\n");
         // continue;
         break;
       }
