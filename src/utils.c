@@ -369,6 +369,8 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   double nu, th, cth, sth, phi, sphi, cphi, jmax, weight;
   double Ne, Thetae, Bmag, Ucon[NDIM], Bcon[NDIM];
 
+  // fine for fast light, but set X[0] correctly for slow light
+  ph->X[0] = 0.0;
   ijktoX(i, j, k, ph->X);
 
   get_fluid_zone(i, j, k, &Ne, &Thetae, &Bmag, Ucon, Bcon);

@@ -102,7 +102,7 @@ void ijktoX(int i, int j, int k, double *X)
   // now transform to geodesic coordinates if necessary by first
   // converting to KS and then to destination coordinates (eKS).
   if (METRIC_eKS) {
-      double xKS[4] = { 0 };
+    double xKS[4] = { 0 };
     if (METRIC_MKS3) {
       double x0 = X[0];
       double x1 = X[1];
