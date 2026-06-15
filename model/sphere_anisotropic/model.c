@@ -338,7 +338,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 0.1;
+  return 0.2;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,

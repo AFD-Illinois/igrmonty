@@ -426,7 +426,9 @@ void sample_zone_photon(int i, int j, int k, double dnmax, struct of_photon *ph)
   weight = zone_linear_interp_weight(nu);
   
   ph->w = weight;
-  jmax = jnu(nu, Ne, Thetae, Bmag, M_PI / 2., &rpars);
+  // if anisotropy edf is used and pi/2 is not the maximal value, find maximizing theta and return jnu, else return pi/2
+  double th_max = jnu_maxtheta(nu,Ne,Thetae,Bmag,&rpars);
+  jmax = jnu(nu,Ne,Thetae,Bmag,th_max,&rpars);
   do {
     cth = 2. * monty_rand() - 1.;
     th = acos(cth);

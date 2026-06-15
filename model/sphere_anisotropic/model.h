@@ -16,7 +16,7 @@
 //2 Straub+ 2012 section 3.2.1
 //3 van Hoof 2015 + Nozawa 2009
 #define BREMSSTRAHLUNG (0)
-#define COMPTON (1)
+#define COMPTON (0)
 #define GRF_B_SAMPLING (0)
 
 // #define MODEL_TRANSPARENT (1)

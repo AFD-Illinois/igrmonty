@@ -172,7 +172,7 @@ double delta(int i, int j)
 		return (0.);
 }
 
-void lower(double *ucon, double Gcov[NDIM][NDIM], double *ucov)
+void lower(const double *ucon, double Gcov[NDIM][NDIM], double *ucov)
 {
 
 	ucov[0] = Gcov[0][0] * ucon[0]

@@ -21,10 +21,13 @@ good for Thetae > 1
 //      -> directly computes by calling from above. used to track spectrum components
 //   int_jnu(double Ne, double Thetae, double B, double nu)
 //      -> precomputed numerically, saved in table, then interpolated. used to get nsph / zone.
+//   jnu_maxtheta(double nu, double Ne, double Thetae, double B, radiation_params *)
+//      -> returns the value of theta that maximizes jnu
 
 // these functions are scoped here only and called from above "public" functions.
 static double jnu_thermal(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_thermal_aniso(double nu, double Ne, double Thetae, double B, double theta, radiation_params *);
+static double jnu_thermal_aniso_maxtheta(double R, double X);
 static double jnu_kappa(double, double, double, double, double, radiation_params *);
 static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta);
 static double jnu_bremss(double nu, double Ne, double Thetae);
@@ -122,6 +125,7 @@ double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *
   intj += int_jnu_kappa(Ne, Thetae, B, nu, rpars);
  #elif MODEL_EDF==EDF_MAXWELL_JUTTNER
   #if MODEL_EDF_ANISOTROPIC==1
+  // TODO put correct int_jnu for anisotropic case
   intj += int_jnu_thermal(Ne, Thetae, B,nu);
   #else
   intj += int_jnu_thermal(Ne, Thetae, B, nu);
@@ -145,6 +149,19 @@ double int_jnu(double Ne, double Thetae, double B, double nu, radiation_params *
   (void)int_jnu_thermal;
   (void)int_jnu_kappa;
   (void)int_jnu_powerlaw;
+}
+
+double jnu_maxtheta(double nu, double Ne, double Thetae, double B, radiation_params *rpars)
+{
+  #if SYNCHROTRON
+    #if MODEL_EDF==EDF_MAXWELL_JUTTNER
+      #if MODEL_EDF_ANISOTROPIC==1
+        double Xbar = nu/(2.0/9.0 * Thetae*Thetae * (EE*B/(2*M_PI*ME*CL)));
+        return jnu_thermal_aniso_maxtheta(rpars->tperp_over_tpar,Xbar);
+      #endif
+    #endif
+  #endif
+  return M_PI/2;
 }
 
 static double jnu_bremss(double nu, double Ne, double Thetae)
@@ -223,6 +240,7 @@ static double jnu_thermal(double nu, double Ne, double Thetae, double B,
   }
 
 	K2 = K2_eval(Thetae);
+  // K2 = gsl_sf_bessel_Kn(2, 1.0/Thetae);
 
 	nuc = EE * B / (2. * M_PI * ME * CL);
 	sth = sin(theta);
@@ -260,7 +278,9 @@ static double jnu_thermal_aniso(double nu, double Ne, double Theta_perp, double 
 
     // Evaluate modified Bessel function K2 at both temperatures
     K2_perp_star = K2_eval(Theta_perp_star);
+    // K2_perp_star = gsl_sf_bessel_Kn(2, 1.0 / Theta_perp_star);
     K2_perp = K2_eval(Theta_perp);
+    // K2_perp = gsl_sf_bessel_Kn(2, 1.0 / Theta_perp);
 
     // K_I factor
     KI = (Theta_perp_star / Theta_perp) * (K2_perp_star / K2_perp);
@@ -270,10 +290,35 @@ static double jnu_thermal_aniso(double nu, double Ne, double Theta_perp, double 
 
     // Final j_nu_TB
     j_tb = sqrt(R) * KI * j_iso_star;
-
     return j_tb;
 }
 
+/*
+Returns the value of theta_B that maximizes jnu_thermal_aniso
+*/
+static double jnu_thermal_aniso_maxtheta(double R, double Xbar){
+  double twopow = pow(2.0,11.0/12.0);
+  double x13 = pow(Xbar, 1.0 / 3.0);
+  double x23 = pow(Xbar, 2.0 / 3.0);
+
+  double p = (Xbar + (4.0 * twopow / 3.0) * x23 + (twopow * twopow / 3.0) * x13)
+          / (Xbar + 2.0 * twopow * x23 + (twopow * twopow) * x13)
+          - (1.0 / 3.0) * x13;
+  double sinsq;
+  // Xbar<1 guess by taking leading order term in F(Xbar)
+  if(Xbar<0.1){
+    if(R < 5.0/7.0){
+      sinsq = 2.0 * R / (5.0 * (1 - R));
+      return asin(sqrt(sinsq));
+    }
+  }
+  // Xbar>1 guess
+  else if (R < (2-p)/(3-2*p)){
+    sinsq = R*(1-p)/(p-2)/(R-1);
+    return asin(sqrt(sinsq));
+  }
+  return 0.5*M_PI;
+}
 
 static double jnu_powerlaw(double nu, double Ne, double Thetae, double B, double theta)
 {
