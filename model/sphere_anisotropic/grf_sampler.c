@@ -6,6 +6,7 @@
 #include <time.h>
 #include <omp.h>
 #include "grf_sampler.h"
+#if GRF_B_SAMPLING==1
 
 #define IDX(i,j,k) ((i)*N*N + (j)*N + (k))
 
@@ -280,3 +281,4 @@ double compute_amp_fac(int N, double L, double alpha, double L0, double B_rms_ta
 
     return amp_fac;
 }
+#endif
