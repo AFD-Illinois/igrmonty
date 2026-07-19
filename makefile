@@ -7,7 +7,7 @@ HDF5_DIR =
 GSL_DIR =
 # System /lib equivalent (can be /usr/lib, /lib64, /usr/lib64)
 # Can leave this blank if it's included automatically by GCC
-SYSTEM_LIBDIR = /lib64
+SYSTEM_LIBDIR = 
 LIBDIR = 
 
 # Try pointing this to h5pcc or h5cc on your machine, before hunting down libraries
@@ -25,6 +25,11 @@ EXE = grmonty
 # Executables which apparently aren't standard
 MD5=md5sum
 ECHO=echo -e
+
+#cautionary info message to successfully compile for gaussian random field sampling
+ifeq ($(strip $(MODEL)),sphere_anisotropic)
+$(info NOTE: if using Gaussian random field sampling, make sure fftw3 is loaded and compile with 'make MATH_LIB="-lm -lfftw3"')
+endif
 
 # Overrides of the above for macOS
 ifneq (,$(findstring Darwin,$(shell uname)))
@@ -68,7 +73,6 @@ LDFLAGS = $(CFLAGS)
 
 HDF5_LIB = -lhdf5_hl -lhdf5
 GSL_LIB = -lgsl -lgslcblas
-FFTW_LIB = -lfftw3
 
 ## LOGIC FOR PATHS ##
 CORE_DIR := $(MAKEFILE_PATH)/src/
@@ -87,7 +91,7 @@ OBJ := $(addprefix $(ARC_DIR)/, $(notdir $(SRC:%.c=%.o)))
 
 INC = -I$(ARC_DIR)
 LIBDIR =
-LIB = $(MATH_LIB) $(GSL_LIB) $(FFTW_LIB)
+LIB = $(MATH_LIB) $(GSL_LIB) 
 
 # Add HDF and MPI directories only if compiler doesn't
 ifneq ($(strip $(HDF5_DIR)),)
@@ -147,3 +151,4 @@ $(ARC_DIR)/%: % | $(ARC_DIR)
 
 $(ARC_DIR):
 	@mkdir $(ARC_DIR)
+
