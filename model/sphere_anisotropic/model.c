@@ -4,6 +4,7 @@
 #include "model.h"
 #if GRF_B_SAMPLING==1
 #include "grf_sampler.h"
+double ****gauss_rand_b;
 #endif
 // // fluid data
 // double ****bcon;
@@ -338,7 +339,7 @@ double get_model_beta(const double X[NDIM])
 
 double get_model_anisotropy_ratio(const double X[NDIM])
 {
-  return 0.2;
+  return 0.1;
 }
 
 void get_fluid_params(const double X[NDIM], double gcov[NDIM][NDIM], double *Ne,
